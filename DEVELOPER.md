@@ -7,6 +7,7 @@ This document summarizes information relevant to Java tally contributors.
 ### Prerequisites
 In order to build this project, you must have:
 - JDK-7 or later
+- Apache Thrift 0.9.x
 
 ### Building and testing
 Gradle is used to build tally. Run this from the top-level directory to build the project:

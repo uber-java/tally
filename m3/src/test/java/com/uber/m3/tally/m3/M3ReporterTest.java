@@ -18,10 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-include 'core', 'example', 'statsd', 'm3'
+package com.uber.m3.tally.m3;
 
-rootProject.name = 'tally'
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-rootProject.getChildren().each {
-    it.name = rootProject.name + '-' + it.name
+public class M3ReporterTest {
+    @BeforeClass
+    public static void start() {
+
+    }
+
+    @Before
+    public void setUp() {
+
+    }
+
+    @AfterClass
+    public static void stop() {
+
+    }
+
+    @Test
+    public void capabilities() {
+
+    }
 }

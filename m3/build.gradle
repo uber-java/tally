@@ -18,10 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-include 'core', 'example', 'statsd', 'm3'
+plugins {
+    id "org.jruyi.thrift" version "0.4.0"
+}
 
-rootProject.name = 'tally'
+description = 'tally M3 reporter'
 
-rootProject.getChildren().each {
-    it.name = rootProject.name + '-' + it.name
+dependencies {
+    compile('org.apache.thrift:libthrift:0.9.3')
+    compile project(':tally-core')
+}
+
+compileThrift {
+    generator 'java', 'private-members'
 }

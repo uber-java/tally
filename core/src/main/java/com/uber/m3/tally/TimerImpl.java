@@ -94,7 +94,7 @@ class TimerImpl implements Timer, StopwatchRecorder {
     }
 
     static class Values {
-        private ReadWriteLock rwlock = new ReentrantReadWriteLock();
+        private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
         private List<Duration> values = new ArrayList<>();
 
         Lock readLock() {

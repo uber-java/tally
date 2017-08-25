@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Default {@link Scope} implementation.
@@ -55,10 +54,10 @@ class ScopeImpl implements Scope {
     private Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
     private Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
-    private Lock counterAllocationLock = new ReentrantLock();
-    private Lock gaugeAllocationLock = new ReentrantLock();
-    private Lock timerAllocationLock = new ReentrantLock();
-    private Lock histogramAllocationLock = new ReentrantLock();
+    private final Object counterAllocationLock = new Object();
+    private final Object gaugeAllocationLock = new Object();
+    private final Object timerAllocationLock = new Object();
+    private final Object histogramAllocationLock = new Object();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -82,21 +81,19 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        counterAllocationLock.lock();
+        synchronized(counterAllocationLock) {
+            if (!counters.containsKey(name)) {
+                CachedCounter cachedCounter = null;
 
-        if (!counters.containsKey(name)) {
-            CachedCounter cachedCounter = null;
+                if (cachedReporter != null) {
+                    cachedCounter = cachedReporter.allocateCounter(fullyQualifiedName(name), tags);
+                }
 
-            if (cachedReporter != null) {
-                cachedCounter = cachedReporter.allocateCounter(fullyQualifiedName(name), tags);
+                counters.put(name, new CounterImpl(cachedCounter));
             }
 
-            counters.put(name, new CounterImpl(cachedCounter));
+            counter = counters.get(name);
         }
-
-        counter = counters.get(name);
-
-        counterAllocationLock.unlock();
 
         return counter;
     }
@@ -109,21 +106,19 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        gaugeAllocationLock.lock();
+        synchronized(gaugeAllocationLock) {
+            if (!gauges.containsKey(name)) {
+                CachedGauge cachedGauge = null;
 
-        if (!gauges.containsKey(name)) {
-            CachedGauge cachedGauge = null;
+                if (cachedReporter != null) {
+                    cachedGauge = cachedReporter.allocateGauge(fullyQualifiedName(name), tags);
+                }
 
-            if (cachedReporter != null) {
-                cachedGauge = cachedReporter.allocateGauge(fullyQualifiedName(name), tags);
+                gauges.put(name, new GaugeImpl(cachedGauge));
             }
 
-            gauges.put(name, new GaugeImpl(cachedGauge));
+            gauge = gauges.get(name);
         }
-
-        gauge = gauges.get(name);
-
-        gaugeAllocationLock.unlock();
 
         return gauge;
     }
@@ -136,23 +131,21 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        timerAllocationLock.lock();
+        synchronized(timerAllocationLock) {
+            if (!timers.containsKey(name)) {
+                CachedTimer cachedTimer = null;
 
-        if (!timers.containsKey(name)) {
-            CachedTimer cachedTimer = null;
+                String fullName = fullyQualifiedName(name);
 
-            String fullName = fullyQualifiedName(name);
+                if (cachedReporter != null) {
+                    cachedTimer = cachedReporter.allocateTimer(fullName, tags);
+                }
 
-            if (cachedReporter != null) {
-                cachedTimer = cachedReporter.allocateTimer(fullName, tags);
+                timers.put(name, new TimerImpl(fullName, tags, reporter, cachedTimer));
             }
 
-            timers.put(name, new TimerImpl(fullName, tags, reporter, cachedTimer));
+            timer = timers.get(name);
         }
-
-        timer = timers.get(name);
-
-        timerAllocationLock.unlock();
 
         return timer;
     }
@@ -169,23 +162,21 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        histogramAllocationLock.lock();
+        synchronized(histogramAllocationLock) {
+            if (!histograms.containsKey(name)) {
+                CachedHistogram cachedHistogram = null;
 
-        if (!histograms.containsKey(name)) {
-            CachedHistogram cachedHistogram = null;
+                String fullName = fullyQualifiedName(name);
 
-            String fullName = fullyQualifiedName(name);
+                if (cachedReporter != null) {
+                    cachedHistogram = cachedReporter.allocateHistogram(fullName, tags, buckets);
+                }
 
-            if (cachedReporter != null) {
-                cachedHistogram = cachedReporter.allocateHistogram(fullName, tags, buckets);
+                histograms.put(name, new HistogramImpl(fullName, tags, reporter, buckets, cachedHistogram));
             }
 
-            histograms.put(name, new HistogramImpl(fullName, tags, reporter, buckets, cachedHistogram));
+            histogram = histograms.get(name);
         }
-
-        histogram = histograms.get(name);
-
-        histogramAllocationLock.unlock();
 
         return histogram;
     }
@@ -398,25 +389,25 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        registry.allocationLock.lock();
+        Scope subscope;
 
-        if (!registry.subscopes.containsKey(key)) {
-            registry.subscopes.put(
-                key,
-                new ScopeBuilder(scheduler, registry)
-                    .reporter(reporter)
-                    .cachedReporter(cachedReporter)
-                    .prefix(prefix)
-                    .separator(separator)
-                    .tags(mergedTags)
-                    .defaultBuckets(defaultBuckets)
-                    .build()
-            );
+        synchronized(registry.allocationLock) {
+            if (!registry.subscopes.containsKey(key)) {
+                registry.subscopes.put(
+                    key,
+                    new ScopeBuilder(scheduler, registry)
+                        .reporter(reporter)
+                        .cachedReporter(cachedReporter)
+                        .prefix(prefix)
+                        .separator(separator)
+                        .tags(mergedTags)
+                        .defaultBuckets(defaultBuckets)
+                        .build()
+                );
+            }
+
+            subscope = registry.subscopes.get(key);
         }
-
-        Scope subscope = registry.subscopes.get(key);
-
-        registry.allocationLock.unlock();
 
         return subscope;
     }
@@ -445,7 +436,7 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        Lock allocationLock = new ReentrantLock();
+        final Object allocationLock = new Object();
         Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

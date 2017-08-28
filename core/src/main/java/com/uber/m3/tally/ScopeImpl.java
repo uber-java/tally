@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.locks.Lock;
 
 /**
  * Default {@link Scope} implementation.
@@ -81,7 +80,7 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        synchronized(counterAllocationLock) {
+        synchronized (counterAllocationLock) {
             if (!counters.containsKey(name)) {
                 CachedCounter cachedCounter = null;
 
@@ -106,7 +105,7 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        synchronized(gaugeAllocationLock) {
+        synchronized (gaugeAllocationLock) {
             if (!gauges.containsKey(name)) {
                 CachedGauge cachedGauge = null;
 
@@ -131,7 +130,7 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        synchronized(timerAllocationLock) {
+        synchronized (timerAllocationLock) {
             if (!timers.containsKey(name)) {
                 CachedTimer cachedTimer = null;
 
@@ -162,7 +161,7 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        synchronized(histogramAllocationLock) {
+        synchronized (histogramAllocationLock) {
             if (!histograms.containsKey(name)) {
                 CachedHistogram cachedHistogram = null;
 
@@ -391,7 +390,7 @@ class ScopeImpl implements Scope {
 
         Scope subscope;
 
-        synchronized(registry.allocationLock) {
+        synchronized (registry.allocationLock) {
             if (!registry.subscopes.containsKey(key)) {
                 registry.subscopes.put(
                     key,

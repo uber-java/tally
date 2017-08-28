@@ -39,7 +39,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     public final Object receiveLock = new Object();
     public final Object sendLock = new Object();
 
-    protected final DatagramSocket socket = new DatagramSocket(null);;
+    protected final DatagramSocket socket = new DatagramSocket(null);
     protected byte[] receiveBuf;
     protected int receiveOffSet = -1;
     protected int receiveLength = 0;

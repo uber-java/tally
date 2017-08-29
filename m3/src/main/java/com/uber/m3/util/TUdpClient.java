@@ -33,6 +33,10 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
         super(host, port);
     }
 
+    public TUdpClient(String hostPort) throws SocketException {
+        super(hostPort);
+    }
+
     @Override
     public void open() throws TTransportException {
         try {

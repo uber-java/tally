@@ -53,6 +53,21 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         this.port = port;
     }
 
+    protected TUdpTransport(String hostPort) throws SocketException {
+        try {
+            int colonIdx = hostPort.lastIndexOf(':');
+
+            if (colonIdx == -1) {
+                throw new IllegalArgumentException();
+            }
+
+            this.host = hostPort.substring(0, colonIdx);
+            this.port = Integer.parseInt(hostPort.substring(colonIdx + 1));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid host/port argument: " + hostPort, e);
+        }
+    }
+
     @Override
     public boolean isOpen() {
         return !socket.isClosed();

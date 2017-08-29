@@ -48,15 +48,10 @@ class ScopeImpl implements Scope {
     // performance upside to the consequence of reporting a newly-made metric in
     // the middle of looping and reporting through all metrics. Therefore, locks
     // are generally only used when having to allocate new metrics.
-    private Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
-    private Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
-    private Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
-    private Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
-
-    private final Object counterAllocationLock = new Object();
-    private final Object gaugeAllocationLock = new Object();
-    private final Object timerAllocationLock = new Object();
-    private final Object histogramAllocationLock = new Object();
+    private final Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
+    private final Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
+    private final Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
+    private final Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -80,7 +75,7 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        synchronized (counterAllocationLock) {
+        synchronized (counters) {
             if (!counters.containsKey(name)) {
                 CachedCounter cachedCounter = null;
 
@@ -105,7 +100,7 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        synchronized (gaugeAllocationLock) {
+        synchronized (gauges) {
             if (!gauges.containsKey(name)) {
                 CachedGauge cachedGauge = null;
 
@@ -130,7 +125,7 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        synchronized (timerAllocationLock) {
+        synchronized (timers) {
             if (!timers.containsKey(name)) {
                 CachedTimer cachedTimer = null;
 
@@ -161,7 +156,7 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        synchronized (histogramAllocationLock) {
+        synchronized (histograms) {
             if (!histograms.containsKey(name)) {
                 CachedHistogram cachedHistogram = null;
 

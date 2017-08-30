@@ -35,25 +35,30 @@ public class ObjectPool<E> {
         objects = new ArrayBlockingQueue<>(capacity, fair);
 
         this.construct = construct;
-    }
 
-    public void init() {
         for (int i = 0; i < objects.size(); i++) {
             objects.add(construct.instance());
         }
     }
 
-    public E get() throws InterruptedException {
+    public E get() {
         if (objects.isEmpty()) {
             // Rather than block
             return construct.instance();
         }
 
-        return objects.take();
+        try {
+            return objects.take();
+        } catch (InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
-    public void put(E element) throws InterruptedException {
-        // Should in practice never block because
-        objects.put(element);
+    public void put(E element) {
+        try {
+            objects.put(element);
+        } catch (InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

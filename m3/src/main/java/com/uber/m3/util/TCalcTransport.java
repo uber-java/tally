@@ -49,12 +49,22 @@ public class TCalcTransport extends TTransport {
 
     @Override
     public void write(byte[] bytes, int i, int len) throws TTransportException {
-        this.count += len;
+        count += len;
+    }
+
+    public int getCountAndReset() {
+        int currentCount = count;
+
+        resetCount();
+
+        return currentCount;
     }
 
     public int getCount() {
-        int tmp = this.count;
-        this.count = 0;
-        return tmp;
+        return count;
+    }
+
+    public void resetCount() {
+        count = 0;
     }
 }

@@ -71,7 +71,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private static final int DEFAULT_MAX_PACKET_SIZE = 1440;
 
     private static final int THREAD_POOL_SIZE = 8;
-    private static final long THREAD_POOL_KEEPALIVE_SECS = 60;
 
     private static final String SERVICE_TAG = "service";
     private static final String ENV_TAG = "env";
@@ -158,7 +157,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             calcProtocol = protocolFactory.getProtocol(new TCalcTransport());
             metricBatch.write(calcProtocol);
             calc = (TCalcTransport) calcProtocol.getTransport();
-            int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + calc.getCount();
+            int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + calc.getCountAndReset();
 
             freeBytes = builder.maxPacketSizeBytes - numOverheadBytes;
             if (freeBytes <= 0) {
@@ -295,7 +294,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             synchronized (calcLock) {
                 metric.write(calcProtocol);
 
-                return calc.getCount();
+                return calc.getCountAndReset();
             }
         } catch (TException e) {
             //TODO log exception?

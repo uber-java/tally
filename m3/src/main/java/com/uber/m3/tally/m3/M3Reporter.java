@@ -56,14 +56,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 
+/**
+ * An M3 reporter
+ */
 public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private static final int DEFAULT_METRIC_SIZE = 100;
 
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
     private static final int DEFAULT_MAX_PACKET_SIZE = 1440;
+
+    private static final int THREAD_POOL_SIZE = 8;
+    private static final long THREAD_POOL_KEEPALIVE_SECS = 60;
 
     private static final String SERVICE_TAG = "service";
     private static final String ENV_TAG = "env";
@@ -94,7 +102,9 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     private BlockingQueue<SizedMetric> metricQueue;
     private Phaser phaser = new Phaser(1);
+    private ExecutorService executor;
 
+    // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
         try {
             // Builder verifies non-null, non-empty hostPorts
@@ -161,10 +171,18 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
             metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            //TODO add to Phaser
+            executor = builder.executor;
+
+            addAndRunProcessor();
         } catch (Exception e) {
             throw new IllegalArgumentException("Exception creating M3Reporter", e);
         }
+    }
+
+    public void addAndRunProcessor() {
+        phaser.register();
+
+        executor.execute(new Processor());
     }
 
     @Override
@@ -323,46 +341,49 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    private void process() {
-        try {
-            List<Metric> metrics = new ArrayList<>(freeBytes / 10);
-            int bytes = 0;
+    private class Processor implements Runnable {
+        @Override
+        public void run() {
+            try {
+                List<Metric> metrics = new ArrayList<>(freeBytes / 10);
+                int bytes = 0;
 
-            while (!metricQueue.isEmpty()) {
-                SizedMetric sizedMetric = metricQueue.poll();
-                Metric metric = sizedMetric.getMetric();
+                while (!metricQueue.isEmpty()) {
+                    SizedMetric sizedMetric = metricQueue.poll();
+                    Metric metric = sizedMetric.getMetric();
 
-                if (metric == null) {
-                    // Explicit flush requested
-                    if (metrics.size() > 0) {
+                    if (metric == null) {
+                        // Explicit flush requested
+                        if (metrics.size() > 0) {
+                            metrics.clear();
+                            bytes = 0;
+                        }
+
+                        continue;
+                    }
+
+                    int size = sizedMetric.getSize();
+
+                    if (bytes + size > freeBytes) {
+                        flush(metrics);
                         metrics.clear();
                         bytes = 0;
                     }
 
-                    continue;
+                    metrics.add(metric);
+                    bytes += size;
                 }
 
-                int size = sizedMetric.getSize();
-
-                if (bytes + size > freeBytes) {
+                if (metrics.size() > 0) {
+                    // Final flush
                     flush(metrics);
-                    metrics.clear();
-                    bytes = 0;
                 }
-
-                metrics.add(metric);
-                bytes += size;
+            } catch (TException e) {
+                throw new IllegalStateException("Bad client state. Metrics to fail to flush", e);
+            } finally {
+                // Always arrive at phaser to prevent deadlock
+                phaser.arrive();
             }
-
-            if (metrics.size() > 0) {
-                // Final flush
-                flush(metrics);
-            }
-        } catch (TException e) {
-            throw new IllegalStateException("Bad client state. Metrics to fail to flush", e);
-        } finally {
-            // Always arrive at phaser to prevent deadlock
-            phaser.arrive();
         }
     }
 
@@ -413,14 +434,18 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         private String[] hostPorts;
         private String service;
         private String env;
-        private ImmutableMap<String, String> commonTags;
+        // Non-generic EMPTY ImmutableMap will never contain any elements
+        @SuppressWarnings("unchecked")
+        private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
         private boolean includeHost;
-        private ThriftProtocol protocol;
+        private ThriftProtocol protocol = ThriftProtocol.COMPACT;
         private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
         private String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         private String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         private int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
+
+        private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
         public Builder(String[] hostPorts) {
             if (hostPorts == null || hostPorts.length == 0) {
@@ -486,6 +511,12 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
         public Builder histogramBucketTagPrecision(int histogramBucketTagPrecision) {
             this.histogramBucketTagPrecision = histogramBucketTagPrecision;
+
+            return this;
+        }
+
+        public Builder executor(ExecutorService executor) {
+            this.executor = executor;
 
             return this;
         }

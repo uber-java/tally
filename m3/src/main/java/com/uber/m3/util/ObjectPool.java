@@ -23,14 +23,32 @@ package com.uber.m3.util;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+/**
+ * An object pool used to reduce the number of objects required to be allocated
+ * and subsequently garbage-collected.
+ * @param <E> the type of object this is a pool of
+ */
 public class ObjectPool<E> {
     private BlockingQueue<E> objects;
     private Construct<E> construct;
 
+    /**
+     * Initializes an {@link ObjectPool} and preallocates objects in it up to capacity.
+     * Defaults fair-ness (FIFO for requests) to false. This improves throughput
+     * with the slight chance of starvation.
+     * @param capacity  capacity of this pool
+     * @param construct the constructor of E
+     */
     public ObjectPool(int capacity, Construct<E> construct) {
         this(capacity, construct, false);
     }
 
+    /**
+     * Initializes an {@link ObjectPool} and preallocates objects in it up to capacity.
+     * @param capacity  capacity of this pool
+     * @param construct the constructor of E
+     * @param fair      whether the pool is fair (FIFO for requests)
+     */
     public ObjectPool(int capacity, Construct<E> construct, boolean fair) {
         objects = new ArrayBlockingQueue<>(capacity, fair);
 
@@ -41,24 +59,36 @@ public class ObjectPool<E> {
         }
     }
 
+    /**
+     * Gets an object from the pool. If the pool is empty, it will create and return
+     * a new instance instead of blocking until a new
+     * @return an object from the pool
+     */
     public E get() {
         if (objects.isEmpty()) {
-            // Rather than block
+            // Rather than block, return a newly a newly created instance instead
             return construct.instance();
         }
 
         try {
             return objects.take();
         } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
+            Thread.currentThread().interrupt();
+
+            return construct.instance();
         }
     }
 
-    public void put(E element) {
-        try {
-            objects.put(element);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        }
+    /**
+     * Puts an object back into the pool.
+     * @param element the element to put back
+     * @return whether the element got put back or not
+     */
+    public boolean put(E element) {
+        // Use offer instead of put (which blocks until there is space), because a full
+        // ObjectPool is a fine state to be in. We can get into this state because the
+        // get() function will create a new instance instead of waiting for an object
+        // to be in the pool.
+        return objects.offer(element);
     }
 }

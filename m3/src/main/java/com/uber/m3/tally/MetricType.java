@@ -20,6 +20,9 @@
 
 package com.uber.m3.tally;
 
+/**
+ * Enum of the type of metric.
+ */
 public enum MetricType {
     COUNTER,
     GAUGE,

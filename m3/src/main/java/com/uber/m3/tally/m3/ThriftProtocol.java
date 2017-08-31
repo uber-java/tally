@@ -20,6 +20,9 @@
 
 package com.uber.m3.tally.m3;
 
+/**
+ * Enum of Thrift protocols.
+ */
 public enum ThriftProtocol {
     COMPACT,
     BINARY

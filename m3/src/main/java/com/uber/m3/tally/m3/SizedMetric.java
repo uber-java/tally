@@ -22,20 +22,36 @@ package com.uber.m3.tally.m3;
 
 import com.uber.m3.thrift.generated.Metric;
 
+/**
+ * A metric along with its associated size.
+ */
 public class SizedMetric extends Metric {
     private Metric metric;
     private int size;
 
+    /**
+     * Creates a new {@link SizedMetric} with the given metric and size.
+     * @param metric the metric
+     * @param size   the size of this metric
+     */
     public SizedMetric(Metric metric, int size) {
         // Recreate metric to prevent underlying metric from being modified
         this.metric = new Metric(metric);
         this.size = size;
     }
 
+    /**
+     * Returns the metric.
+     * @return the metric
+     */
     public Metric getMetric() {
         return metric;
     }
 
+    /**
+     * Returns the size of this metric.
+     * @return the size of this metric
+     */
     public int getSize() {
         return size;
     }

@@ -60,7 +60,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 
 /**
- * An M3 reporter
+ * An M3 reporter.
  */
 public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private static final int DEFAULT_METRIC_SIZE = 100;
@@ -83,7 +83,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     private M3.Client client;
 
-    private MetricBatch metricBatch;
+    private final MetricBatch metricBatch;
 
     private final Object calcLock = new Object();
     private TCalcTransport calc;
@@ -173,7 +173,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    public void addAndRunProcessor() {
+    private void addAndRunProcessor() {
         phaser.register();
 
         executor.execute(new Processor());
@@ -216,18 +216,20 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         try {
             metricQueue.put(new SizedMetric(null, 0));
         } catch (InterruptedException e) {
-            //TODO log exception?
+            throw new RuntimeException(e);
         }
     }
 
     private List<Metric> flush(List<Metric> metrics) throws TException {
+        TException exception = null;
+
         synchronized (metricBatch) {
             metricBatch.setMetrics(metrics);
 
             try {
                 client.emitMetricBatch(metricBatch);
             } catch (TException e) {
-                //TODO log exception?
+                exception = e;
             }
 
             metricBatch.setMetrics(null);
@@ -236,6 +238,10 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         resourcePool.releaseShallowMetrics(metrics);
 
         metrics.clear();
+
+        if (exception != null) {
+            throw exception;
+        }
 
         return metrics;
     }
@@ -292,7 +298,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         return metricTagSet;
     }
 
-    public MetricTag createMetricTag(String tagName, String tagValue) {
+    private MetricTag createMetricTag(String tagName, String tagValue) {
         MetricTag metricTag = resourcePool.getMetricTag();
         metricTag.setTagName(tagName);
 
@@ -311,7 +317,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 return calc.getCountAndReset();
             }
         } catch (TException e) {
-            //TODO log exception?
             return DEFAULT_METRIC_SIZE;
         }
     }
@@ -351,7 +356,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         try {
             metricQueue.put(new SizedMetric(metricCopy, size));
         } catch (InterruptedException e) {
-            //TODO log exception?
+            throw new RuntimeException(e);
         }
     }
 
@@ -392,7 +397,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                     flush(metrics);
                 }
             } catch (TException e) {
-                throw new IllegalStateException("Bad client state. Metrics to fail to flush", e);
+                throw new RuntimeException("Failed to emit metrics", e);
             } finally {
                 // Always arrive at phaser to prevent deadlock
                 phaser.arrive();
@@ -410,7 +415,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    public class CachedCounterImpl extends CachedMetric implements CachedCounter {
+    private class CachedCounterImpl extends CachedMetric implements CachedCounter {
         private CachedCounterImpl(Metric metric, int size) {
             super(metric, size);
         }
@@ -421,7 +426,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    public class CachedGaugeImpl extends CachedMetric implements CachedGauge {
+    private class CachedGaugeImpl extends CachedMetric implements CachedGauge {
         private CachedGaugeImpl(Metric metric, int size) {
             super(metric, size);
         }
@@ -432,7 +437,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    public class CachedTimerImpl extends CachedMetric implements CachedTimer {
+    private class CachedTimerImpl extends CachedMetric implements CachedTimer {
         private CachedTimerImpl(Metric metric, int size) {
             super(metric, size);
         }
@@ -443,6 +448,9 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
+    /**
+     * Builder pattern to construct an {@link M3Reporter}.
+     */
     public static class Builder {
         private String[] hostPorts;
         private String service;
@@ -460,6 +468,10 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
         private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
+        /**
+         * Constructs a {@link Builder}. Having at least one host/port is required.
+         * @param hostPorts the array of host/ports
+         */
         public Builder(String[] hostPorts) {
             if (hostPorts == null || hostPorts.length == 0) {
                 throw new IllegalArgumentException("Must specify at least one host port");
@@ -468,72 +480,131 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             this.hostPorts = hostPorts;
         }
 
+        /**
+         * Configures the service of this {@link Builder}.
+         * @param service the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder service(String service) {
             this.service = service;
 
             return this;
         }
 
+        /**
+         * Configures the env of this {@link Builder}.
+         * @param env the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder env(String env) {
             this.env = env;
 
             return this;
         }
 
+        /**
+         * Configures the common tags of this {@link Builder}.
+         * @param commonTags the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder commonTags(ImmutableMap<String, String> commonTags) {
             this.commonTags = commonTags;
 
             return this;
         }
 
+        /**
+         * Configures whether to include the host tag of this {@link Builder}.
+         * @param includeHost the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder includeHost(boolean includeHost) {
             this.includeHost = includeHost;
 
             return this;
         }
 
+        /**
+         * Configures the protocol of this {@link Builder}.
+         * @param protocol the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder protocol(ThriftProtocol protocol) {
             this.protocol = protocol;
 
             return this;
         }
 
+        /**
+         * Configures the maximum queue size of this {@link Builder}.
+         * @param maxQueueSize the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder maxQueueSize(int maxQueueSize) {
             this.maxQueueSize = maxQueueSize;
 
             return this;
         }
 
+        /**
+         * Configures the maximum packet size in bytes of this {@link Builder}.
+         * @param maxPacketSizeBytes the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder maxPacketSizeBytes(int maxPacketSizeBytes) {
             this.maxPacketSizeBytes = maxPacketSizeBytes;
 
             return this;
         }
 
+        /**
+         * Configures the histogram bucket ID name of this {@link Builder}.
+         * @param histogramBucketIdName the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder histogramBucketIdName(String histogramBucketIdName) {
             this.histogramBucketIdName = histogramBucketIdName;
 
             return this;
         }
 
+        /**
+         * Configures the histogram bucket name of this {@link Builder}.
+         * @param histogramBucketName the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder histogramBucketName(String histogramBucketName) {
             this.histogramBucketName = histogramBucketName;
 
             return this;
         }
 
+        /**
+         * Configures the histogram bucket tag precision of this {@link Builder}.
+         * @param histogramBucketTagPrecision the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder histogramBucketTagPrecision(int histogramBucketTagPrecision) {
             this.histogramBucketTagPrecision = histogramBucketTagPrecision;
 
             return this;
         }
 
+        /**
+         * Configures the executor service of this {@link Builder}.
+         * @param executor the value to set
+         * @return this {@link Builder} with the new value set
+         */
         public Builder executor(ExecutorService executor) {
             this.executor = executor;
 
             return this;
         }
 
+        /**
+         * Builds and returns an {@link M3Reporter} with the configured paramters.
+         * @return a new {@link M3Reporter} instance with the configured paramters
+         */
         public M3Reporter build() {
             return new M3Reporter(this);
         }

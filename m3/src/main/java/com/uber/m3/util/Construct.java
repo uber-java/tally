@@ -20,6 +20,14 @@
 
 package com.uber.m3.util;
 
+/**
+ * A wrapper around a constructor for the type E.
+ * @param <E> the type this constructor instantiates
+ */
 public interface Construct<E> {
+    /**
+     * Returns a new instance of E.
+     * @return a new instance of E
+     */
     E instance();
 }

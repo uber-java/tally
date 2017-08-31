@@ -36,6 +36,9 @@ import org.apache.thrift.protocol.TProtocolFactory;
 import java.util.HashSet;
 import java.util.List;
 
+/**
+ * A collection of {@link ObjectPool}s used for the {@link M3Reporter}.
+ */
 public class ResourcePool {
     private static final int BATCH_POOL_SIZE = 10;
     private static final int PROTOCOL_POOL_SIZE = 10;
@@ -49,6 +52,11 @@ public class ResourcePool {
     private ObjectPool<TimerValue> timerValuePool;
     private ObjectPool<TProtocol> protocolPool;
 
+    /**
+     * Creates a {@link ResourcePool}, initializing all its inner pools.
+     * @param maxQueueSize    the maximum metric queue size
+     * @param protocolFactory a factory to create the {@link TProtocol} we want
+     */
     ResourcePool(int maxQueueSize, final TProtocolFactory protocolFactory) {
         metricBatchPool = new ObjectPool<>(BATCH_POOL_SIZE, new Construct<MetricBatch>() {
             @Override
@@ -107,48 +115,94 @@ public class ResourcePool {
         });
     }
 
+    /**
+     * Returns a {@link MetricBatch} from the pool.
+     * @return a {@link MetricBatch} from the pool
+     */
     public MetricBatch getMetricBatch() {
         return metricBatchPool.get();
     }
 
+    /**
+     * Returns a {@link Metric} from the pool.
+     * @return a {@link Metric} from the pool
+     */
     public Metric getMetric() {
         return metricPool.get();
     }
 
+    /**
+     * Returns an empty {@code Set} of {@link MetricTag}s.
+     * @return an empty {@code Set} of {@link MetricTag}s
+     */
     public HashSet<MetricTag> getTagList() {
         return new HashSet<>();
     }
 
+    /**
+     * Returns a {@link MetricTag} from the pool.
+     * @return a {@link MetricTag} from the pool
+     */
     public MetricTag getMetricTag() {
         return metricTagPool.get();
     }
 
+    /**
+     * Returns a {@link MetricValue} from the pool.
+     * @return a {@link MetricValue} from the pool
+     */
     public MetricValue getMetricValue() {
         return metricValuePool.get();
     }
 
+    /**
+     * Returns a {@link CountValue} from the pool.
+     * @return a {@link CountValue} from the pool
+     */
     public CountValue getCountValue() {
         return counterValuePool.get();
     }
 
+    /**
+     * Returns a {@link GaugeValue} from the pool.
+     * @return a {@link GaugeValue} from the pool
+     */
     public GaugeValue getGaugeValue() {
         return gaugeValuePool.get();
     }
 
+    /**
+     * Returns a {@link TimerValue} from the pool.
+     * @return a {@link TimerValue} from the pool
+     */
     public TimerValue getTimerValue() {
         return timerValuePool.get();
     }
 
+    /**
+     * Returns a {@link TProtocol} from the pool.
+     * @return a {@link TProtocol} from the pool
+     */
     public TProtocol getProtocol() {
         return protocolPool.get();
     }
 
+    /**
+     * Puts the given {@link TProtocol} back to the pool, reseting the
+     * {@link TCalcTransport} internal count.
+     * @param protocol the {@link TProtocol} to put back to the pool
+     */
     public void releaseProtocol(TProtocol protocol) {
         ((TCalcTransport) protocol.getTransport()).resetCount();
 
         protocolPool.put(protocol);
     }
 
+    /**
+     * Puts the given {@link MetricBatch} back to the pool after reseting inner
+     * values and releasing each of its internal {@link Metric}s as well.
+     * @param metricBatch the {@link MetricBatch} to put back to the pool
+     */
     public void releaseMetricBatch(MetricBatch metricBatch) {
         metricBatch.setCommonTags(null);
 
@@ -161,6 +215,11 @@ public class ResourcePool {
         metricBatchPool.put(metricBatch);
     }
 
+    /**
+     * Puts the given {@link Metric} back to the pool after reseting its
+     * internal attributes.
+     * @param metric the {@link Metric} to put back to the pool
+     */
     public void releaseMetric(Metric metric) {
         metric.setName("");
 
@@ -175,6 +234,11 @@ public class ResourcePool {
         releaseShallowMetric(metric);
     }
 
+    /**
+     * Puts a tag-less {@link Metric} back to the pool as well as
+     * its {@link MetricValue}.
+     * @param metric the {@link Metric} to put back to the pool
+     */
     public void releaseShallowMetric(Metric metric) {
         metric.setTimestamp(0);
 
@@ -191,12 +255,21 @@ public class ResourcePool {
         metricPool.put(metric);
     }
 
+    /**
+     * Puts a list of metrics back to the pool.
+     * @param metrics the list of metrics to put back to the pool
+     */
     public void releaseShallowMetrics(List<Metric> metrics) {
         for (Metric metric : metrics) {
             releaseShallowMetric(metric);
         }
     }
 
+    /**
+     * Puts the given {@link MetricValue} back to the pool after reseting its
+     * internal attributes and values.
+     * @param metricValue the {@link MetricValue} to put back to the pool
+     */
     public void releaseMetricValue(MetricValue metricValue) {
         if (metricValue.isSetCount()) {
             metricValue.getCount().setI64Value(0);

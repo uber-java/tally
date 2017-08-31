@@ -34,6 +34,7 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 
 import java.util.HashSet;
+import java.util.List;
 
 public class ResourcePool {
     private static final int BATCH_POOL_SIZE = 10;
@@ -41,11 +42,11 @@ public class ResourcePool {
 
     private ObjectPool<MetricBatch> metricBatchPool;
     private ObjectPool<Metric> metricPool;
-    private ObjectPool<MetricTag> tagPool;
+    private ObjectPool<MetricTag> metricTagPool;
     private ObjectPool<MetricValue> metricValuePool;
-    private ObjectPool<CountValue> counterPool;
-    private ObjectPool<GaugeValue> gaugePool;
-    private ObjectPool<TimerValue> timerPool;
+    private ObjectPool<CountValue> counterValuePool;
+    private ObjectPool<GaugeValue> gaugeValuePool;
+    private ObjectPool<TimerValue> timerValuePool;
     private ObjectPool<TProtocol> protocolPool;
 
     ResourcePool(int maxQueueSize, final TProtocolFactory protocolFactory) {
@@ -63,7 +64,7 @@ public class ResourcePool {
             }
         });
 
-        tagPool = new ObjectPool<>(maxQueueSize, new Construct<MetricTag>() {
+        metricTagPool = new ObjectPool<>(maxQueueSize, new Construct<MetricTag>() {
             @Override
             public MetricTag instance() {
                 return new MetricTag();
@@ -77,21 +78,21 @@ public class ResourcePool {
             }
         });
 
-        counterPool = new ObjectPool<>(maxQueueSize, new Construct<CountValue>() {
+        counterValuePool = new ObjectPool<>(maxQueueSize, new Construct<CountValue>() {
             @Override
             public CountValue instance() {
                 return new CountValue();
             }
         });
 
-        gaugePool = new ObjectPool<>(maxQueueSize, new Construct<GaugeValue>() {
+        gaugeValuePool = new ObjectPool<>(maxQueueSize, new Construct<GaugeValue>() {
             @Override
             public GaugeValue instance() {
                 return new GaugeValue();
             }
         });
 
-        timerPool = new ObjectPool<>(maxQueueSize, new Construct<TimerValue>() {
+        timerValuePool = new ObjectPool<>(maxQueueSize, new Construct<TimerValue>() {
             @Override
             public TimerValue instance() {
                 return new TimerValue();
@@ -106,7 +107,7 @@ public class ResourcePool {
         });
     }
 
-    public MetricBatch getBatch() {
+    public MetricBatch getMetricBatch() {
         return metricBatchPool.get();
     }
 
@@ -118,24 +119,24 @@ public class ResourcePool {
         return new HashSet<>();
     }
 
-    public MetricTag getTag() {
-        return tagPool.get();
+    public MetricTag getMetricTag() {
+        return metricTagPool.get();
     }
 
-    public MetricValue getValue() {
+    public MetricValue getMetricValue() {
         return metricValuePool.get();
     }
 
-    public CountValue getCounter() {
-        return counterPool.get();
+    public CountValue getCountValue() {
+        return counterValuePool.get();
     }
 
-    public GaugeValue getGauge() {
-        return gaugePool.get();
+    public GaugeValue getGaugeValue() {
+        return gaugeValuePool.get();
     }
 
-    public TimerValue getTimer() {
-        return timerPool.get();
+    public TimerValue getTimerValue() {
+        return timerValuePool.get();
     }
 
     public TProtocol getProtocol() {
@@ -148,7 +149,7 @@ public class ResourcePool {
         protocolPool.put(protocol);
     }
 
-    public void releaseBatch(MetricBatch metricBatch) {
+    public void releaseMetricBatch(MetricBatch metricBatch) {
         metricBatch.setCommonTags(null);
 
         for (Metric metric : metricBatch.getMetrics()) {
@@ -166,7 +167,7 @@ public class ResourcePool {
         for (MetricTag tag : metric.getTags()) {
             tag.setTagName("");
             tag.setTagValue(null);
-            tagPool.put(tag);
+            metricTagPool.put(tag);
         }
 
         metric.setTags(null);
@@ -190,25 +191,31 @@ public class ResourcePool {
         metricPool.put(metric);
     }
 
+    public void releaseShallowMetrics(List<Metric> metrics) {
+        for (Metric metric : metrics) {
+            releaseShallowMetric(metric);
+        }
+    }
+
     public void releaseMetricValue(MetricValue metricValue) {
         if (metricValue.isSetCount()) {
             metricValue.getCount().setI64Value(0);
 
-            counterPool.put(metricValue.getCount());
+            counterValuePool.put(metricValue.getCount());
 
             metricValue.unsetCount();
         } else if (metricValue.isSetGauge()) {
             metricValue.getGauge().setI64Value(0);
             metricValue.getGauge().setDValue(0);
 
-            gaugePool.put(metricValue.getGauge());
+            gaugeValuePool.put(metricValue.getGauge());
 
             metricValue.unsetGauge();
         } else if (metricValue.isSetTimer()) {
             metricValue.getTimer().setI64Value(0);
             metricValue.getTimer().setDValue(0);
 
-            timerPool.put(metricValue.getTimer());
+            timerValuePool.put(metricValue.getTimer());
 
             metricValue.unsetTimer();
         }

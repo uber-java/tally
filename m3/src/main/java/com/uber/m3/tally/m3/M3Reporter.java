@@ -28,7 +28,6 @@ import com.uber.m3.tally.CachedStatsReporter;
 import com.uber.m3.tally.CachedTimer;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
-import com.uber.m3.tally.MetricType;
 import com.uber.m3.thrift.generated.CountValue;
 import com.uber.m3.thrift.generated.GaugeValue;
 import com.uber.m3.thrift.generated.M3;

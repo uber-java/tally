@@ -55,54 +55,62 @@ allprojects {
         testCompile('junit:junit:4.12')
     }
 
-    signing {
-        sign configurations.archives
-    }
+    ext.ossrhUsername = System.getenv('OSSRH_JIRA_USERNAME')
+    ext.ossrhPassword = System.getenv('OSSRH_JIRA_PASSWORD')
+    ext."signing.keyId" = System.getenv('GPG_KEY_ID')
+    ext."signing.password" = System.getenv('GPG_PASSPHRASE')
+    ext."secretKeyRingFileName" = 'signing.gpg'
 
-    uploadArchives {
-        repositories {
-            mavenDeployer {
-                uniqueVersion = false
+    if (ext."signing.keyId" && ext."signing.password" && ossrhUsername && ossrhPassword) {
+        signing {
+            sign configurations.archives
+        }
 
-                beforeDeployment {
-                    MavenDeployment deployment -> signing.signPom(deployment)
-                }
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    uniqueVersion = false
 
-                repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                pom.project {
-                    name project.getPath()
-                    description project.description
-                    packaging 'jar'
-                    url 'https://github.com/uber-java/tally'
-
-                    scm {
-                        connection 'scm:git:https://github.com/uber-java/tally.git'
-                        developerConnection 'scm:git:https://github.com/uber-java/tally.git'
-                        url 'https://github.com/your/project.git'
+                    beforeDeployment {
+                        MavenDeployment deployment -> signing.signPom(deployment)
+                    }
+                    repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
                     }
 
-                    licenses {
-                        license {
-                            name 'The MIT License (MIT)'
-                            url 'https://github.com/uber-java/tally/blob/master/LICENSE.md'
-                            distribution 'repo'
+                    snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
+                    }
+
+                    pom.project {
+                        name project.getPath()
+                        description project.description
+                        packaging 'jar'
+                        url 'https://github.com/uber-java/tally'
+
+                        scm {
+                            connection 'scm:git:https://github.com/uber-java/tally.git'
+                            developerConnection 'scm:git:https://github.com/uber-java/tally.git'
+                            url 'https://github.com/your/project.git'
+                        }
+
+                        licenses {
+                            license {
+                                name 'The MIT License (MIT)'
+                                url 'https://github.com/uber-java/tally/blob/master/LICENSE.md'
+                                distribution 'repo'
+                            }
+                        }
+
+                        developers {
+                            developer {
+                                id = 'juchan'
+                                name = 'Justin Chan'
+                                email = 'juchan@uber.com'
+                            }
                         }
                     }
 
-                    developers {
-                        developer {
-                            id = 'juchan'
-                            name = 'Justin Chan'
-                            email = 'juchan@uber.com'
-                        }
-                    }
                 }
             }
         }
@@ -129,6 +137,8 @@ subprojects {
         configFile = file('../checkstyles/uber_checks.xml')
         toolVersion = '7.2'
     }
+
+    ext."signing.secretKeyRingFile" = "../ci/${ext.secretKeyRingFileName}"
 
     task sourcesJar(type: Jar, dependsOn: classes) {
         classifier 'sources'
@@ -159,6 +169,8 @@ subprojects {
     jacobo.dependsOn jacocoTestReport
     test.finalizedBy jacobo
 }
+
+ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
 
 // ----------------------
 // Fat jar task factories

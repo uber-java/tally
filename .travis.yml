@@ -1,7 +1,7 @@
+sudo: required
 language: java
 jdk:
   - openjdk7
-  - oraclejdk7
 # As recommended in:
 # https://docs.travis-ci.com/user/languages/java/#Caching
 before_cache:

@@ -1,4 +1,4 @@
-# tally
+# :heavy_check_mark: tally [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov]
 
 Fast, buffered, hierarchical stats collection in Java. [Go here](https://github.com/uber-go/tally) for the Go client.
 
@@ -70,3 +70,8 @@ given a version of MAJOR.MINOR.PATCH (e.g. 1.2.0):
 <hr>
 
 Released under the [MIT License](LICENSE.md).
+
+[ci-img]: https://travis-ci.org/uber-java/tally.svg?branch=master
+[ci]: https://travis-ci.org/uber-java/tally
+[cov-img]: https://coveralls.io/repos/github/uber-java/tally/badge.svg?branch=master
+[cov]: https://coveralls.io/github/uber-java/tally?branch=master

@@ -126,13 +126,6 @@ allprojects {
         }
     }
 
-    // ----------------------
-    // Build & Release
-    // ----------------------
-    task wrapper(type: Wrapper) {
-        gradleVersion = '3.3'
-    }
-
     release {
         tagTemplate = '$name-$version'
     }
@@ -170,6 +163,10 @@ subprojects {
 }
 
 ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.5'
+}
 
 // ----------------------
 // Fat jar task factories

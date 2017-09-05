@@ -46,7 +46,7 @@ Use one of the inbuilt reporters or implement your own using the `StatsReporter`
 ## Example Usage
 
 Run the example by running:
-```
+```bash
 $ ./gradlew run
 ```
 This runs the `PrintStatsReporterExample` class in the `tally-example` project.

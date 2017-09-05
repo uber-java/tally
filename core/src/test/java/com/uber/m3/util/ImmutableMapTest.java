@@ -130,32 +130,32 @@ public class ImmutableMapTest {
 
     @Test
     public void keySet() {
-        Set<String> expectedSet = new HashSet<>(2, 1);
+        Set<String> expectedSet = new HashSet<>(3, 1);
         expectedSet.add("key1");
         expectedSet.add("key2");
         expectedSet.add("key3");
 
-        assertEquals(expectedSet, map.keySet());
+        assertEquals(new ImmutableSet<>(expectedSet), map.keySet());
     }
 
     @Test
     public void values() {
-        ArrayList<String> expectedCollection = new ArrayList<>(2);
+        ArrayList<String> expectedCollection = new ArrayList<>(3);
         expectedCollection.add("val1");
         expectedCollection.add("val2");
         expectedCollection.add("val3");
 
-        assertEquals(expectedCollection, map.values());
+        assertEquals(new ImmutableList<>(expectedCollection), map.values());
     }
 
     @Test
     public void entrySet() {
-        HashMap<String, String> expectedMap = new HashMap<>(2, 1);
+        HashMap<String, String> expectedMap = new HashMap<>(3, 1);
         expectedMap.put("key1", "val1");
         expectedMap.put("key2", "val2");
         expectedMap.put("key3", "val3");
 
-        assertEquals(expectedMap.entrySet(), map.entrySet());
+        assertEquals(new ImmutableSet<>(expectedMap.entrySet()), map.entrySet());
     }
 
     @Test
@@ -188,8 +188,8 @@ public class ImmutableMapTest {
 
     @Test
     public void toStringTest() {
-        assertEquals("{key1=val1, key2=val2, key3=val3}", map.toString());
+        assertEquals(helperMap.toString(), map.toString());
 
-        assertEquals("{}", ImmutableMap.EMPTY.toString());
+        assertEquals(new HashMap<>(0).toString(), ImmutableMap.EMPTY.toString());
     }
 }

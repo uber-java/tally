@@ -18,6 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath('io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3')
+    }
+}
+
 plugins {
     id 'java'
     id 'maven'
@@ -27,6 +36,8 @@ plugins {
     id 'com.kageiit.jacobo' version '2.0.5' apply false
     id 'net.researchgate.release' version '2.4.0' apply false
 }
+
+apply plugin: 'io.codearte.nexus-staging'
 
 description = 'tally client'
 
@@ -236,6 +247,8 @@ artifacts {
         fatSourcesJar(statsd_fat_jar_name, statsd_fat_jar_projs),
         fatJavadocJar(statsd_fat_jar_name, statsd_fat_jar_projs)
 }
+
+nexusStaging {}
 
 // --------------------------------------
 // Testing and coverage for whole project

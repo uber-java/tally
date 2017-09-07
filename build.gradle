@@ -18,6 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath('io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3')
+    }
+}
+
 plugins {
     id 'java'
     id 'maven'
@@ -27,6 +36,8 @@ plugins {
     id 'com.kageiit.jacobo' version '2.0.5' apply false
     id 'net.researchgate.release' version '2.4.0' apply false
 }
+
+apply plugin: 'io.codearte.nexus-staging'
 
 description = 'tally client'
 
@@ -55,54 +66,62 @@ allprojects {
         testCompile('junit:junit:4.12')
     }
 
-    signing {
-        sign configurations.archives
-    }
+    ext.ossrhUsername = System.getenv('OSSRH_JIRA_USERNAME')
+    ext.ossrhPassword = System.getenv('OSSRH_JIRA_PASSWORD')
+    ext."signing.keyId" = System.getenv('GPG_KEY_ID')
+    ext."signing.password" = System.getenv('GPG_PASSPHRASE')
+    ext."secretKeyRingFileName" = 'signing.gpg'
 
-    uploadArchives {
-        repositories {
-            mavenDeployer {
-                uniqueVersion = false
+    if (ext."signing.keyId" && ext."signing.password" && ossrhUsername && ossrhPassword) {
+        signing {
+            sign configurations.archives
+        }
 
-                beforeDeployment {
-                    MavenDeployment deployment -> signing.signPom(deployment)
-                }
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    uniqueVersion = false
 
-                repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
-
-                pom.project {
-                    name project.getPath()
-                    description project.description
-                    packaging 'jar'
-                    url 'https://github.com/uber-java/tally'
-
-                    scm {
-                        connection 'scm:git:https://github.com/uber-java/tally.git'
-                        developerConnection 'scm:git:https://github.com/uber-java/tally.git'
-                        url 'https://github.com/your/project.git'
+                    beforeDeployment {
+                        MavenDeployment deployment -> signing.signPom(deployment)
+                    }
+                    repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
                     }
 
-                    licenses {
-                        license {
-                            name 'The MIT License (MIT)'
-                            url 'https://github.com/uber-java/tally/blob/master/LICENSE.md'
-                            distribution 'repo'
+                    snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
+                        authentication(userName: ossrhUsername, password: ossrhPassword)
+                    }
+
+                    pom.project {
+                        name project.getPath()
+                        description project.description
+                        packaging 'jar'
+                        url 'https://github.com/uber-java/tally'
+
+                        scm {
+                            connection 'scm:git:https://github.com/uber-java/tally.git'
+                            developerConnection 'scm:git:https://github.com/uber-java/tally.git'
+                            url 'https://github.com/your/project.git'
+                        }
+
+                        licenses {
+                            license {
+                                name 'The MIT License (MIT)'
+                                url 'https://github.com/uber-java/tally/blob/master/LICENSE.md'
+                                distribution 'repo'
+                            }
+                        }
+
+                        developers {
+                            developer {
+                                id = 'juchan'
+                                name = 'Justin Chan'
+                                email = 'juchan@uber.com'
+                            }
                         }
                     }
 
-                    developers {
-                        developer {
-                            id = 'juchan'
-                            name = 'Justin Chan'
-                            email = 'juchan@uber.com'
-                        }
-                    }
                 }
             }
         }
@@ -127,8 +146,11 @@ subprojects {
 
     checkstyle {
         configFile = file('../checkstyles/uber_checks.xml')
-        toolVersion = '7.2'
+        // Latest Checkstyle version that supports JRE7
+        toolVersion = '6.19'
     }
+
+    ext."signing.secretKeyRingFile" = "../ci/${ext.secretKeyRingFileName}"
 
     task sourcesJar(type: Jar, dependsOn: classes) {
         classifier 'sources'
@@ -159,6 +181,8 @@ subprojects {
     jacobo.dependsOn jacocoTestReport
     test.finalizedBy jacobo
 }
+
+ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
 
 // ----------------------
 // Fat jar task factories
@@ -224,6 +248,8 @@ artifacts {
         fatSourcesJar(statsd_fat_jar_name, statsd_fat_jar_projs),
         fatJavadocJar(statsd_fat_jar_name, statsd_fat_jar_projs)
 }
+
+nexusStaging {}
 
 // --------------------------------------
 // Testing and coverage for whole project

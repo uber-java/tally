@@ -33,7 +33,6 @@ plugins {
     id 'signing'
     id 'checkstyle'
     id 'jacoco'
-    id 'com.kageiit.jacobo' version '2.0.5' apply false
     id 'net.researchgate.release' version '2.4.0' apply false
     id 'com.github.kt3k.coveralls' version '2.8.1'
 }
@@ -53,7 +52,6 @@ allprojects {
     apply plugin: 'maven'
     apply plugin: 'signing'
     apply plugin: 'jacoco'
-    apply plugin: 'com.kageiit.jacobo'
     apply plugin: 'net.researchgate.release'
 
     sourceCompatibility = 1.7
@@ -167,20 +165,8 @@ subprojects {
         archives sourcesJar, javadocJar
     }
 
-    // ----------------------
-    // Testing
-    // ----------------------
-    task jacobo(type: com.kageiit.jacobo.JacoboTask) {
-        jacocoReport = file("$buildDir/reports/jacoco/test/jacocoTestReport.xml")
-        coberturaReport = file("$buildDir/reports/cobertura/cobertura.xml")
-        srcDirs = sourceSets.main.java.srcDirs
-        includeFileNames = []
-    }
-
-    // Generate unit test and test coverage reports
     jacocoTestReport.reports.xml.enabled = true
-    jacobo.dependsOn jacocoTestReport
-    test.finalizedBy jacobo
+    test.finalizedBy jacocoTestReport
 }
 
 ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
@@ -261,15 +247,11 @@ task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
     sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
     classDirectories =  files(subprojects.sourceSets.main.output)
     executionData = files(subprojects.jacocoTestReport.executionData)
-    reports.xml.enabled = true
+
+    reports {
+        xml.enabled = true
+        xml.destination file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+    }
 }
 
-task jacobo(type: com.kageiit.jacobo.JacoboTask) {
-    jacocoReport = file("$buildDir/reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-    coberturaReport = file("$buildDir/reports/cobertura/cobertura.xml")
-    srcDirs = files(subprojects.sourceSets.main.java.srcDirs)
-    includeFileNames = []
-}
-
-jacobo.dependsOn jacocoRootReport
-test.finalizedBy jacobo
+test.finalizedBy jacocoRootReport

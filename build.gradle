@@ -241,11 +241,14 @@ nexusStaging {}
 // --------------------------------------
 // Testing and coverage for whole project
 // --------------------------------------
+coveralls {
+    sourceDirs = files(subprojects.sourceSets.main.allSource.srcDirs).files.absolutePath
+}
+
 task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
     dependsOn = subprojects.test
-    additionalSourceDirs = files(subprojects.sourceSets.main.allSource.srcDirs)
     sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories =  files(subprojects.sourceSets.main.output)
+    classDirectories =  files(subprojects.sourceSets.main.output.classesDir)
     executionData = files(subprojects.jacocoTestReport.executionData)
 
     reports {

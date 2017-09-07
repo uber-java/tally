@@ -8,8 +8,8 @@ language: java
 # https://github.com/travis-ci/travis-ci/issues/7884
 jdk:
   - openjdk7
-#  - openjdk8
-#  - oraclejdk8
+  - openjdk8
+  - oraclejdk8
 
 env:
   global:
@@ -31,16 +31,3 @@ cache:
 
 before_install:
   - ./ci/before_install.sh
-
-#install:
-#  - |
-#    if [ $TRAVIS_JDK_VERSION == "openjdk7" ]; then
-#        # Compile using JDK8, but continue the rest of the build using JDK7
-#        # due to openjdk7 issue:
-#        # https://github.com/gradle/gradle/issues/2421
-#        jdk_switcher use openjdk8
-#        ./gradlew assemble
-#        jdk_switcher use openjdk7
-#    else
-#        ./gradlew assemble
-#    fi

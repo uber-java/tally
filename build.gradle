@@ -146,6 +146,7 @@ subprojects {
 
     checkstyle {
         configFile = file('../checkstyles/uber_checks.xml')
+        // Latest Checkstyle version that supports JRE7
         toolVersion = '6.19'
     }
 

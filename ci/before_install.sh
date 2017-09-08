@@ -13,7 +13,10 @@ echo "security.provider.1=org.bouncycastle.jce.provider.BouncyCastleProvider" | 
 
 # Install Thrift 0.9.3
 sudo apt-get update -qq
-sudo apt-get install automake bison flex g++ git libboost1.55-all-dev libevent-dev libssl-dev libtool make pkg-config
+sudo apt-get install libboost-dev libboost-test-dev libboost-program-options-dev libevent-dev automake libtool flex bison pkg-config g++ libssl-dev
+pushd .
+cd
 wget http://www.us.apache.org/dist/thrift/0.9.3/thrift-0.9.3.tar.gz
 tar xfz thrift-0.9.3.tar.gz
 cd thrift-0.9.3 && ./configure && sudo make install
+popd

@@ -166,7 +166,7 @@ public class HistogramImplTest {
             )
         };
 
-        assertArrayEquals(expectedPairs, HistogramImpl.bucketPairs(null));
+        assertArrayEquals(expectedPairs, BucketPairImpl.bucketPairs(null));
 
         expectedPairs = new BucketPair[]{
             new BucketPairImpl(
@@ -197,7 +197,7 @@ public class HistogramImplTest {
 
         assertArrayEquals(
             expectedPairs,
-            HistogramImpl.bucketPairs(ValueBuckets.linear(0, 50, 3))
+            BucketPairImpl.bucketPairs(ValueBuckets.linear(0, 50, 3))
         );
     }
 }

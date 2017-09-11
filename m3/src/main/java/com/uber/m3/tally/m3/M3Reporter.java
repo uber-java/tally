@@ -20,10 +20,13 @@
 
 package com.uber.m3.tally.m3;
 
+import com.uber.m3.tally.BucketPair;
+import com.uber.m3.tally.BucketPairImpl;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.CachedCounter;
 import com.uber.m3.tally.CachedGauge;
 import com.uber.m3.tally.CachedHistogram;
+import com.uber.m3.tally.CachedHistogramBucket;
 import com.uber.m3.tally.CachedStatsReporter;
 import com.uber.m3.tally.CachedTimer;
 import com.uber.m3.tally.Capabilities;
@@ -49,6 +52,7 @@ import org.apache.thrift.transport.TTransport;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,7 +120,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             }
 
             TTransport transport = new TUdpClient(hostPorts[0]);
-            //TODO multi UDP client transport
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
             resourcePool = new ResourcePool(builder.maxQueueSize, protocolFactory);
@@ -182,27 +185,71 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     public CachedCounter allocateCounter(String name, Map<String, String> tags) {
         Metric counter = newMetric(name, tags, MetricType.COUNTER);
 
-        return new CachedCounterImpl(counter, calculateSize(counter));
+        return new CachedMetric(counter, calculateSize(counter));
     }
 
     @Override
     public CachedGauge allocateGauge(String name, Map<String, String> tags) {
         Metric gauge = newMetric(name, tags, MetricType.GAUGE);
 
-        return new CachedGaugeImpl(gauge, calculateSize(gauge));
+        return new CachedMetric(gauge, calculateSize(gauge));
     }
 
     @Override
     public CachedTimer allocateTimer(String name, Map<String, String> tags) {
         Metric timer = newMetric(name, tags, MetricType.TIMER);
 
-        return new CachedTimerImpl(timer, calculateSize(timer));
+        return new CachedMetric(timer, calculateSize(timer));
     }
 
     @Override
     public CachedHistogram allocateHistogram(String name, Map<String, String> tags, Buckets buckets) {
-        //TODO
-        return null;
+        List<CachedHistogramBucketImpl> cachedValueBuckets = new ArrayList<>();
+        List<CachedHistogramBucketImpl> cachedDurationBuckets = new ArrayList<>();
+
+        int bucketIdLen = String.valueOf(buckets.size()).length();
+        bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
+
+        String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
+
+        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+
+        for (int i = 0; i < bucketPairs.length; i++) {
+            Map<String, String> valueTags = new HashMap<>(tags);
+            Map<String, String> durationTags = new HashMap<>(tags);
+
+            String idTagValue = String.format(bucketIdFmt, i);
+
+            valueTags.put(bucketIdTagName, idTagValue);
+            valueTags.put(bucketTagName, String.format("%s-%s",
+                valueBucketString(bucketPairs[i].lowerBoundValue()),
+                valueBucketString(bucketPairs[i].upperBoundValue())));
+
+            cachedValueBuckets.add(new CachedHistogramBucketImpl(
+                bucketPairs[i].upperBoundValue(),
+                bucketPairs[i].upperBoundDuration(),
+                (CachedMetric) allocateCounter(name, valueTags)
+            ));
+
+            durationTags.put(bucketIdTagName, idTagValue);
+            durationTags.put(bucketTagName, String.format("%s-%s",
+                durationBucketString(bucketPairs[i].lowerBoundDuration()),
+                durationBucketString(bucketPairs[i].upperBoundDuration())));
+
+            cachedDurationBuckets.add(new CachedHistogramBucketImpl(
+                bucketPairs[i].upperBoundValue(),
+                bucketPairs[i].upperBoundDuration(),
+                (CachedMetric) allocateCounter(name, durationTags)
+            ));
+        }
+
+        return new CachedHistogramImpl(
+            name,
+            tags,
+            buckets,
+            cachedValueBuckets,
+            cachedDurationBuckets
+        );
     }
 
     @Override
@@ -228,6 +275,9 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             try {
                 client.emitMetricBatch(metricBatch);
             } catch (TException e) {
+                // Store exception to throw later after clean up.
+                // Don't want to put everything in a finally block here,
+                // which will hold the lock unnecessarily long
                 exception = e;
             }
 
@@ -359,6 +409,30 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
+    private String valueBucketString(double bucketBound) {
+        if (bucketBound == Double.MAX_VALUE) {
+            return "infinity";
+        }
+
+        if (bucketBound == -Double.MAX_VALUE) {
+            return "-infinity";
+        }
+
+        return String.format(bucketValFmt, bucketBound);
+    }
+
+    private String durationBucketString(Duration bucketBound) {
+        if (Duration.MAX_VALUE.equals(bucketBound)) {
+            return "infinity";
+        }
+
+        if (Duration.MIN_VALUE.equals(bucketBound)) {
+            return "-infinity";
+        }
+
+        return bucketBound.toString();
+    }
+
     private class Processor implements Runnable {
         @Override
         public void run() {
@@ -404,7 +478,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    private abstract class CachedMetric {
+    private class CachedMetric implements
+        CachedCounter, CachedGauge, CachedTimer, CachedHistogramBucket {
         Metric metric;
         int size;
 
@@ -412,38 +487,93 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             this.metric = metric;
             this.size = size;
         }
-    }
-
-    private class CachedCounterImpl extends CachedMetric implements CachedCounter {
-        private CachedCounterImpl(Metric metric, int size) {
-            super(metric, size);
-        }
 
         @Override
         public void reportCount(long value) {
             reportCopyMetric(metric, size, MetricType.COUNTER, value, 0);
-        }
-    }
-
-    private class CachedGaugeImpl extends CachedMetric implements CachedGauge {
-        private CachedGaugeImpl(Metric metric, int size) {
-            super(metric, size);
         }
 
         @Override
         public void reportGauge(double value) {
             reportCopyMetric(metric, size, MetricType.GAUGE, 0, value);
         }
-    }
-
-    private class CachedTimerImpl extends CachedMetric implements CachedTimer {
-        private CachedTimerImpl(Metric metric, int size) {
-            super(metric, size);
-        }
 
         @Override
         public void reportTimer(Duration interval) {
             reportCopyMetric(metric, size, MetricType.TIMER, interval.getNanos(), 0);
+        }
+
+        @Override
+        public void reportSamples(long value) {
+            reportCopyMetric(metric, size, MetricType.COUNTER, value, 0);
+        }
+    }
+
+    private class CachedHistogramImpl implements CachedHistogram {
+        String name;
+        Map<String, String> tags;
+        Buckets buckets;
+        List<CachedHistogramBucketImpl> cachedValueBuckets;
+        List<CachedHistogramBucketImpl> cachedDurationBuckets;
+
+        CachedHistogramImpl(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            List<CachedHistogramBucketImpl> cachedValueBuckets,
+            List<CachedHistogramBucketImpl> cachedDurationBuckets
+        ) {
+            this.name = name;
+            this.tags = tags;
+            this.buckets = buckets;
+            this.cachedValueBuckets = cachedValueBuckets;
+            this.cachedDurationBuckets = cachedDurationBuckets;
+        }
+
+        @Override
+        public CachedHistogramBucket valueBucket(double bucketLowerBound, double bucketUpperBound) {
+            for (CachedHistogramBucketImpl bucket : cachedValueBuckets) {
+                if (bucket.getValueUpperBound() >= bucketUpperBound) {
+                    return bucket.getMetric();
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        public CachedHistogramBucket durationBucket(Duration bucketLowerBound, Duration bucketUpperBound) {
+            for (CachedHistogramBucketImpl bucket : cachedValueBuckets) {
+                if (bucket.getDurationUpperBound().compareTo(bucketUpperBound) >= 0) {
+                    return bucket.getMetric();
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private class CachedHistogramBucketImpl {
+        private double valueUpperBound;
+        private Duration durationUpperBound;
+        private CachedHistogramBucket metric;
+
+        CachedHistogramBucketImpl(double valueUpperBound, Duration durationUpperBound, CachedMetric metric) {
+            this.valueUpperBound = valueUpperBound;
+            this.durationUpperBound = durationUpperBound;
+            this.metric = metric;
+        }
+
+        double getValueUpperBound() {
+            return valueUpperBound;
+        }
+
+        Duration getDurationUpperBound() {
+            return durationUpperBound;
+        }
+
+        CachedHistogramBucket getMetric() {
+            return metric;
         }
     }
 

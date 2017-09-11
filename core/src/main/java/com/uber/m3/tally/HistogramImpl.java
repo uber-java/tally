@@ -55,7 +55,7 @@ class HistogramImpl implements Histogram {
             type = Type.VALUE;
         }
 
-        BucketPair[] pairs = bucketPairs(buckets);
+        BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
         int pairsLen = pairs.length;
 
         this.name = name;
@@ -199,78 +199,6 @@ class HistogramImpl implements Histogram {
         }
 
         return durations;
-    }
-
-    static BucketPair[] bucketPairs(Buckets buckets) {
-        if (buckets == null || buckets.size() < 1) {
-            return new BucketPair[]{
-                new BucketPairImpl(
-                    -Double.MAX_VALUE,
-                    Double.MAX_VALUE,
-                    Duration.MIN_VALUE,
-                    Duration.MAX_VALUE
-                )
-            };
-        }
-
-        if (buckets instanceof DurationBuckets) {
-            // If using duration buckets separating negative times and
-            // positive times is very much desirable as depending on the
-            // reporter will create buckets "-infinity,0" and "0,{first_bucket}"
-            // instead of just "-infinity,{first_bucket}" which for time
-            // durations is not desirable nor pragmatic
-            boolean hasZero = false;
-
-            for (Duration duration : buckets.asDurations()) {
-                if (duration.equals(Duration.ZERO)) {
-                    hasZero = true;
-                    break;
-                }
-            }
-
-            if (!hasZero) {
-                ((DurationBuckets) buckets).add(Duration.ZERO);
-            }
-        }
-
-        Collections.sort(buckets);
-
-        Double[] asValueBuckets = buckets.asValues();
-        Duration[] asDurationBuckets = buckets.asDurations();
-        BucketPair[] pairs = new BucketPair[buckets.size() + 1];
-
-        // Add lower bound
-        pairs[0] = new BucketPairImpl(
-            -Double.MAX_VALUE,
-            asValueBuckets[0],
-            Duration.MIN_VALUE,
-            asDurationBuckets[0]
-        );
-
-        double prevValueBucket = asValueBuckets[0];
-        Duration prevDurationBucket = asDurationBuckets[0];
-
-        for (int i = 1; i < buckets.size(); i++) {
-            pairs[i] = new BucketPairImpl(
-                prevValueBucket,
-                asValueBuckets[i],
-                prevDurationBucket,
-                asDurationBuckets[i]
-            );
-
-            prevValueBucket = asValueBuckets[i];
-            prevDurationBucket = asDurationBuckets[i];
-        }
-
-        // Add upper bound
-        pairs[pairs.length - 1] = new BucketPairImpl(
-            prevValueBucket,
-            Double.MAX_VALUE,
-            prevDurationBucket,
-            Duration.MAX_VALUE
-        );
-
-        return pairs;
     }
 
     class HistogramBucket {

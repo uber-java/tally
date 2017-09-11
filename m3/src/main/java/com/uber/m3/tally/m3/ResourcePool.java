@@ -193,7 +193,7 @@ public class ResourcePool {
      * @param protocol the {@link TProtocol} to put back to the pool
      */
     public void releaseProtocol(TProtocol protocol) {
-        ((TCalcTransport) protocol.getTransport()).resetCount();
+        ((TCalcTransport) protocol.getTransport()).resetSize();
 
         protocolPool.put(protocol);
     }

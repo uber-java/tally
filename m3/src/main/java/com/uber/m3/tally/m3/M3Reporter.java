@@ -92,8 +92,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private TCalcTransport calc;
     private TProtocol calcProtocol;
 
-    private Set<MetricTag> commonTags;
-
     private int freeBytes;
 
     private ResourcePool resourcePool;
@@ -102,9 +100,13 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private String bucketTagName;
     private String bucketValFmt;
 
+    // Holds metrics to be flushed
     private BlockingQueue<SizedMetric> metricQueue;
-    private Phaser phaser = new Phaser(1);
+    // The service used to execute metric flushes
     private ExecutorService executor;
+    // Used to keep track of how many processors are in progress in
+    // order to wait for them to finish before closing
+    private Phaser phaser = new Phaser(1);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
@@ -124,7 +126,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             client = new M3.Client(protocolFactory.getProtocol(transport));
             resourcePool = new ResourcePool(builder.maxQueueSize, protocolFactory);
 
-            commonTags = addMetricTagsToSet(builder.commonTags);
+            Set<MetricTag> commonTags = addMetricTagsToSet(builder.commonTags);
 
             // Set and ensure required tags
             if (!builder.commonTags.containsKey(SERVICE_TAG)) {
@@ -154,7 +156,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             calcProtocol = resourcePool.getProtocol();
             metricBatch.write(calcProtocol);
             calc = (TCalcTransport) calcProtocol.getTransport();
-            int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + calc.getCountAndReset();
+            int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + calc.getSizeAndReset();
 
             freeBytes = builder.maxPacketSizeBytes - numOverheadBytes;
             if (freeBytes <= 0) {
@@ -260,6 +262,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     @Override
     public void flush() {
         try {
+            // A null metric signifies to processors that a flush was called,
+            // which causes the metric queue to be cleared
             metricQueue.put(new SizedMetric(null, 0));
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -297,6 +301,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     @Override
     public void close() {
+        // Wait (block) until all processors to return from flushing
         phaser.arriveAndAwaitAdvance();
     }
 
@@ -363,7 +368,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             synchronized (calcLock) {
                 metric.write(calcProtocol);
 
-                return calc.getCountAndReset();
+                return calc.getSizeAndReset();
             }
         } catch (TException e) {
             return DEFAULT_METRIC_SIZE;
@@ -478,8 +483,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
     }
 
-    private class CachedMetric implements
-        CachedCounter, CachedGauge, CachedTimer, CachedHistogramBucket {
+    private class CachedMetric implements CachedCounter, CachedGauge, CachedTimer, CachedHistogramBucket {
         Metric metric;
         int size;
 

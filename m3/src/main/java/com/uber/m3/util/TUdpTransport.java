@@ -30,7 +30,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 
 /**
- * Abstract class that supports Thrift UDP functionality
+ * Abstract class that supports Thrift UDP functionality.
  */
 public abstract class TUdpTransport extends TTransport implements AutoCloseable {
     public static final int MAX_PACKET_SIZE = 14400;

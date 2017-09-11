@@ -33,7 +33,7 @@ public class BucketPairImpl implements BucketPair {
     private Duration lowerBoundDuration;
     private Duration upperBoundDuration;
 
-    BucketPairImpl(
+    public BucketPairImpl(
         double lowerBoundValue,
         double upperBoundValue,
         Duration lowerBoundDuration,

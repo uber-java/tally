@@ -23,11 +23,13 @@ package com.uber.m3.util;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
- * Dummy transport used for calculating size only
+ * Dummy transport used for calculating size of metrics only.
  */
 public class TCalcTransport extends TTransport {
-    private int count = 0;
+    private AtomicInteger size = new AtomicInteger(0);
 
     @Override
     public boolean isOpen() {
@@ -49,22 +51,30 @@ public class TCalcTransport extends TTransport {
 
     @Override
     public void write(byte[] bytes, int i, int len) throws TTransportException {
-        count += len;
+        size.getAndAdd(len);
     }
 
-    public int getCountAndReset() {
-        int currentCount = count;
-
-        resetCount();
-
-        return currentCount;
+    /**
+     * Returns the size that has been written to this transport since the last reset
+     * and resets the size.
+     * @return the size that has been written to this transport since the last reset
+     */
+    public int getSizeAndReset() {
+        return size.getAndSet(0);
     }
 
-    public int getCount() {
-        return count;
+    /**
+     * Returns the size that has been written to this transport since the last reset.
+     * @return the size that has been written to this transport since the last reset
+     */
+    public int getSize() {
+        return size.get();
     }
 
-    public void resetCount() {
-        count = 0;
+    /**
+     * Resets the size that has been written to this transport since the last reset.
+     */
+    public void resetSize() {
+        size.set(0);
     }
 }

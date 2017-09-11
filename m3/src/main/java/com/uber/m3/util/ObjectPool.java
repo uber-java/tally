@@ -61,12 +61,12 @@ public class ObjectPool<E> {
 
     /**
      * Gets an object from the pool. If the pool is empty, it will create and return
-     * a new instance instead of blocking until a new
-     * @return an object from the pool
+     * a new instance instead of blocking until an object is available.
+     * @return an object from the pool if available. Otherwise, a new instance of the object.
      */
     public E get() {
         if (objects.isEmpty()) {
-            // Rather than block, return a newly a newly created instance instead
+            // Rather than block, return a newly created instance instead
             return construct.instance();
         }
 
@@ -85,8 +85,8 @@ public class ObjectPool<E> {
      * @return whether the element got put back or not
      */
     public boolean put(E element) {
-        // Use offer instead of put (which blocks until there is space), because a full
-        // ObjectPool is a fine state to be in. We can get into this state because the
+        // Use `offer` instead of `put` (which blocks until there is space), because a full
+        // ObjectPool is a good state to be in already. We can get into this state because the
         // get() function will create a new instance instead of waiting for an object
         // to be in the pool.
         return objects.offer(element);

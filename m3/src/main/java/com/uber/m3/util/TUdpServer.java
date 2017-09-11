@@ -26,15 +26,28 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 
 /**
- * A server for receiving data via Thrift UDP
+ * A server for receiving data via Thrift UDP.
  */
 public class TUdpServer extends TUdpTransport implements AutoCloseable {
     private int timeoutMillis;
 
+    /**
+     * Constructs a UDP server with the given host and port. Defaults to zero timeout.
+     * @param host the host for this transport
+     * @param port the port for this transport
+     * @throws SocketException
+     */
     public TUdpServer(String host, int port) throws SocketException {
         this(host, port, 0);
     }
 
+    /**
+     * Constructs a UDP server with the given host and port.
+     * @param host          the host for this transport
+     * @param port          the port for this transport
+     * @param timeoutMillis the timeout in milliseconds
+     * @throws SocketException
+     */
     public TUdpServer(String host, int port, int timeoutMillis) throws SocketException {
         super(host, port);
 

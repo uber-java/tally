@@ -36,7 +36,12 @@ public class SizedMetric extends Metric {
      */
     public SizedMetric(Metric metric, int size) {
         // Recreate metric to prevent underlying metric from being modified
-        this.metric = new Metric(metric);
+        if (metric == null) {
+            this.metric = null;
+        } else {
+            this.metric = new Metric(metric);
+        }
+
         this.size = size;
     }
 

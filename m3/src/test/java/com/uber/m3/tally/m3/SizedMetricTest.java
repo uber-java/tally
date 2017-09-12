@@ -20,29 +20,29 @@
 
 package com.uber.m3.tally.m3;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import com.uber.m3.thrift.generated.Metric;
 import org.junit.Test;
 
-public class M3ReporterTest {
-    @BeforeClass
-    public static void start() {
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 
-    }
+public class SizedMetricTest {
+    @Test
+    public void simpleSizedMetric() {
+        Metric metric = new Metric();
 
-    @Before
-    public void setUp() {
+        SizedMetric sizedMetric = new SizedMetric(metric, 1);
 
-    }
-
-    @AfterClass
-    public static void stop() {
-
+        assertFalse(sizedMetric.getMetric() == metric);
+        assertEquals(sizedMetric.getMetric(), metric);
+        assertEquals(sizedMetric.getSize(), 1);
     }
 
     @Test
-    public void capabilities() {
+    public void nullSizedMetric() {
+        SizedMetric sizedMetric = new SizedMetric(null, 9);
 
+        assertEquals(sizedMetric.getMetric(), null);
+        assertEquals(sizedMetric.getSize(), 9);
     }
 }

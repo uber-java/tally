@@ -54,7 +54,7 @@ public class ObjectPool<E> {
 
         this.construct = construct;
 
-        for (int i = 0; i < objects.size(); i++) {
+        for (int i = 0; i < capacity; i++) {
             objects.add(construct.instance());
         }
     }

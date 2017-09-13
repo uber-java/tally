@@ -31,4 +31,8 @@ dependencies {
 
 compileThrift {
     generator 'java', 'private-members'
+
+    outputDir "${projectDir}/src/generated/java"
+
+    createGenFolder false
 }

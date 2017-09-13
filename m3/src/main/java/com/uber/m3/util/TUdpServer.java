@@ -35,7 +35,7 @@ public class TUdpServer extends TUdpTransport implements AutoCloseable {
      * Constructs a UDP server with the given host and port. Defaults to zero timeout.
      * @param host the host for this transport
      * @param port the port for this transport
-     * @throws SocketException
+     * @throws SocketException if the underlying socket cannot be opened
      */
     public TUdpServer(String host, int port) throws SocketException {
         this(host, port, 0);
@@ -46,7 +46,7 @@ public class TUdpServer extends TUdpTransport implements AutoCloseable {
      * @param host          the host for this transport
      * @param port          the port for this transport
      * @param timeoutMillis the timeout in milliseconds
-     * @throws SocketException
+     * @throws SocketException if the underlying socket cannot be opened
      */
     public TUdpServer(String host, int port, int timeoutMillis) throws SocketException {
         super(host, port);

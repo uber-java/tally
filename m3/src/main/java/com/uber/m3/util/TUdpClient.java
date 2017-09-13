@@ -33,7 +33,7 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
      * Constructs a UDP client with the given host and port.
      * @param host the host for this transport
      * @param port the port for this transport
-     * @throws SocketException
+     * @throws SocketException if the underlying socket cannot be opened
      */
     public TUdpClient(String host, int port) throws SocketException {
         super(host, port);
@@ -43,7 +43,7 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
      * Constructs a UDP client with the given host and port.
      * @param hostPort a string containing both host and port information in the
      *                 form "<em>HOST</em>:<em>PORT</em>"
-     * @throws SocketException
+     * @throws SocketException if the underlying socket cannot be opened
      */
     public TUdpClient(String hostPort) throws SocketException {
         super(hostPort);

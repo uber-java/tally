@@ -36,3 +36,7 @@ compileThrift {
 
     createGenFolder false
 }
+
+compileThrift.onlyIf {
+    project.hasProperty('genThrift')
+}

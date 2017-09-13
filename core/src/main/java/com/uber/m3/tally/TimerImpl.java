@@ -94,6 +94,10 @@ class TimerImpl implements Timer, StopwatchRecorder {
     }
 
     static class Values {
+        // Using a ReadWriteLock here to protect against multithreaded reads
+        // and writes separately. In other places, synchronized blocks are used
+        // instead as this separation is not needed e.g. we only lock a
+        // ConcurrentHashMap when doing writes and not for reads.
         private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
         private List<Duration> values = new ArrayList<>();
 

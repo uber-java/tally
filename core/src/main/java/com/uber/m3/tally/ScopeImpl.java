@@ -46,8 +46,8 @@ class ScopeImpl implements Scope {
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
-    // the middle of looping and reporting through all metrics. Therefore, locks
-    // are generally only used when having to allocate new metrics.
+    // the middle of looping and reporting through all metrics. Therefore, we only
+    // synchronize on these maps when having to allocate new metrics.
     private final Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
     private final Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
     private final Map<String, TimerImpl> timers = new ConcurrentHashMap<>();

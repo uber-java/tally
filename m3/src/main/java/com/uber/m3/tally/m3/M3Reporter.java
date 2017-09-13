@@ -126,7 +126,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             client = new M3.Client(protocolFactory.getProtocol(transport));
             resourcePool = new ResourcePool(builder.maxQueueSize, protocolFactory);
 
-            Set<MetricTag> commonTags = addMetricTagsToSet(builder.commonTags);
+            Set<MetricTag> commonTags = toMetricTagsToSet(builder.commonTags);
 
             // Set and ensure required tags
             if (!builder.commonTags.containsKey(SERVICE_TAG)) {
@@ -143,10 +143,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
                 commonTags.add(createMetricTag(ENV_TAG, builder.env));
             }
-            if (builder.includeHost) {
-                if (!builder.commonTags.containsKey(HOST_TAG)) {
-                    commonTags.add(createMetricTag(HOST_TAG, InetAddress.getLocalHost().getHostName()));
-                }
+            if (builder.includeHost && !builder.commonTags.containsKey(HOST_TAG)) {
+                commonTags.add(createMetricTag(HOST_TAG, InetAddress.getLocalHost().getHostName()));
             }
 
             metricBatch = resourcePool.getMetricBatch();
@@ -309,7 +307,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         Metric metric = resourcePool.getMetric();
         metric.setName(name);
 
-        metric.setTags(addMetricTagsToSet(tags));
+        metric.setTags(toMetricTagsToSet(tags));
 
         metric.setTimestamp(Long.MAX_VALUE);
 
@@ -338,7 +336,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         return metric;
     }
 
-    private Set<MetricTag> addMetricTagsToSet(Map<String, String> tags) {
+    private Set<MetricTag> toMetricTagsToSet(Map<String, String> tags) {
         Set<MetricTag> metricTagSet = resourcePool.getTagList();
 
         if (tags == null) {
@@ -405,6 +403,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 timerValue.setI64Value(iValue);
                 metricCopy.getMetricValue().setTimer(timerValue);
                 break;
+            default:
+                throw new IllegalArgumentException("Unsupported metric type: " + metricType);
         }
 
         try {

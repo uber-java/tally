@@ -51,6 +51,8 @@ import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
 
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +78,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private static final String SERVICE_TAG = "service";
     private static final String ENV_TAG = "env";
     private static final String HOST_TAG = "host";
+    private static final String DEFAULT_TAG_VALUE = "default";
 
     private static final String DEFAULT_HISTOGRAM_BUCKET_ID_NAME = "bucketid";
     private static final String DEFAULT_HISTOGRAM_BUCKET_NAME = "bucket";
@@ -144,7 +147,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 commonTags.add(createMetricTag(ENV_TAG, builder.env));
             }
             if (builder.includeHost && !builder.commonTags.containsKey(HOST_TAG)) {
-                commonTags.add(createMetricTag(HOST_TAG, InetAddress.getLocalHost().getHostName()));
+                commonTags.add(createMetricTag(HOST_TAG, getHostName()));
             }
 
             metricBatch = resourcePool.getMetricBatch();
@@ -170,8 +173,16 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             executor = builder.executor;
 
             addAndRunProcessor();
-        } catch (Exception e) {
+        } catch (SocketException | TException e) {
             throw new IllegalArgumentException("Exception creating M3Reporter", e);
+        }
+    }
+
+    private String getHostName() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            return DEFAULT_TAG_VALUE;
         }
     }
 

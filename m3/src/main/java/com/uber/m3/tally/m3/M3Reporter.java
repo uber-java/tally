@@ -64,10 +64,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * An M3 reporter.
+ * An M3 implementation of a {@link CachedStatsReporter}.
  */
 public class M3Reporter implements CachedStatsReporter, AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
+
     private static final int DEFAULT_METRIC_SIZE = 100;
 
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
@@ -151,18 +156,10 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             }
 
             metricBatch = resourcePool.getMetricBatch();
-            metricBatch.setCommonTags(commonTags);
-            metricBatch.setMetrics(new ArrayList<Metric>());
-
             calcProtocol = resourcePool.getProtocol();
-            metricBatch.write(calcProtocol);
             calc = (TCalcTransport) calcProtocol.getTransport();
-            int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + calc.getSizeAndReset();
 
-            freeBytes = builder.maxPacketSizeBytes - numOverheadBytes;
-            if (freeBytes <= 0) {
-                throw new IllegalArgumentException("Common tags serialized size exceeds packet size");
-            }
+            freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, commonTags);
 
             bucketIdTagName = builder.histogramBucketIdName;
             bucketTagName = builder.histogramBucketName;
@@ -173,15 +170,41 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             executor = builder.executor;
 
             addAndRunProcessor();
-        } catch (SocketException | TException e) {
+        } catch (SocketException e) {
             throw new IllegalArgumentException("Exception creating M3Reporter", e);
         }
+    }
+
+    private int calculateFreeBytes(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
+        metricBatch.setCommonTags(commonTags);
+        metricBatch.setMetrics(new ArrayList<Metric>());
+
+        int size;
+
+        try {
+            metricBatch.write(calcProtocol);
+            size = calc.getSizeAndReset();
+        } catch (TException e) {
+            LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
+            size = DEFAULT_METRIC_SIZE;
+        }
+
+        int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + size;
+
+        freeBytes = maxPacketSizeBytes - numOverheadBytes;
+
+        if (freeBytes <= 0) {
+            throw new IllegalArgumentException("Common tags serialized size exceeds packet size");
+        }
+
+        return freeBytes;
     }
 
     private String getHostName() {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
+            LOG.warn("Unable to determine hostname. Defaulting to: " + DEFAULT_TAG_VALUE);
             return DEFAULT_TAG_VALUE;
         }
     }
@@ -273,7 +296,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         try {
             // A null metric signifies to processors that a flush was called,
             // which causes the metric queue to be cleared
-            metricQueue.put(new SizedMetric(null, 0));
+            metricQueue.put(resourcePool.getSizedMetric());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -380,6 +403,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 return calc.getSizeAndReset();
             }
         } catch (TException e) {
+            LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
             return DEFAULT_METRIC_SIZE;
         }
     }
@@ -419,9 +443,11 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
 
         try {
-            metricQueue.put(new SizedMetric(metricCopy, size));
+            metricQueue.put(resourcePool.getSizedMetric().setMetric(metricCopy).setSize(size));
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            LOG.warn(String.format("Interrupted while putting %s: %s",
+                metricType,
+                metricCopy.getName()));
         }
     }
 
@@ -459,6 +485,9 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 while (!metricQueue.isEmpty()) {
                     SizedMetric sizedMetric = metricQueue.poll();
                     Metric metric = sizedMetric.getMetric();
+                    int size = sizedMetric.getSize();
+
+                    resourcePool.releaseSizedMetric(sizedMetric);
 
                     if (metric == null) {
                         // Explicit flush requested
@@ -469,8 +498,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
                         continue;
                     }
-
-                    int size = sizedMetric.getSize();
 
                     if (bytes + size > freeBytes) {
                         metrics = flush(metrics);

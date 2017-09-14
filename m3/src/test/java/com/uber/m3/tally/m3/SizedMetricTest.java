@@ -23,7 +23,6 @@ package com.uber.m3.tally.m3;
 import com.uber.m3.thrift.generated.Metric;
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 
 public class SizedMetricTest {
@@ -33,7 +32,6 @@ public class SizedMetricTest {
 
         SizedMetric sizedMetric = new SizedMetric(metric, 1);
 
-        assertFalse(sizedMetric.getMetric() == metric);
         assertEquals(sizedMetric.getMetric(), metric);
         assertEquals(sizedMetric.getSize(), 1);
     }

@@ -35,14 +35,37 @@ public class SizedMetric extends Metric {
      * @param size   the size of this metric
      */
     public SizedMetric(Metric metric, int size) {
-        // Recreate metric to prevent underlying metric from being modified
-        if (metric == null) {
-            this.metric = null;
-        } else {
-            this.metric = new Metric(metric);
-        }
-
+        this.metric = metric;
         this.size = size;
+    }
+
+    /**
+     * Creates a default (empty) {@link SizedMetric}.
+     */
+    public SizedMetric() {
+        this(null, 0);
+    }
+
+    /**
+     * Sets the underlying metric.
+     * @param metric the metric to set
+     * @return this {@link SizedMetric} after setting the metric
+     */
+    public SizedMetric setMetric(Metric metric) {
+        this.metric = metric;
+
+        return this;
+    }
+
+    /**
+     * Sets the underlying metric's size.
+     * @param size the size to set
+     * @return this {@link SizedMetric} after setting the size
+     */
+    public SizedMetric setSize(int size) {
+        this.size = size;
+
+        return this;
     }
 
     /**

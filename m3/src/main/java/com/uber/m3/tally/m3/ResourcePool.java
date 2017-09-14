@@ -51,6 +51,7 @@ public class ResourcePool {
     private ObjectPool<GaugeValue> gaugeValuePool;
     private ObjectPool<TimerValue> timerValuePool;
     private ObjectPool<TProtocol> protocolPool;
+    private ObjectPool<SizedMetric> sizedMetricPool;
 
     /**
      * Creates a {@link ResourcePool}, initializing all its inner pools.
@@ -111,6 +112,13 @@ public class ResourcePool {
             @Override
             public TProtocol instance() {
                 return protocolFactory.getProtocol(new TCalcTransport());
+            }
+        });
+
+        sizedMetricPool = new ObjectPool<>(maxQueueSize, new Construct<SizedMetric>() {
+            @Override
+            public SizedMetric instance() {
+                return new SizedMetric();
             }
         });
     }
@@ -185,6 +193,14 @@ public class ResourcePool {
      */
     public TProtocol getProtocol() {
         return protocolPool.get();
+    }
+
+    /**
+     * Returns a {@link SizedMetric} from the pool.
+     * @return a {@link SizedMetric} from the pool
+     */
+    public SizedMetric getSizedMetric() {
+        return sizedMetricPool.get();
     }
 
     /**
@@ -294,5 +310,17 @@ public class ResourcePool {
         }
 
         metricValuePool.put(metricValue);
+    }
+
+    /**
+     * Puts the given {@link SizedMetric} back to the pool after reseting
+     * inner values.
+     * @param sizedMetric the {@link SizedMetric} to put back to the pool
+     */
+    public void releaseSizedMetric(SizedMetric sizedMetric) {
+        sizedMetric.setMetric(null);
+        sizedMetric.setSize(0);
+
+        sizedMetricPool.put(sizedMetric);
     }
 }

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.util;
+package com.uber.m3.tally.m3;
 
 import org.apache.thrift.transport.TTransportException;
 

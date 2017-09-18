@@ -29,7 +29,6 @@ import com.uber.m3.thrift.generated.MetricValue;
 import com.uber.m3.thrift.generated.TimerValue;
 import com.uber.m3.util.Construct;
 import com.uber.m3.util.ObjectPool;
-import com.uber.m3.util.TCalcTransport;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 

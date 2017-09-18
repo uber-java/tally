@@ -41,8 +41,6 @@ import com.uber.m3.thrift.generated.MetricValue;
 import com.uber.m3.thrift.generated.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import com.uber.m3.util.TCalcTransport;
-import com.uber.m3.util.TUdpClient;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TCompactProtocol;

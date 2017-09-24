@@ -123,6 +123,9 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     // order to wait for them to finish before closing
     private Phaser phaser = new Phaser(1);
 
+    private final Object isOpenLock = new Object();
+    private boolean isOpen = true;
+
     private TTransport transport;
 
     // Use inner Builder class to construct an M3Reporter
@@ -374,30 +377,38 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     @Override
     public void close() {
-        // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
-        // thread(s) or else they will block forever
-        executor.shutdownNow();
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                return;
+            }
 
-        // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
-        // to return from flushing
-        try {
-            phaser.awaitAdvanceInterruptibly(
-                phaser.arrive(),
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
-                TimeUnit.MILLISECONDS
-            );
-        } catch (TimeoutException e) {
-            LOG.warn(
-                "M3Reporter closing before Processors complete after waiting timeout of %dms!",
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
-            );
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
+            // thread(s) or else they will block forever
+            executor.shutdownNow();
 
-            LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
+            // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
+            // to return from flushing
+            try {
+                phaser.awaitAdvanceInterruptibly(
+                    phaser.arrive(),
+                    MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
+                    TimeUnit.MILLISECONDS
+                );
+            } catch (TimeoutException e) {
+                LOG.warn(
+                    "M3Reporter closing before Processors complete after waiting timeout of %dms!",
+                    MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+                );
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+
+                LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
+            }
+
+            transport.close();
+
+            isOpen = false;
         }
-
-        transport.close();
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricType metricType) {
@@ -476,45 +487,47 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         long iValue,
         double dValue
     ) {
-        if (executor.isShutdown()) {
-            LOG.warn("Scheduler is shutdown already, so no metrics can be flushed");
-            return;
-        }
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.warn("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
 
-        Metric metricCopy = new Metric(metric.getName());
-        metricCopy.setTags(metric.getTags());
-        // Unfortunately, there is no finer time resolution for Java 7
-        metricCopy.setTimestamp(System.currentTimeMillis() * Duration.NANOS_PER_MILLI);
-        metricCopy.setMetricValue(new MetricValue());
+            Metric metricCopy = new Metric(metric.getName());
+            metricCopy.setTags(metric.getTags());
+            // Unfortunately, there is no finer time resolution for Java 7
+            metricCopy.setTimestamp(System.currentTimeMillis() * Duration.NANOS_PER_MILLI);
+            metricCopy.setMetricValue(new MetricValue());
 
-        switch (metricType) {
-            case COUNTER:
-                CountValue countValue = new CountValue();
-                countValue.setI64Value(iValue);
-                metricCopy.getMetricValue().setCount(countValue);
-                break;
-            case GAUGE:
-                GaugeValue gaugeValue = new GaugeValue();
-                gaugeValue.setDValue(dValue);
-                metricCopy.getMetricValue().setGauge(gaugeValue);
-                break;
-            case TIMER:
-                TimerValue timerValue = new TimerValue();
-                timerValue.setI64Value(iValue);
-                metricCopy.getMetricValue().setTimer(timerValue);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported metric type: " + metricType);
-        }
+            switch (metricType) {
+                case COUNTER:
+                    CountValue countValue = new CountValue();
+                    countValue.setI64Value(iValue);
+                    metricCopy.getMetricValue().setCount(countValue);
+                    break;
+                case GAUGE:
+                    GaugeValue gaugeValue = new GaugeValue();
+                    gaugeValue.setDValue(dValue);
+                    metricCopy.getMetricValue().setGauge(gaugeValue);
+                    break;
+                case TIMER:
+                    TimerValue timerValue = new TimerValue();
+                    timerValue.setI64Value(iValue);
+                    metricCopy.getMetricValue().setTimer(timerValue);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported metric type: " + metricType);
+            }
 
-        try {
-            metricQueue.put(new SizedMetric(metricCopy, size));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            try {
+                metricQueue.put(new SizedMetric(metricCopy, size));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 
-            LOG.warn(String.format("Interrupted while putting %s: %s",
-                metricType,
-                metricCopy.getName()));
+                LOG.warn(String.format("Interrupted while putting %s: %s",
+                    metricType,
+                    metricCopy.getName()));
+            }
         }
     }
 

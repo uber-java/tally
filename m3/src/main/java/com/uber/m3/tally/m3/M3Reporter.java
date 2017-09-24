@@ -55,6 +55,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -110,8 +111,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     private int freeBytes;
 
-    private ResourcePool resourcePool;
-
     private String bucketIdTagName;
     private String bucketTagName;
     private String bucketValFmt;
@@ -146,8 +145,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
 
-            resourcePool = new ResourcePool(builder.maxQueueSize);
-
             Set<MetricTag> commonTags = toMetricTagsToSet(builder.commonTags);
 
             // Set and ensure required tags
@@ -169,8 +166,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 commonTags.add(createMetricTag(HOST_TAG, getHostName()));
             }
 
-            metricBatch = resourcePool.getMetricBatch();
-            calcProtocol = resourcePool.getProtocol();
+            metricBatch = new MetricBatch();
+            calcProtocol = new TCompactProtocol.Factory().getProtocol(new TCalcTransport());
             calc = (TCalcTransport) calcProtocol.getTransport();
 
             freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, commonTags);
@@ -365,8 +362,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             metricBatch.setMetrics(null);
         }
 
-        resourcePool.releaseShallowMetrics(metrics);
-
         metrics.clear();
 
         if (exception != null) {
@@ -406,28 +401,25 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricType metricType) {
-        Metric metric = resourcePool.getMetric();
-        metric.setName(name);
-
+        Metric metric = new Metric(name);
         metric.setTags(toMetricTagsToSet(tags));
-
         metric.setTimestamp(Long.MAX_VALUE);
 
-        MetricValue metricValue = resourcePool.getMetricValue();
+        MetricValue metricValue = new MetricValue();
 
         switch (metricType) {
             case COUNTER:
-                CountValue countValue = resourcePool.getCountValue();
+                CountValue countValue = new CountValue();
                 countValue.setI64Value(Long.MAX_VALUE);
                 metricValue.setCount(countValue);
                 break;
             case GAUGE:
-                GaugeValue gaugeValue = resourcePool.getGaugeValue();
+                GaugeValue gaugeValue = new GaugeValue();
                 gaugeValue.setDValue(Double.MAX_VALUE);
                 metricValue.setGauge(gaugeValue);
                 break;
             case TIMER:
-                TimerValue timerValue = resourcePool.getTimerValue();
+                TimerValue timerValue = new TimerValue();
                 timerValue.setI64Value(Long.MAX_VALUE);
                 metricValue.setTimer(timerValue);
                 break;
@@ -441,7 +433,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     }
 
     private Set<MetricTag> toMetricTagsToSet(Map<String, String> tags) {
-        Set<MetricTag> metricTagSet = resourcePool.getTagList();
+        Set<MetricTag> metricTagSet = new HashSet<>();
 
         if (tags == null) {
             return metricTagSet;
@@ -455,8 +447,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     }
 
     private MetricTag createMetricTag(String tagName, String tagValue) {
-        MetricTag metricTag = resourcePool.getMetricTag();
-        metricTag.setTagName(tagName);
+        MetricTag metricTag = new MetricTag(tagName);
 
         if (tagValue != null && !tagValue.isEmpty()) {
             metricTag.setTagValue(tagValue);
@@ -490,26 +481,25 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             return;
         }
 
-        Metric metricCopy = resourcePool.getMetric();
-        metricCopy.setName(metric.getName());
+        Metric metricCopy = new Metric(metric.getName());
         metricCopy.setTags(metric.getTags());
         // Unfortunately, there is no finer time resolution for Java 7
         metricCopy.setTimestamp(System.currentTimeMillis() * Duration.NANOS_PER_MILLI);
-        metricCopy.setMetricValue(resourcePool.getMetricValue());
+        metricCopy.setMetricValue(new MetricValue());
 
         switch (metricType) {
             case COUNTER:
-                CountValue countValue = resourcePool.getCountValue();
+                CountValue countValue = new CountValue();
                 countValue.setI64Value(iValue);
                 metricCopy.getMetricValue().setCount(countValue);
                 break;
             case GAUGE:
-                GaugeValue gaugeValue = resourcePool.getGaugeValue();
+                GaugeValue gaugeValue = new GaugeValue();
                 gaugeValue.setDValue(dValue);
                 metricCopy.getMetricValue().setGauge(gaugeValue);
                 break;
             case TIMER:
-                TimerValue timerValue = resourcePool.getTimerValue();
+                TimerValue timerValue = new TimerValue();
                 timerValue.setI64Value(iValue);
                 metricCopy.getMetricValue().setTimer(timerValue);
                 break;
@@ -518,7 +508,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
 
         try {
-            metricQueue.put(resourcePool.getSizedMetric().setMetric(metricCopy).setSize(size));
+            metricQueue.put(new SizedMetric(metricCopy, size));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
 
@@ -583,14 +573,11 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
             if (sizedMetric == SizedMetric.FLUSH) {
                 flush(metrics);
-                resourcePool.releaseSizedMetric(sizedMetric);
 
                 return;
             }
 
             int size = sizedMetric.getSize();
-
-            resourcePool.releaseSizedMetric(sizedMetric);
 
             if (metricsSize + size > freeBytes) {
                 flush(metrics);

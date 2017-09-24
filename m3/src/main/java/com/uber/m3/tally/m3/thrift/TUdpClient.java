@@ -18,49 +18,53 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally.m3;
+package com.uber.m3.tally.m3.thrift;
 
 import org.apache.thrift.transport.TTransportException;
 
-import java.net.InetSocketAddress;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.SocketAddress;
 import java.net.SocketException;
 
 /**
- * A server for receiving data via Thrift UDP.
+ * A client for sending data via Thrift UDP.
  */
-public class TUdpServer extends TUdpTransport implements AutoCloseable {
-    private int timeoutMillis;
-
+public class TUdpClient extends TUdpTransport implements AutoCloseable {
     /**
-     * Constructs a UDP server with the given host and port. Defaults to zero timeout.
-     * @param host the host for this transport
-     * @param port the port for this transport
+     * Constructs a UDP client with the given host and port.
+     * @param socketAddress the {@code SocketAddress} for this transport
      * @throws SocketException if the underlying socket cannot be opened
      */
-    public TUdpServer(String host, int port) throws SocketException {
-        this(host, port, 0);
-    }
-
-    /**
-     * Constructs a UDP server with the given host and port.
-     * @param host          the host for this transport
-     * @param port          the port for this transport
-     * @param timeoutMillis the timeout in milliseconds
-     * @throws SocketException if the underlying socket cannot be opened
-     */
-    public TUdpServer(String host, int port, int timeoutMillis) throws SocketException {
-        super(host, port);
-
-        this.timeoutMillis = timeoutMillis;
+    public TUdpClient(SocketAddress socketAddress) throws SocketException {
+        super(socketAddress);
     }
 
     @Override
     public void open() throws TTransportException {
         try {
-            socket.bind(new InetSocketAddress(host, port));
-            socket.setSoTimeout(timeoutMillis);
+            socket.connect(socketAddress);
         } catch (SocketException e) {
             throw new TTransportException("Error opening transport", e);
+        }
+    }
+
+    @Override
+    public void flush() throws TTransportException {
+        synchronized (sendLock) {
+            byte[] bytes = new byte[MAX_BUFFER_SIZE];
+            int length = writeBuffer.position();
+
+            writeBuffer.flip();
+            writeBuffer.get(bytes, 0, length);
+
+            try {
+                socket.send(new DatagramPacket(bytes, length));
+            } catch (IOException e) {
+                throw new TTransportException("Cannot flush closed transport", e);
+            } finally {
+                writeBuffer.clear();
+            }
         }
     }
 }

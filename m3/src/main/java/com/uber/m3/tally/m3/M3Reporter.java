@@ -31,6 +31,8 @@ import com.uber.m3.tally.CachedStatsReporter;
 import com.uber.m3.tally.CachedTimer;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
+import com.uber.m3.tally.m3.thrift.TCalcTransport;
+import com.uber.m3.tally.m3.thrift.TUdpClient;
 import com.uber.m3.thrift.generated.CountValue;
 import com.uber.m3.thrift.generated.GaugeValue;
 import com.uber.m3.thrift.generated.M3;
@@ -42,13 +44,13 @@ import com.uber.m3.thrift.generated.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
 
 import java.net.InetAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -61,7 +63,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +74,21 @@ import org.slf4j.LoggerFactory;
  * An M3 implementation of a {@link CachedStatsReporter}.
  */
 public class M3Reporter implements CachedStatsReporter, AutoCloseable {
+    public static final String SERVICE_TAG = "service";
+    public static final String ENV_TAG = "env";
+    public static final String HOST_TAG = "host";
+    public static final String DEFAULT_TAG_VALUE = "default";
+
+    public static final String DEFAULT_HISTOGRAM_BUCKET_ID_NAME = "bucketid";
+    public static final String DEFAULT_HISTOGRAM_BUCKET_NAME = "bucket";
+    public static final int DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION = 6;
+
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
+
+    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
+
+    private static final int DEFAULT_FLUSH_TRY_COUNT = 2;
+    private static final int FLUSH_RETRY_DELAY_MILLIS = 200;
 
     private static final int DEFAULT_METRIC_SIZE = 100;
 
@@ -77,15 +96,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private static final int DEFAULT_MAX_PACKET_SIZE = 1440;
 
     private static final int THREAD_POOL_SIZE = 10;
-
-    private static final String SERVICE_TAG = "service";
-    private static final String ENV_TAG = "env";
-    private static final String HOST_TAG = "host";
-    private static final String DEFAULT_TAG_VALUE = "default";
-
-    private static final String DEFAULT_HISTOGRAM_BUCKET_ID_NAME = "bucketid";
-    private static final String DEFAULT_HISTOGRAM_BUCKET_NAME = "bucket";
-    private static final int DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION = 6;
 
     private static final int EMIT_METRIC_BATCH_OVERHEAD = 19;
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
@@ -107,44 +117,50 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     private String bucketValFmt;
 
     // Holds metrics to be flushed
-    private BlockingQueue<SizedMetric> metricQueue;
+    private final BlockingQueue<SizedMetric> metricQueue;
     // The service used to execute metric flushes
-    private ExecutorService executor;
+    private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     // Used to keep track of how many processors are in progress in
     // order to wait for them to finish before closing
     private Phaser phaser = new Phaser(1);
 
+    private TTransport transport;
+
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
         try {
-            // Builder verifies non-null, non-empty hostPorts
-            String[] hostPorts = builder.hostPorts;
+            // Builder verifies non-null, non-empty socketAddresses
+            SocketAddress[] socketAddresses = builder.socketAddresses;
 
-            TProtocolFactory protocolFactory;
-            if (builder.protocol == ThriftProtocol.COMPACT) {
-                protocolFactory = new TCompactProtocol.Factory();
+            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
+
+            if (socketAddresses.length > 1) {
+                throw new UnsupportedOperationException(
+                    "Support for a multiple SocketAddress transport not yet implemented."
+                );
             } else {
-                protocolFactory = new TBinaryProtocol.Factory();
+                transport = new TUdpClient(socketAddresses[0]);
             }
 
-            TTransport transport = new TUdpClient(hostPorts[0]);
+            transport.open();
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
-            resourcePool = new ResourcePool(builder.maxQueueSize, protocolFactory);
+
+            resourcePool = new ResourcePool(builder.maxQueueSize);
 
             Set<MetricTag> commonTags = toMetricTagsToSet(builder.commonTags);
 
             // Set and ensure required tags
             if (!builder.commonTags.containsKey(SERVICE_TAG)) {
                 if (builder.service == null || builder.service.isEmpty()) {
-                    throw new IllegalArgumentException(String.format("%s common tag is required", SERVICE_TAG));
+                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", SERVICE_TAG));
                 }
 
                 commonTags.add(createMetricTag(SERVICE_TAG, builder.service));
             }
             if (!builder.commonTags.containsKey(ENV_TAG)) {
                 if (builder.env == null || builder.env.isEmpty()) {
-                    throw new IllegalArgumentException(String.format("%s common tag is required", ENV_TAG));
+                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", ENV_TAG));
                 }
 
                 commonTags.add(createMetricTag(ENV_TAG, builder.env));
@@ -165,10 +181,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
             metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            executor = builder.executor;
-
             addAndRunProcessor();
-        } catch (SocketException e) {
+        } catch (TTransportException | SocketException e) {
             throw new IllegalArgumentException("Exception creating M3Reporter", e);
         }
     }
@@ -183,7 +197,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
             metricBatch.write(calcProtocol);
             size = calc.getSizeAndReset();
         } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
+            LOG.warn("Unable to calculate metric batch size. Defaulting to: %s", DEFAULT_METRIC_SIZE);
             size = DEFAULT_METRIC_SIZE;
         }
 
@@ -202,7 +216,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            LOG.warn("Unable to determine hostname. Defaulting to: " + DEFAULT_TAG_VALUE);
+            LOG.warn("Unable to determine hostname. Defaulting to: %s", DEFAULT_TAG_VALUE);
             return DEFAULT_TAG_VALUE;
         }
     }
@@ -292,27 +306,60 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     @Override
     public void flush() {
         try {
-            // A null metric signifies to processors that a flush was called,
-            // which causes the metric queue to be cleared
-            metricQueue.put(resourcePool.getSizedMetric());
+            metricQueue.put(SizedMetric.FLUSH);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
             throw new RuntimeException(e);
         }
     }
 
-    private List<Metric> flush(List<Metric> metrics) throws TException {
+    private void flush(List<Metric> metrics) {
+        flush(metrics, DEFAULT_FLUSH_TRY_COUNT);
+    }
+
+    private void flush(List<Metric> metrics, int maxTries) {
+        if (metrics.isEmpty()) {
+            return;
+        }
+
         TException exception = null;
+
+        int tries = 0;
+        boolean tryFlush = true;
 
         synchronized (metricBatch) {
             metricBatch.setMetrics(metrics);
 
-            try {
-                client.emitMetricBatch(metricBatch);
-            } catch (TException e) {
-                // Store exception to throw later after clean up.
-                // Don't want to put everything in a finally block here,
-                // which will hold the lock unnecessarily long
-                exception = e;
+            while (tryFlush) {
+                try {
+                    client.emitMetricBatch(metricBatch);
+
+                    tryFlush = false;
+                } catch (TException tException) {
+                    tries++;
+
+                    if (tries < maxTries) {
+                        try {
+                            Thread.sleep(FLUSH_RETRY_DELAY_MILLIS);
+                        } catch (InterruptedException interruptedException) {
+                            Thread.currentThread().interrupt();
+
+                            // If someone interrupts this thread, we should probably
+                            // not still try to flush
+                            tryFlush = false;
+
+                            exception = new TException("Interrupted while about to retry emitting metrics", tException);
+                        }
+                    } else {
+                        tryFlush = false;
+
+                        // Store exception to throw later after clean up.
+                        // Don't want to put everything in a finally block here,
+                        // which will hold the lock unnecessarily long
+                        exception = tException;
+                    }
+                }
             }
 
             metricBatch.setMetrics(null);
@@ -323,16 +370,39 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         metrics.clear();
 
         if (exception != null) {
-            throw exception;
+            throw new RuntimeException(
+                String.format("Failed to flush metrics after %s tries", maxTries),
+                exception
+            );
         }
-
-        return metrics;
     }
 
     @Override
     public void close() {
-        // Wait (block) until all processors to return from flushing
-        phaser.arriveAndAwaitAdvance();
+        // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
+        // thread(s) or else they will block forever
+        executor.shutdownNow();
+
+        // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
+        // to return from flushing
+        try {
+            phaser.awaitAdvanceInterruptibly(
+                phaser.arrive(),
+                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
+                TimeUnit.MILLISECONDS
+            );
+        } catch (TimeoutException e) {
+            LOG.warn(
+                "M3Reporter closing before Processors complete after waiting timeout of %dms!",
+                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+            );
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
+            LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
+        }
+
+        transport.close();
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricType metricType) {
@@ -361,6 +431,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
                 timerValue.setI64Value(Long.MAX_VALUE);
                 metricValue.setTimer(timerValue);
                 break;
+            default:
+                throw new IllegalArgumentException("Unsupported metric type: " + metricType);
         }
 
         metric.setMetricValue(metricValue);
@@ -413,6 +485,11 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         long iValue,
         double dValue
     ) {
+        if (executor.isShutdown()) {
+            LOG.warn("Scheduler is shutdown already, so no metrics can be flushed");
+            return;
+        }
+
         Metric metricCopy = resourcePool.getMetric();
         metricCopy.setName(metric.getName());
         metricCopy.setTags(metric.getTags());
@@ -443,6 +520,8 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         try {
             metricQueue.put(resourcePool.getSizedMetric().setMetric(metricCopy).setSize(size));
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
             LOG.warn(String.format("Interrupted while putting %s: %s",
                 metricType,
                 metricCopy.getName()));
@@ -474,48 +553,61 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     }
 
     private class Processor implements Runnable {
+        List<Metric> metrics = new ArrayList<>(freeBytes / 10);
+        int metricsSize = 0;
+
         @Override
         public void run() {
             try {
-                List<Metric> metrics = new ArrayList<>(freeBytes / 10);
-                int bytes = 0;
+                while (!executor.isShutdown()) {
+                    // This `take` call will block until there is an item on the queue to take.
+                    // When this reporter is closed, shutdownNow will be called on the executor,
+                    // which will interrupt this thread and proceed to the `InterruptedException`
+                    // catch block.
+                    SizedMetric sizedMetric = metricQueue.take();
 
-                while (!metricQueue.isEmpty()) {
-                    SizedMetric sizedMetric = metricQueue.poll();
-                    Metric metric = sizedMetric.getMetric();
-                    int size = sizedMetric.getSize();
-
-                    resourcePool.releaseSizedMetric(sizedMetric);
-
-                    if (metric == null) {
-                        // Explicit flush requested
-                        if (metrics.size() > 0) {
-                            metrics.clear();
-                            bytes = 0;
-                        }
-
-                        continue;
-                    }
-
-                    if (bytes + size > freeBytes) {
-                        metrics = flush(metrics);
-                        bytes = 0;
-                    }
-
-                    metrics.add(metric);
-                    bytes += size;
+                    flushMetricIteration(sizedMetric);
                 }
-
-                if (metrics.size() > 0) {
-                    // Final flush
-                    flush(metrics);
-                }
-            } catch (TException e) {
-                throw new RuntimeException("Failed to emit metrics", e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } finally {
+                flushRemainingMetrics();
+
                 // Always arrive at phaser to prevent deadlock
                 phaser.arrive();
             }
+        }
+
+        private void flushMetricIteration(SizedMetric sizedMetric) {
+            Metric metric = sizedMetric.getMetric();
+
+            if (sizedMetric == SizedMetric.FLUSH) {
+                flush(metrics);
+                resourcePool.releaseSizedMetric(sizedMetric);
+
+                return;
+            }
+
+            int size = sizedMetric.getSize();
+
+            resourcePool.releaseSizedMetric(sizedMetric);
+
+            if (metricsSize + size > freeBytes) {
+                flush(metrics);
+                metricsSize = 0;
+            }
+
+            metrics.add(metric);
+
+            metricsSize += size;
+        }
+
+        private void flushRemainingMetrics() {
+            while (!metricQueue.isEmpty()) {
+                flushMetricIteration(metricQueue.remove());
+            }
+
+            flush(metrics);
         }
     }
 
@@ -621,32 +713,37 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
      * Builder pattern to construct an {@link M3Reporter}.
      */
     public static class Builder {
-        private String[] hostPorts;
+        private SocketAddress[] socketAddresses;
         private String service;
         private String env;
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
         private boolean includeHost;
-        private ThriftProtocol protocol = ThriftProtocol.COMPACT;
         private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
         private String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         private String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         private int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
 
-        private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-
         /**
-         * Constructs a {@link Builder}. Having at least one host/port is required.
-         * @param hostPorts the array of host/ports
+         * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
+         * @param socketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
          */
-        public Builder(String[] hostPorts) {
-            if (hostPorts == null || hostPorts.length == 0) {
-                throw new IllegalArgumentException("Must specify at least one host port");
+        public Builder(SocketAddress[] socketAddresses) {
+            if (socketAddresses == null || socketAddresses.length == 0) {
+                throw new IllegalArgumentException("Must specify at least one SocketAddress");
             }
 
-            this.hostPorts = hostPorts;
+            this.socketAddresses = socketAddresses;
+        }
+
+        /**
+         * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
+         * @param socketAddress the {@code SocketAddress} for this {@link M3Reporter}
+         */
+        public Builder(SocketAddress socketAddress) {
+            this(new SocketAddress[]{socketAddress});
         }
 
         /**
@@ -689,17 +786,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
          */
         public Builder includeHost(boolean includeHost) {
             this.includeHost = includeHost;
-
-            return this;
-        }
-
-        /**
-         * Configures the protocol of this {@link Builder}.
-         * @param protocol the value to set
-         * @return this {@link Builder} with the new value set
-         */
-        public Builder protocol(ThriftProtocol protocol) {
-            this.protocol = protocol;
 
             return this;
         }
@@ -755,17 +841,6 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
          */
         public Builder histogramBucketTagPrecision(int histogramBucketTagPrecision) {
             this.histogramBucketTagPrecision = histogramBucketTagPrecision;
-
-            return this;
-        }
-
-        /**
-         * Configures the executor service of this {@link Builder}.
-         * @param executor the value to set
-         * @return this {@link Builder} with the new value set
-         */
-        public Builder executor(ExecutorService executor) {
-            this.executor = executor;
 
             return this;
         }

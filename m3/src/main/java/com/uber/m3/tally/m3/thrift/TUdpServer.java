@@ -18,43 +18,52 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally.m3;
+package com.uber.m3.tally.m3.thrift;
 
 import org.apache.thrift.transport.TTransportException;
 
-import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 
 /**
- * A client for sending data via Thrift UDP.
+ * A server for receiving data via Thrift UDP.
  */
-public class TUdpClient extends TUdpTransport implements AutoCloseable {
+public class TUdpServer extends TUdpTransport implements AutoCloseable {
+    private int timeoutMillis;
+
     /**
-     * Constructs a UDP client with the given host and port.
-     * @param host the host for this transport
-     * @param port the port for this transport
+     * Constructs a UDP server with the given host and port. Defaults to zero timeout.
+     * @param socketAddress the {@code SocketAddress} for this transport
      * @throws SocketException if the underlying socket cannot be opened
      */
-    public TUdpClient(String host, int port) throws SocketException {
-        super(host, port);
+    public TUdpServer(SocketAddress socketAddress) throws SocketException {
+        this(socketAddress, 0);
     }
 
     /**
-     * Constructs a UDP client with the given host and port.
-     * @param hostPort a string containing both host and port information in the
-     *                 form "<em>HOST</em>:<em>PORT</em>"
+     * Constructs a UDP server with the given host and port.
+     * @param socketAddress the {@code SocketAddress} for this transport
+     * @param timeoutMillis the timeout in milliseconds
      * @throws SocketException if the underlying socket cannot be opened
      */
-    public TUdpClient(String hostPort) throws SocketException {
-        super(hostPort);
+    public TUdpServer(SocketAddress socketAddress, int timeoutMillis) throws SocketException {
+        super(socketAddress);
+
+        this.timeoutMillis = timeoutMillis;
     }
 
     @Override
     public void open() throws TTransportException {
         try {
-            socket.connect(new InetSocketAddress(host, port));
+            socket.bind(socketAddress);
+            socket.setSoTimeout(timeoutMillis);
         } catch (SocketException e) {
             throw new TTransportException("Error opening transport", e);
         }
+    }
+
+    @Override
+    public void flush() throws TTransportException {
+        // No-op -- UDP server does not write responses back
     }
 }

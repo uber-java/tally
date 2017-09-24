@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally.m3;
 
+import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.thrift.generated.CountValue;
 import com.uber.m3.thrift.generated.GaugeValue;
 import com.uber.m3.thrift.generated.Metric;
@@ -29,24 +30,25 @@ import com.uber.m3.thrift.generated.MetricValue;
 import com.uber.m3.thrift.generated.TimerValue;
 import com.uber.m3.util.Construct;
 import com.uber.m3.util.ObjectPool;
+import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.protocol.TProtocolFactory;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A collection of {@link ObjectPool}s used for the {@link M3Reporter}.
  */
 public class ResourcePool {
-    private static final int BATCH_POOL_SIZE = 10;
-    private static final int PROTOCOL_POOL_SIZE = 10;
+    public static final int BATCH_POOL_SIZE = 10;
+    public static final int PROTOCOL_POOL_SIZE = 10;
 
     private ObjectPool<MetricBatch> metricBatchPool;
     private ObjectPool<Metric> metricPool;
     private ObjectPool<MetricTag> metricTagPool;
     private ObjectPool<MetricValue> metricValuePool;
-    private ObjectPool<CountValue> counterValuePool;
+    private ObjectPool<CountValue> countValuePool;
     private ObjectPool<GaugeValue> gaugeValuePool;
     private ObjectPool<TimerValue> timerValuePool;
     private ObjectPool<TProtocol> protocolPool;
@@ -55,9 +57,8 @@ public class ResourcePool {
     /**
      * Creates a {@link ResourcePool}, initializing all its inner pools.
      * @param maxQueueSize    the maximum metric queue size
-     * @param protocolFactory a factory to create the {@link TProtocol} we want
      */
-    ResourcePool(int maxQueueSize, final TProtocolFactory protocolFactory) {
+    ResourcePool(int maxQueueSize) {
         metricBatchPool = new ObjectPool<>(BATCH_POOL_SIZE, new Construct<MetricBatch>() {
             @Override
             public MetricBatch instance() {
@@ -86,7 +87,7 @@ public class ResourcePool {
             }
         });
 
-        counterValuePool = new ObjectPool<>(maxQueueSize, new Construct<CountValue>() {
+        countValuePool = new ObjectPool<>(maxQueueSize, new Construct<CountValue>() {
             @Override
             public CountValue instance() {
                 return new CountValue();
@@ -110,7 +111,7 @@ public class ResourcePool {
         protocolPool = new ObjectPool<>(PROTOCOL_POOL_SIZE, new Construct<TProtocol>() {
             @Override
             public TProtocol instance() {
-                return protocolFactory.getProtocol(new TCalcTransport());
+                return new TCompactProtocol.Factory().getProtocol(new TCalcTransport());
             }
         });
 
@@ -167,7 +168,7 @@ public class ResourcePool {
      * @return a {@link CountValue} from the pool
      */
     public CountValue getCountValue() {
-        return counterValuePool.get();
+        return countValuePool.get();
     }
 
     /**
@@ -206,68 +207,79 @@ public class ResourcePool {
      * Puts the given {@link TProtocol} back to the pool, reseting the
      * {@link TCalcTransport} internal count.
      * @param protocol the {@link TProtocol} to put back to the pool
+     * @return whether the {@link TProtocol} was put back into the pool
      */
-    public void releaseProtocol(TProtocol protocol) {
+    public boolean releaseProtocol(TProtocol protocol) {
         ((TCalcTransport) protocol.getTransport()).resetSize();
 
-        protocolPool.put(protocol);
+        return protocolPool.put(protocol);
     }
 
     /**
      * Puts the given {@link MetricBatch} back to the pool after reseting inner
      * values and releasing each of its internal {@link Metric}s as well.
      * @param metricBatch the {@link MetricBatch} to put back to the pool
+     * @return whether the {@link MetricBatch} was put back into the pool
      */
-    public void releaseMetricBatch(MetricBatch metricBatch) {
-        metricBatch.setCommonTags(null);
+    public boolean releaseMetricBatch(MetricBatch metricBatch) {
+        metricBatch.setCommonTagsIsSet(false);
 
-        for (Metric metric : metricBatch.getMetrics()) {
-            releaseMetric(metric);
+        List<Metric> metrics = metricBatch.getMetrics();
+
+        if (metrics != null) {
+            for (Metric metric : metrics) {
+                releaseMetric(metric);
+            }
         }
 
-        metricBatch.setMetrics(null);
+        metricBatch.setMetricsIsSet(false);
 
-        metricBatchPool.put(metricBatch);
+        return metricBatchPool.put(metricBatch);
     }
 
     /**
      * Puts the given {@link Metric} back to the pool after reseting its
      * internal attributes.
      * @param metric the {@link Metric} to put back to the pool
+     * @return whether the {@link Metric} was put back into the pool
      */
-    public void releaseMetric(Metric metric) {
-        metric.setName("");
+    public boolean releaseMetric(Metric metric) {
+        metric.setNameIsSet(false);
 
-        for (MetricTag tag : metric.getTags()) {
-            tag.setTagName("");
-            tag.setTagValue(null);
-            metricTagPool.put(tag);
+        Set<MetricTag> tags = metric.getTags();
+
+        if (tags != null) {
+            for (MetricTag tag : tags) {
+                tag.setTagNameIsSet(false);
+                tag.setTagValueIsSet(false);
+                metricTagPool.put(tag);
+            }
         }
 
-        metric.setTags(null);
+        metric.setTagsIsSet(false);
 
-        releaseShallowMetric(metric);
+        return releaseShallowMetric(metric);
     }
 
     /**
      * Puts a tag-less {@link Metric} back to the pool as well as
      * its {@link MetricValue}.
      * @param metric the {@link Metric} to put back to the pool
+     * @return whether the {@link Metric} was put back into the pool
      */
-    public void releaseShallowMetric(Metric metric) {
-        metric.setTimestamp(0);
+    public boolean releaseShallowMetric(Metric metric) {
+        metric.setTimestampIsSet(false);
 
         MetricValue metricValue = metric.getMetricValue();
 
         if (metricValue == null) {
-            metricPool.put(metric);
-            return;
+            return metricPool.put(metric);
         }
 
         releaseMetricValue(metricValue);
-        metric.setMetricValue(null);
+        metric.unsetMetricValue();
 
-        metricPool.put(metric);
+        return metricPool.put(metric);
     }
 
     /**
@@ -284,42 +296,95 @@ public class ResourcePool {
      * Puts the given {@link MetricValue} back to the pool after reseting its
      * internal attributes and values.
      * @param metricValue the {@link MetricValue} to put back to the pool
+     * @return whether the {@link MetricValue} was put back into the pool
      */
-    public void releaseMetricValue(MetricValue metricValue) {
+    public boolean releaseMetricValue(MetricValue metricValue) {
         if (metricValue.isSetCount()) {
-            metricValue.getCount().setI64Value(0);
+            metricValue.getCount().setI64ValueIsSet(false);
 
-            counterValuePool.put(metricValue.getCount());
+            countValuePool.put(metricValue.getCount());
 
             metricValue.unsetCount();
         } else if (metricValue.isSetGauge()) {
-            metricValue.getGauge().setI64Value(0);
-            metricValue.getGauge().setDValue(0);
+            metricValue.getGauge().setI64ValueIsSet(false);
+            metricValue.getGauge().setDValueIsSet(false);
 
             gaugeValuePool.put(metricValue.getGauge());
 
             metricValue.unsetGauge();
         } else if (metricValue.isSetTimer()) {
-            metricValue.getTimer().setI64Value(0);
-            metricValue.getTimer().setDValue(0);
+            metricValue.getTimer().setI64ValueIsSet(false);
+            metricValue.getTimer().setDValueIsSet(false);
 
             timerValuePool.put(metricValue.getTimer());
 
             metricValue.unsetTimer();
         }
 
-        metricValuePool.put(metricValue);
+        return metricValuePool.put(metricValue);
     }
 
     /**
      * Puts the given {@link SizedMetric} back to the pool after reseting
      * inner values.
      * @param sizedMetric the {@link SizedMetric} to put back to the pool
+     * @return whether the {@link SizedMetric} was put back into the pool
      */
-    public void releaseSizedMetric(SizedMetric sizedMetric) {
+    public boolean releaseSizedMetric(SizedMetric sizedMetric) {
         sizedMetric.setMetric(null);
         sizedMetric.setSize(0);
 
-        sizedMetricPool.put(sizedMetric);
+        return sizedMetricPool.put(sizedMetric);
+    }
+
+    /**
+     * Puts the given {@link MetricTag} back to the pool after reseting
+     * inner values.
+     * @param metricTag the {@link MetricTag} to put back to the pool
+     * @return whether the {@link MetricTag} was put back into the pool
+     */
+    public boolean releaseMetricTag(MetricTag metricTag) {
+        metricTag.setTagNameIsSet(false);
+        metricTag.setTagValueIsSet(false);
+
+        return metricTagPool.put(metricTag);
+    }
+
+    /**
+     * Puts the given {@link CountValue} back to the pool after reseting
+     * inner values.
+     * @param countValue the {@link CountValue} to put back to the pool
+     * @return whether the {@link CountValue} was put back into the pool
+     */
+    public boolean releaseCountValue(CountValue countValue) {
+        countValue.setI64ValueIsSet(false);
+
+        return countValuePool.put(countValue);
+    }
+
+    /**
+     * Puts the given {@link GaugeValue} back to the pool after reseting
+     * inner values.
+     * @param gaugeValue the {@link GaugeValue} to put back to the pool
+     * @return whether the {@link GaugeValue} was put back into the pool
+     */
+    public boolean releaseGaugeValue(GaugeValue gaugeValue) {
+        gaugeValue.setDValueIsSet(false);
+        gaugeValue.setI64ValueIsSet(false);
+
+        return gaugeValuePool.put(gaugeValue);
+    }
+
+    /**
+     * Puts the given {@link TimerValue} back to the pool after reseting
+     * inner values.
+     * @param timerValue the {@link TimerValue} to put back to the pool
+     * @return whether the {@link TimerValue} was put back into the pool
+     */
+    public boolean releaseTimerValue(TimerValue timerValue) {
+        timerValue.setDValueIsSet(false);
+        timerValue.setI64ValueIsSet(false);
+
+        return timerValuePool.put(timerValue);
     }
 }

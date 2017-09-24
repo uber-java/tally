@@ -33,7 +33,7 @@ plugins {
     id 'signing'
     id 'checkstyle'
     id 'jacoco'
-    id 'net.researchgate.release' version '2.4.0' apply false
+    id 'net.researchgate.release' version '2.6.0' apply false
     id 'com.github.kt3k.coveralls' version '2.8.1'
 }
 
@@ -165,7 +165,8 @@ subprojects {
 ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '3.5'
+    // Gradle version 4+ required for JMH benchmarking, otherwise v3.5+ is sufficient
+    gradleVersion = '4.0'
 }
 
 // ----------------------
@@ -256,7 +257,7 @@ coveralls {
 task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
     dependsOn = subprojects.test
     sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories =  files(subprojects.sourceSets.main.output.classesDir)
+    classDirectories =  files(subprojects.sourceSets.main.output.classesDirs)
     executionData = files(subprojects.jacocoTestReport.executionData)
 
     reports {

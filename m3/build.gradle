@@ -20,12 +20,14 @@
 
 plugins {
     id "org.jruyi.thrift" version "0.4.0"
+    id "me.champeau.gradle.jmh" version "0.4.3"
 }
 
 description = 'tally M3 reporter'
 
 dependencies {
     compile('org.apache.thrift:libthrift:0.9.3')
+
     compile project(':tally-core')
 }
 
@@ -35,8 +37,21 @@ compileThrift {
     outputDir "${projectDir}/src/generated/java"
 
     createGenFolder false
+
+    onlyIf {
+        project.hasProperty('genThrift')
+    }
 }
 
-compileThrift.onlyIf {
-    project.hasProperty('genThrift')
+jmh {
+    benchmarkMode = ['Throughput']
+
+    warmupIterations = 0
+
+    iterations = 5
+    batchSize = 1
+
+    fork = 1
+    forceGC = true
+    includeTests = true
 }

@@ -43,4 +43,23 @@ public class SizedMetricTest {
         assertEquals(sizedMetric.getMetric(), null);
         assertEquals(sizedMetric.getSize(), 9);
     }
+
+    @Test
+    public void setters() {
+        SizedMetric sizedMetric = new SizedMetric();
+
+        sizedMetric.setSize(9);
+
+        assertEquals(9, sizedMetric.getSize());
+
+        sizedMetric.setSize(11);
+        sizedMetric.setSize(12);
+
+        assertEquals(12, sizedMetric.getSize());
+
+        Metric metric1 = new Metric();
+        sizedMetric.setMetric(metric1);
+
+        assertEquals(metric1, sizedMetric.getMetric());
+    }
 }

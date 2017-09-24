@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally.m3;
+package com.uber.m3.tally.m3.thrift;
 
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
@@ -31,27 +31,53 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TCalcTransport extends TTransport {
     private AtomicInteger size = new AtomicInteger(0);
 
+    /**
+     * Dummy override to satisfy interface. Not used for our purposes.
+     * @return not used for our purposes
+     */
     @Override
     public boolean isOpen() {
         return true;
     }
 
+    /**
+     * Dummy override to satisfy interface. Not used for our purposes.
+     * @throws TTransportException not used for our purposes
+     */
     @Override
     public void open() throws TTransportException {
     }
 
+    /**
+     * Dummy override to satisfy interface. Not used for our purposes.
+     */
     @Override
     public void close() {
     }
 
+    /**
+     * Dummy override to satisfy interface. Not used for our purposes.
+     * @param bytes  not used for our purposes
+     * @param offset not used for our purposes
+     * @param length not used for our purposes
+     * @return not used for our purposes
+     * @throws TTransportException not used for our purposes
+     */
     @Override
-    public int read(byte[] bytes, int i, int i1) throws TTransportException {
+    public int read(byte[] bytes, int offset, int length) throws TTransportException {
         return 0;
     }
 
+    /**
+     * Record the number of bytes being written to this transport.
+     * @param bytes  not used for our purposes
+     * @param offset not used for our purposes
+     * @param length the length of bytes being written
+     * @throws TTransportException this will never throw
+     */
     @Override
-    public void write(byte[] bytes, int i, int len) throws TTransportException {
-        size.getAndAdd(len);
+    public void write(byte[] bytes, int offset, int length) throws TTransportException {
+        size.getAndAdd(length);
     }
 
     /**

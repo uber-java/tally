@@ -26,6 +26,8 @@ import com.uber.m3.thrift.generated.Metric;
  * A metric along with its associated size.
  */
 public class SizedMetric extends Metric {
+    public static final SizedMetric FLUSH = new SizedMetric(null, -1);
+
     private Metric metric;
     private int size;
 

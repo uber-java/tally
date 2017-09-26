@@ -34,8 +34,6 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 class ScopeImpl implements Scope {
     private StatsReporter reporter;
-    private CachedStatsReporter cachedReporter;
-    private BaseStatsReporter baseReporter;
     private String prefix;
     private String separator;
     private ImmutableMap<String, String> tags;
@@ -59,8 +57,6 @@ class ScopeImpl implements Scope {
         this.registry = registry;
 
         this.reporter = builder.reporter;
-        this.cachedReporter = builder.cachedReporter;
-        this.baseReporter = builder.baseReporter;
         this.prefix = builder.prefix;
         this.separator = builder.separator;
         this.tags = builder.tags;
@@ -77,13 +73,7 @@ class ScopeImpl implements Scope {
 
         synchronized (counters) {
             if (!counters.containsKey(name)) {
-                CachedCounter cachedCounter = null;
-
-                if (cachedReporter != null) {
-                    cachedCounter = cachedReporter.allocateCounter(fullyQualifiedName(name), tags);
-                }
-
-                counters.put(name, new CounterImpl(cachedCounter));
+                counters.put(name, new CounterImpl());
             }
 
             counter = counters.get(name);
@@ -102,13 +92,7 @@ class ScopeImpl implements Scope {
 
         synchronized (gauges) {
             if (!gauges.containsKey(name)) {
-                CachedGauge cachedGauge = null;
-
-                if (cachedReporter != null) {
-                    cachedGauge = cachedReporter.allocateGauge(fullyQualifiedName(name), tags);
-                }
-
-                gauges.put(name, new GaugeImpl(cachedGauge));
+                gauges.put(name, new GaugeImpl());
             }
 
             gauge = gauges.get(name);
@@ -127,15 +111,7 @@ class ScopeImpl implements Scope {
 
         synchronized (timers) {
             if (!timers.containsKey(name)) {
-                CachedTimer cachedTimer = null;
-
-                String fullName = fullyQualifiedName(name);
-
-                if (cachedReporter != null) {
-                    cachedTimer = cachedReporter.allocateTimer(fullName, tags);
-                }
-
-                timers.put(name, new TimerImpl(fullName, tags, reporter, cachedTimer));
+                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
             }
 
             timer = timers.get(name);
@@ -158,15 +134,7 @@ class ScopeImpl implements Scope {
 
         synchronized (histograms) {
             if (!histograms.containsKey(name)) {
-                CachedHistogram cachedHistogram = null;
-
-                String fullName = fullyQualifiedName(name);
-
-                if (cachedReporter != null) {
-                    cachedHistogram = cachedReporter.allocateHistogram(fullName, tags, buckets);
-                }
-
-                histograms.put(name, new HistogramImpl(fullName, tags, reporter, buckets, cachedHistogram));
+                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
             }
 
             histogram = histograms.get(name);
@@ -187,8 +155,8 @@ class ScopeImpl implements Scope {
 
     @Override
     public Capabilities capabilities() {
-        if (baseReporter != null) {
-            return baseReporter.capabilities();
+        if (reporter != null) {
+            return reporter.capabilities();
         }
 
         return CapableOf.NONE;
@@ -205,7 +173,7 @@ class ScopeImpl implements Scope {
         reportLoopIteration();
 
         // Now that all metrics should be known to the reporter, close the reporter
-        baseReporter.close();
+        reporter.close();
     }
 
     /**
@@ -229,29 +197,6 @@ class ScopeImpl implements Scope {
         }
 
         reporter.flush();
-    }
-
-    /**
-     * Reports using the specified cachedReporter.
-     * @param cachedReporter the cachedReporter to report
-     */
-    void cachedReport(CachedStatsReporter cachedReporter) {
-        for (CounterImpl counter : counters.values()) {
-            counter.cachedReport();
-        }
-
-        for (GaugeImpl gauge : gauges.values()) {
-            gauge.cachedReport();
-        }
-
-        // No operations on timers required here; they report directly to the StatsReporter
-        // i.e. they are not buffered
-
-        for (HistogramImpl histogram : histograms.values()) {
-            histogram.cachedReport();
-        }
-
-        cachedReporter.flush();
     }
 
     // Serializes a map to generate a key for a prefix/map combination
@@ -392,7 +337,6 @@ class ScopeImpl implements Scope {
                     key,
                     new ScopeBuilder(scheduler, registry)
                         .reporter(reporter)
-                        .cachedReporter(cachedReporter)
                         .prefix(prefix)
                         .separator(separator)
                         .tags(mergedTags)
@@ -414,12 +358,6 @@ class ScopeImpl implements Scope {
         if (reporter != null) {
             for (ScopeImpl subscope : subscopes) {
                 subscope.report(reporter);
-            }
-        }
-
-        if (cachedReporter != null) {
-            for (ScopeImpl subscope : subscopes) {
-                subscope.cachedReport(cachedReporter);
             }
         }
     }

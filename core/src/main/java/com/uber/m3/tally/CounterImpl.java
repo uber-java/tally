@@ -30,15 +30,6 @@ import java.util.concurrent.atomic.AtomicLong;
 class CounterImpl implements Counter {
     private AtomicLong prev = new AtomicLong(0);
     private AtomicLong curr = new AtomicLong(0);
-    private CachedCounter cachedCount;
-
-    CounterImpl(CachedCounter cachedCount) {
-        this.cachedCount = cachedCount;
-    }
-
-    CounterImpl() {
-        this(null);
-    }
 
     @Override
     public void inc(long delta) {
@@ -66,16 +57,6 @@ class CounterImpl implements Counter {
         }
 
         reporter.reportCounter(name, tags, delta);
-    }
-
-    void cachedReport() {
-        long delta = value();
-
-        if (delta == 0) {
-            return;
-        }
-
-        cachedCount.reportCount(delta);
     }
 
     long snapshot() {

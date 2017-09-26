@@ -23,12 +23,6 @@ package com.uber.m3.tally.m3;
 import com.uber.m3.tally.BucketPair;
 import com.uber.m3.tally.BucketPairImpl;
 import com.uber.m3.tally.Buckets;
-import com.uber.m3.tally.CachedCounter;
-import com.uber.m3.tally.CachedGauge;
-import com.uber.m3.tally.CachedHistogram;
-import com.uber.m3.tally.CachedHistogramBucket;
-import com.uber.m3.tally.CachedStatsReporter;
-import com.uber.m3.tally.CachedTimer;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.StatsReporter;
@@ -73,7 +67,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An M3 implementation of a {@link CachedStatsReporter}.
+ * An M3 implementation of a {@link StatsReporter}.
  */
 public class M3Reporter implements StatsReporter, AutoCloseable {
     public static final String SERVICE_TAG = "service";
@@ -228,61 +222,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         executor.execute(new Processor());
     }
 
-    public CachedCounter allocateCounter(String name, Map<String, String> tags) {
-        Metric counter = newMetric(name, tags, MetricType.COUNTER);
-
-        return new CachedMetric(counter, calculateSize(counter));
-    }
-
-    public CachedHistogram allocateHistogram(String name, Map<String, String> tags, Buckets buckets) {
-        List<CachedHistogramBucketImpl> cachedValueBuckets = new ArrayList<>();
-        List<CachedHistogramBucketImpl> cachedDurationBuckets = new ArrayList<>();
-
-        int bucketIdLen = String.valueOf(buckets.size()).length();
-        bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
-
-        String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
-
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
-
-        for (int i = 0; i < bucketPairs.length; i++) {
-            Map<String, String> valueTags = new HashMap<>(tags);
-            Map<String, String> durationTags = new HashMap<>(tags);
-
-            String idTagValue = String.format(bucketIdFmt, i);
-
-            valueTags.put(bucketIdTagName, idTagValue);
-            valueTags.put(bucketTagName, String.format("%s-%s",
-                valueBucketString(bucketPairs[i].lowerBoundValue()),
-                valueBucketString(bucketPairs[i].upperBoundValue())));
-
-            cachedValueBuckets.add(new CachedHistogramBucketImpl(
-                bucketPairs[i].upperBoundValue(),
-                bucketPairs[i].upperBoundDuration(),
-                (CachedMetric) allocateCounter(name, valueTags)
-            ));
-
-            durationTags.put(bucketIdTagName, idTagValue);
-            durationTags.put(bucketTagName, String.format("%s-%s",
-                durationBucketString(bucketPairs[i].lowerBoundDuration()),
-                durationBucketString(bucketPairs[i].upperBoundDuration())));
-
-            cachedDurationBuckets.add(new CachedHistogramBucketImpl(
-                bucketPairs[i].upperBoundValue(),
-                bucketPairs[i].upperBoundDuration(),
-                (CachedMetric) allocateCounter(name, durationTags)
-            ));
-        }
-
-        return new CachedHistogramImpl(
-            name,
-            tags,
-            buckets,
-            cachedValueBuckets,
-            cachedDurationBuckets
-        );
-    }
-
     @Override
     public Capabilities capabilities() {
         return CapableOf.REPORTING_TAGGING;
@@ -395,38 +334,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             isOpen = false;
         }
-    }
-
-    private Metric newMetric(String name, Map<String, String> tags, MetricType metricType) {
-        Metric metric = new Metric(name);
-        metric.setTags(toMetricTagSet(tags));
-        metric.setTimestamp(Long.MAX_VALUE);
-
-        MetricValue metricValue = new MetricValue();
-
-        switch (metricType) {
-            case COUNTER:
-                CountValue countValue = new CountValue();
-                countValue.setI64Value(Long.MAX_VALUE);
-                metricValue.setCount(countValue);
-                break;
-            case GAUGE:
-                GaugeValue gaugeValue = new GaugeValue();
-                gaugeValue.setDValue(Double.MAX_VALUE);
-                metricValue.setGauge(gaugeValue);
-                break;
-            case TIMER:
-                TimerValue timerValue = new TimerValue();
-                timerValue.setI64Value(Long.MAX_VALUE);
-                metricValue.setTimer(timerValue);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported metric type: " + metricType);
-        }
-
-        metric.setMetricValue(metricValue);
-
-        return metric;
     }
 
     private Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
@@ -774,104 +681,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
 
             flush(metrics);
-        }
-    }
-
-    private class CachedMetric implements CachedCounter, CachedGauge, CachedTimer, CachedHistogramBucket {
-        Metric metric;
-        int size;
-
-        CachedMetric(Metric metric, int size) {
-            this.metric = metric;
-            this.size = size;
-        }
-
-        @Override
-        public void reportCount(long value) {
-            reportCopyMetric(metric, size, MetricType.COUNTER, value, 0);
-        }
-
-        @Override
-        public void reportGauge(double value) {
-            reportCopyMetric(metric, size, MetricType.GAUGE, 0, value);
-        }
-
-        @Override
-        public void reportTimer(Duration interval) {
-            reportCopyMetric(metric, size, MetricType.TIMER, interval.getNanos(), 0);
-        }
-
-        @Override
-        public void reportSamples(long value) {
-            reportCopyMetric(metric, size, MetricType.COUNTER, value, 0);
-        }
-    }
-
-    private class CachedHistogramImpl implements CachedHistogram {
-        String name;
-        Map<String, String> tags;
-        Buckets buckets;
-        List<CachedHistogramBucketImpl> cachedValueBuckets;
-        List<CachedHistogramBucketImpl> cachedDurationBuckets;
-
-        CachedHistogramImpl(
-            String name,
-            Map<String, String> tags,
-            Buckets buckets,
-            List<CachedHistogramBucketImpl> cachedValueBuckets,
-            List<CachedHistogramBucketImpl> cachedDurationBuckets
-        ) {
-            this.name = name;
-            this.tags = tags;
-            this.buckets = buckets;
-            this.cachedValueBuckets = cachedValueBuckets;
-            this.cachedDurationBuckets = cachedDurationBuckets;
-        }
-
-        @Override
-        public CachedHistogramBucket valueBucket(double bucketLowerBound, double bucketUpperBound) {
-            for (CachedHistogramBucketImpl bucket : cachedValueBuckets) {
-                if (bucket.getValueUpperBound() >= bucketUpperBound) {
-                    return bucket.getMetric();
-                }
-            }
-
-            return null;
-        }
-
-        @Override
-        public CachedHistogramBucket durationBucket(Duration bucketLowerBound, Duration bucketUpperBound) {
-            for (CachedHistogramBucketImpl bucket : cachedValueBuckets) {
-                if (bucket.getDurationUpperBound().compareTo(bucketUpperBound) >= 0) {
-                    return bucket.getMetric();
-                }
-            }
-
-            return null;
-        }
-    }
-
-    private class CachedHistogramBucketImpl {
-        private double valueUpperBound;
-        private Duration durationUpperBound;
-        private CachedHistogramBucket metric;
-
-        CachedHistogramBucketImpl(double valueUpperBound, Duration durationUpperBound, CachedMetric metric) {
-            this.valueUpperBound = valueUpperBound;
-            this.durationUpperBound = durationUpperBound;
-            this.metric = metric;
-        }
-
-        double getValueUpperBound() {
-            return valueUpperBound;
-        }
-
-        Duration getDurationUpperBound() {
-            return durationUpperBound;
-        }
-
-        CachedHistogramBucket getMetric() {
-            return metric;
         }
     }
 

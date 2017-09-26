@@ -31,15 +31,6 @@ import java.util.concurrent.atomic.AtomicLong;
 class GaugeImpl implements Gauge {
     private AtomicBoolean updated = new AtomicBoolean(false);
     private AtomicLong curr = new AtomicLong(0);
-    private CachedGauge cachedGauge;
-
-    GaugeImpl(CachedGauge cachedGauge) {
-        this.cachedGauge = cachedGauge;
-    }
-
-    GaugeImpl() {
-        this(null);
-    }
 
     @Override
     public void update(double value) {
@@ -54,12 +45,6 @@ class GaugeImpl implements Gauge {
     void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
         if (updated.getAndSet(false)) {
             reporter.reportGauge(name, tags, value());
-        }
-    }
-
-    void cachedReport() {
-        if (updated.getAndSet(false)) {
-            cachedGauge.reportGauge(value());
         }
     }
 

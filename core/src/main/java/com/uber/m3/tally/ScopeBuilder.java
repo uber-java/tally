@@ -51,8 +51,6 @@ public class ScopeBuilder {
     });
 
     StatsReporter reporter = null;
-    CachedStatsReporter cachedReporter = null;
-    BaseStatsReporter baseReporter = null;
     String prefix = "";
     String separator = DEFAULT_SEPARATOR;
     ImmutableMap<String, String> tags;
@@ -75,16 +73,6 @@ public class ScopeBuilder {
      */
     public ScopeBuilder reporter(StatsReporter reporter) {
         this.reporter = reporter;
-        return this;
-    }
-
-    /**
-     * Update the cachedReporter
-     * @param cachedReporter value to update to
-     * @return Builder with new param updated
-     */
-    public ScopeBuilder cachedReporter(CachedStatsReporter cachedReporter) {
-        this.cachedReporter = cachedReporter;
         return this;
     }
 
@@ -143,12 +131,6 @@ public class ScopeBuilder {
     // Private build method - clients should rely on `reportEvery` to create root scopes, and
     // a root scope's `tagged` and `subScope` functions to create subscopes.
     ScopeImpl build() {
-        if (reporter != null) {
-            baseReporter = reporter;
-        } else if (cachedReporter != null) {
-            baseReporter = cachedReporter;
-        }
-
         return new ScopeImpl(scheduler, registry, this);
     }
 

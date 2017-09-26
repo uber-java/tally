@@ -31,6 +31,7 @@ import com.uber.m3.tally.CachedStatsReporter;
 import com.uber.m3.tally.CachedTimer;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
+import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
 import com.uber.m3.thrift.generated.CountValue;
@@ -74,7 +75,7 @@ import org.slf4j.LoggerFactory;
 /**
  * An M3 implementation of a {@link CachedStatsReporter}.
  */
-public class M3Reporter implements CachedStatsReporter, AutoCloseable {
+public class M3Reporter implements StatsReporter, AutoCloseable {
     public static final String SERVICE_TAG = "service";
     public static final String ENV_TAG = "env";
     public static final String HOST_TAG = "host";
@@ -148,7 +149,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
 
-            Set<MetricTag> commonTags = toMetricTagsToSet(builder.commonTags);
+            Set<MetricTag> commonTags = toMetricTagSet(builder.commonTags);
 
             // Set and ensure required tags
             if (!builder.commonTags.containsKey(SERVICE_TAG)) {
@@ -227,28 +228,12 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         executor.execute(new Processor());
     }
 
-    @Override
     public CachedCounter allocateCounter(String name, Map<String, String> tags) {
         Metric counter = newMetric(name, tags, MetricType.COUNTER);
 
         return new CachedMetric(counter, calculateSize(counter));
     }
 
-    @Override
-    public CachedGauge allocateGauge(String name, Map<String, String> tags) {
-        Metric gauge = newMetric(name, tags, MetricType.GAUGE);
-
-        return new CachedMetric(gauge, calculateSize(gauge));
-    }
-
-    @Override
-    public CachedTimer allocateTimer(String name, Map<String, String> tags) {
-        Metric timer = newMetric(name, tags, MetricType.TIMER);
-
-        return new CachedMetric(timer, calculateSize(timer));
-    }
-
-    @Override
     public CachedHistogram allocateHistogram(String name, Map<String, String> tags, Buckets buckets) {
         List<CachedHistogramBucketImpl> cachedValueBuckets = new ArrayList<>();
         List<CachedHistogramBucketImpl> cachedDurationBuckets = new ArrayList<>();
@@ -379,6 +364,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     public void close() {
         synchronized (isOpenLock) {
             if (!isOpen) {
+                LOG.warn("M3Reporter already closed");
                 return;
             }
 
@@ -413,7 +399,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
 
     private Metric newMetric(String name, Map<String, String> tags, MetricType metricType) {
         Metric metric = new Metric(name);
-        metric.setTags(toMetricTagsToSet(tags));
+        metric.setTags(toMetricTagSet(tags));
         metric.setTimestamp(Long.MAX_VALUE);
 
         MetricValue metricValue = new MetricValue();
@@ -443,7 +429,7 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         return metric;
     }
 
-    private Set<MetricTag> toMetricTagsToSet(Map<String, String> tags) {
+    private Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
         Set<MetricTag> metricTagSet = new HashSet<>();
 
         if (tags == null) {
@@ -544,6 +530,10 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
     }
 
     private String durationBucketString(Duration bucketBound) {
+        if (Duration.ZERO.equals(bucketBound)) {
+            return "0";
+        }
+
         if (Duration.MAX_VALUE.equals(bucketBound)) {
             return "infinity";
         }
@@ -553,6 +543,182 @@ public class M3Reporter implements CachedStatsReporter, AutoCloseable {
         }
 
         return bucketBound.toString();
+    }
+
+    @Override
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.error("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
+
+            reportCounterInternal(name, tags, value);
+        }
+    }
+
+    @Override
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.error("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
+
+            GaugeValue gaugeValue = new GaugeValue();
+            gaugeValue.setDValue(value);
+
+            MetricValue metricValue = new MetricValue();
+            metricValue.setGauge(gaugeValue);
+
+            Metric metric = newMetric(name, tags, metricValue);
+
+            queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        }
+    }
+
+    @Override
+    public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.error("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
+
+            TimerValue timerValue = new TimerValue();
+            timerValue.setI64Value(interval.getNanos());
+
+            MetricValue metricValue = new MetricValue();
+            metricValue.setTimer(timerValue);
+
+            Metric metric = newMetric(name, tags, metricValue);
+
+            queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        }
+    }
+
+    @Override
+    public void reportHistogramValueSamples(
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        double bucketLowerBound,
+        double bucketUpperBound,
+        long samples
+    ) {
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.error("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
+            // Append histogram bucket-specific tags
+            int bucketIdLen = String.valueOf(buckets.size()).length();
+            bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
+
+            String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
+
+            BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+
+            for (int i = 0; i < bucketPairs.length; i++) {
+                // Look for the first pair with an upper bound greater than or equal
+                // to the given upper bound.
+                if (bucketPairs[i].upperBoundValue() > bucketUpperBound) {
+                    String idTagValue = String.format(bucketIdFmt, i);
+
+                    tags.put(bucketIdTagName, idTagValue);
+                    tags.put(bucketTagName,
+                        String.format("%s-%s",
+                            valueBucketString(bucketPairs[i].lowerBoundValue()),
+                            valueBucketString(bucketPairs[i].upperBoundValue())
+                        )
+                    );
+
+                    break;
+                }
+            }
+
+            reportCounterInternal(name, tags, samples);
+        }
+    }
+
+    @Override
+    public void reportHistogramDurationSamples(
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        Duration bucketLowerBound,
+        Duration bucketUpperBound,
+        long samples
+    ) {
+        synchronized (isOpenLock) {
+            if (!isOpen) {
+                LOG.error("Reporter already closed; no more metrics can be flushed");
+                return;
+            }
+            // Append histogram bucket-specific tags
+            int bucketIdLen = String.valueOf(buckets.size()).length();
+            bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
+
+            String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
+
+            BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+
+            if (tags == null) {
+                tags = new HashMap<>(2, 1);
+            }
+
+            for (int i = 0; i < bucketPairs.length; i++) {
+                // Look for the first pair with an upper bound greater than or equal
+                // to the given upper bound.
+                if (bucketPairs[i].upperBoundDuration().compareTo(bucketUpperBound) >= 0) {
+                    String idTagValue = String.format(bucketIdFmt, i);
+
+                    tags.put(bucketIdTagName, idTagValue);
+                    tags.put(bucketTagName,
+                        String.format("%s-%s",
+                            durationBucketString(bucketPairs[i].lowerBoundDuration()),
+                            durationBucketString(bucketPairs[i].upperBoundDuration())
+                        )
+                    );
+
+                    break;
+                }
+            }
+
+            reportCounterInternal(name, tags, samples);
+        }
+    }
+
+    // Relies on the calling function to provide guarantees of the reporter being open
+    private void reportCounterInternal(String name, Map<String, String> tags, long value) {
+        CountValue countValue = new CountValue();
+        countValue.setI64Value(value);
+
+        MetricValue metricValue = new MetricValue();
+        metricValue.setCount(countValue);
+
+        Metric metric = newMetric(name, tags, metricValue);
+
+        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+    }
+
+    private Metric newMetric(String name, Map<String, String> tags, MetricValue metricValue) {
+        Metric metric = new Metric(name);
+        metric.setTags(toMetricTagSet(tags));
+        metric.setTimestamp(System.currentTimeMillis() * Duration.NANOS_PER_MILLI);
+        metric.setMetricValue(metricValue);
+
+        return metric;
+    }
+
+    private void queueSizedMetric(SizedMetric sizedMetric) {
+        try {
+            metricQueue.put(sizedMetric);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
+            LOG.warn(String.format("Interrupted queueing metric: %s", sizedMetric.getMetric().getName()));
+        }
     }
 
     private class Processor implements Runnable {

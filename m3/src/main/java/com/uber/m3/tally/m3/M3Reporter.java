@@ -98,7 +98,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private M3.Client client;
 
-    private final MetricBatch metricBatch;
+    private final MetricBatch metricBatch = new MetricBatch();
 
     private final Object calcLock = new Object();
     private TCalcTransport calc;
@@ -143,32 +143,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
 
-            Set<MetricTag> commonTags = toMetricTagSet(builder.commonTags);
-
-            // Set and ensure required tags
-            if (!builder.commonTags.containsKey(SERVICE_TAG)) {
-                if (builder.service == null || builder.service.isEmpty()) {
-                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", SERVICE_TAG));
-                }
-
-                commonTags.add(createMetricTag(SERVICE_TAG, builder.service));
-            }
-            if (!builder.commonTags.containsKey(ENV_TAG)) {
-                if (builder.env == null || builder.env.isEmpty()) {
-                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", ENV_TAG));
-                }
-
-                commonTags.add(createMetricTag(ENV_TAG, builder.env));
-            }
-            if (builder.includeHost && !builder.commonTags.containsKey(HOST_TAG)) {
-                commonTags.add(createMetricTag(HOST_TAG, getHostName()));
-            }
-
-            metricBatch = new MetricBatch();
             calcProtocol = new TCompactProtocol.Factory().getProtocol(new TCalcTransport());
             calc = (TCalcTransport) calcProtocol.getTransport();
 
-            freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, commonTags);
+            freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, builder.metricTagSet);
 
             bucketIdTagName = builder.histogramBucketIdName;
             bucketTagName = builder.histogramBucketName;
@@ -207,7 +185,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return freeBytes;
     }
 
-    private String getHostName() {
+    private static String getHostName() {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
@@ -336,7 +314,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
+    private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
         Set<MetricTag> metricTagSet = new HashSet<>();
 
         if (tags == null) {
@@ -350,7 +328,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return metricTagSet;
     }
 
-    private MetricTag createMetricTag(String tagName, String tagValue) {
+    private static MetricTag createMetricTag(String tagName, String tagValue) {
         MetricTag metricTag = new MetricTag(tagName);
 
         if (tagValue != null && !tagValue.isEmpty()) {
@@ -694,6 +672,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
+        private Set<MetricTag> metricTagSet;
         private boolean includeHost;
         private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
@@ -825,6 +804,27 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
          * @return a new {@link M3Reporter} instance with the configured paramters
          */
         public M3Reporter build() {
+            metricTagSet = toMetricTagSet(commonTags);
+
+            // Set and ensure required tags
+            if (!commonTags.containsKey(SERVICE_TAG)) {
+                if (service == null || service.isEmpty()) {
+                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", SERVICE_TAG));
+                }
+
+                metricTagSet.add(createMetricTag(SERVICE_TAG, service));
+            }
+            if (!commonTags.containsKey(ENV_TAG)) {
+                if (env == null || env.isEmpty()) {
+                    throw new IllegalArgumentException(String.format("Common tag [%s] is required", ENV_TAG));
+                }
+
+                metricTagSet.add(createMetricTag(ENV_TAG, env));
+            }
+            if (includeHost && !commonTags.containsKey(HOST_TAG)) {
+                metricTagSet.add(createMetricTag(HOST_TAG, getHostName()));
+            }
+
             return new M3Reporter(this);
         }
     }

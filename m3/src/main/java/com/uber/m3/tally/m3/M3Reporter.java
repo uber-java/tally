@@ -27,6 +27,7 @@ import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
+import com.uber.m3.tally.m3.thrift.TMultiUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
 import com.uber.m3.thrift.generated.CountValue;
 import com.uber.m3.thrift.generated.GaugeValue;
@@ -132,9 +133,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
 
             if (socketAddresses.length > 1) {
-                throw new UnsupportedOperationException(
-                    "Support for a multiple SocketAddress transport not yet implemented."
-                );
+                transport = new TMultiUdpClient(socketAddresses);
             } else {
                 transport = new TUdpClient(socketAddresses[0]);
             }
@@ -351,57 +350,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void reportCopyMetric(
-        Metric metric,
-        int size,
-        MetricType metricType,
-        long iValue,
-        double dValue
-    ) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.warn("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
-
-            Metric metricCopy = new Metric(metric.getName());
-            metricCopy.setTags(metric.getTags());
-            // Unfortunately, there is no finer time resolution for Java 7
-            metricCopy.setTimestamp(System.currentTimeMillis() * Duration.NANOS_PER_MILLI);
-            metricCopy.setMetricValue(new MetricValue());
-
-            switch (metricType) {
-                case COUNTER:
-                    CountValue countValue = new CountValue();
-                    countValue.setI64Value(iValue);
-                    metricCopy.getMetricValue().setCount(countValue);
-                    break;
-                case GAUGE:
-                    GaugeValue gaugeValue = new GaugeValue();
-                    gaugeValue.setDValue(dValue);
-                    metricCopy.getMetricValue().setGauge(gaugeValue);
-                    break;
-                case TIMER:
-                    TimerValue timerValue = new TimerValue();
-                    timerValue.setI64Value(iValue);
-                    metricCopy.getMetricValue().setTimer(timerValue);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported metric type: " + metricType);
-            }
-
-            try {
-                metricQueue.put(new SizedMetric(metricCopy, size));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-
-                LOG.warn(String.format("Interrupted while putting %s: %s",
-                    metricType,
-                    metricCopy.getName()));
-            }
-        }
-    }
-
     private String valueBucketString(double bucketBound) {
         if (bucketBound == Double.MAX_VALUE) {
             return "infinity";
@@ -496,6 +444,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 LOG.error("Reporter already closed; no more metrics can be flushed");
                 return;
             }
+
             // Append histogram bucket-specific tags
             int bucketIdLen = String.valueOf(buckets.size()).length();
             bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
@@ -504,10 +453,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
 
+            if (tags == null) {
+                tags = new HashMap<>(2, 1);
+            }
+
             for (int i = 0; i < bucketPairs.length; i++) {
                 // Look for the first pair with an upper bound greater than or equal
                 // to the given upper bound.
-                if (bucketPairs[i].upperBoundValue() > bucketUpperBound) {
+                if (bucketPairs[i].upperBoundValue() >= bucketUpperBound) {
                     String idTagValue = String.format(bucketIdFmt, i);
 
                     tags.put(bucketIdTagName, idTagValue);
@@ -540,6 +493,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 LOG.error("Reporter already closed; no more metrics can be flushed");
                 return;
             }
+
             // Append histogram bucket-specific tags
             int bucketIdLen = String.valueOf(buckets.size()).length();
             bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
@@ -673,7 +627,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         @SuppressWarnings("unchecked")
         private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
         private Set<MetricTag> metricTagSet;
-        private boolean includeHost;
+        private boolean includeHost = true;
         private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
         private String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;

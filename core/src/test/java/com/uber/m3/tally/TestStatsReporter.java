@@ -24,28 +24,54 @@ import com.uber.m3.util.Duration;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class TestStatsReporter implements StatsReporter {
-    public long prevCounter;
-    public double prevGauge;
-    public Duration prevTimer;
-    public Buckets buckets;
-    public Map<Double, Long> valueSamples = new HashMap<>();
-    public Map<Duration, Long> durationSamples = new HashMap<>();
+    private Queue<MetricStruct<Long>> counters = new LinkedBlockingDeque<>();
+    private Queue<MetricStruct<Double>> gauges = new LinkedBlockingDeque<>();
+    private Queue<MetricStruct<Duration>> timers = new LinkedBlockingDeque<>();
+    private Buckets buckets;
+    private Map<Double, Long> valueSamples = new HashMap<>();
+    private Map<Duration, Long> durationSamples = new HashMap<>();
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
-        prevCounter = value;
+        counters.add(new MetricStruct<>(name, tags, value));
+    }
+
+    public MetricStruct<Long> nextCounter() {
+        return counters.remove();
+    }
+
+    public long nextCounterVal() {
+        return counters.remove().getValue();
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-        prevGauge = value;
+        gauges.add(new MetricStruct<>(name, tags, value));
+    }
+
+    public MetricStruct<Double> nextGauge() {
+        return gauges.remove();
+    }
+
+    public double nextGaugeVal() {
+        return gauges.remove().getValue();
     }
 
     @Override
     public void reportTimer(String name, Map<String, String> tags, Duration interval) {
-        prevTimer = interval;
+        timers.add(new MetricStruct<>(name, tags, interval));
+    }
+
+    public MetricStruct<Duration> nextTimer() {
+        return timers.remove();
+    }
+
+    public Duration nextTimerVal() {
+        return timers.remove().getValue();
     }
 
     @Override
@@ -86,5 +112,41 @@ public class TestStatsReporter implements StatsReporter {
     @Override
     public void close() {
         // No-op
+    }
+
+    public Map<Duration, Long> getDurationSamples() {
+        return durationSamples;
+    }
+
+    public Map<Double, Long> getValueSamples() {
+        return valueSamples;
+    }
+
+    public Buckets getBuckets() {
+        return buckets;
+    }
+
+    static class MetricStruct<T> {
+        private String name;
+        private Map<String, String> tags;
+        private T value;
+
+        MetricStruct(String name, Map<String, String> tags, T value) {
+            this.name = name;
+            this.tags = tags;
+            this.value = value;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        Map<String, String> getTags() {
+            return tags;
+        }
+
+        T getValue() {
+            return value;
+        }
     }
 }

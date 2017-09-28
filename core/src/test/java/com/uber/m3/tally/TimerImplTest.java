@@ -24,7 +24,10 @@ import com.uber.m3.util.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class TimerImplTest {
     private TestStatsReporter reporter;
@@ -39,13 +42,56 @@ public class TimerImplTest {
     @Test
     public void record() {
         timer.record(Duration.ofMillis(42));
-        assertEquals(Duration.ofMillis(42), reporter.prevTimer);
+        assertEquals(Duration.ofMillis(42), reporter.nextTimerVal());
 
         timer.record(Duration.ofMinutes(2));
-        assertEquals(Duration.ofMinutes(2), reporter.prevTimer);
+        assertEquals(Duration.ofMinutes(2), reporter.nextTimerVal());
+
+        Stopwatch stopwatch = timer.start();
+        stopwatch.Stop();
+
+        Duration duration = reporter.nextTimerVal();
+        assertNotNull(duration);
+        assertTrue(duration.compareTo(Duration.ZERO) > 0);
     }
 
     @Test
-    public void snapshot() {
+    public void noReporterSinkSnapshot() {
+        timer = new TimerImpl("no-reporter-timer", null, null);
+
+        StatsReporter sink = timer.new NoReporterSink();
+
+        // No-ops
+        sink.flush();
+        sink.close();
+
+        assertEquals(CapableOf.REPORTING_TAGGING, sink.capabilities());
+        sink.reportTimer("new-timer", null, Duration.ofMillis(888));
+
+        assertArrayEquals(new Duration[]{Duration.ofMillis(888)}, timer.snapshot());
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void unsupportedCounter() {
+        StatsReporter sink = new TimerImpl("", null, null).new NoReporterSink();
+        sink.reportCounter(null, null, 0);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void unsupportedGauge() {
+        StatsReporter sink = new TimerImpl("", null, null).new NoReporterSink();
+        sink.reportGauge(null, null, 0);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void unsupportedHistogramValue() {
+        StatsReporter sink = new TimerImpl("", null, null).new NoReporterSink();
+        sink.reportHistogramValueSamples(null, null, null, 0, 0, 0);
+    }
+
+    @Test(expected = UnsupportedOperationException.class)
+    public void unsupportedHistogramDuration() {
+        StatsReporter sink = new TimerImpl("", null, null).new NoReporterSink();
+        sink.reportHistogramDurationSamples(null, null, null, null, null, 0);
     }
 }

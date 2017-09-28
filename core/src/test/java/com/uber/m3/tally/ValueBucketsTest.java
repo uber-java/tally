@@ -23,7 +23,10 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class ValueBucketsTest {
     @Test
@@ -105,5 +108,29 @@ public class ValueBucketsTest {
             1.5,
             5
         ));
+    }
+
+    @Test
+    public void testToString() {
+        ValueBuckets buckets = ValueBuckets.linear(0, 10, 6);
+        assertEquals("[0.0, 10.0, 20.0, 30.0, 40.0, 50.0]", buckets.toString());
+
+        buckets = new ValueBuckets();
+        assertEquals("[]", buckets.toString());
+
+        buckets = new ValueBuckets(new Double[]{99.99});
+        assertEquals("[99.99]", buckets.toString());
+    }
+
+    @Test
+    public void equalsHashcode() {
+        ValueBuckets buckets = ValueBuckets.linear(0, 10, 3);
+        ValueBuckets sameBuckets = ValueBuckets.linear(0, 10, 3);
+
+        assertTrue(buckets.equals(sameBuckets));
+        assertEquals(buckets.hashCode(), sameBuckets.hashCode());
+
+        assertFalse(buckets.equals(null));
+        assertFalse(buckets.equals(9));
     }
 }

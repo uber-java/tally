@@ -26,7 +26,6 @@ import org.junit.Test;
 
 import java.util.HashMap;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class HistogramImplTest {
@@ -59,9 +58,9 @@ public class HistogramImplTest {
 
         histogram.report(histogram.getName(), histogram.getTags(), reporter);
 
-        assertEquals(new Long(3L), reporter.valueSamples.get(10d));
-        assertEquals(new Long(5L), reporter.valueSamples.get(60d));
-        assertEquals(buckets, reporter.buckets);
+        assertEquals(new Long(3L), reporter.getValueSamples().get(10d));
+        assertEquals(new Long(5L), reporter.getValueSamples().get(60d));
+        assertEquals(buckets, reporter.getBuckets());
     }
 
     @Test
@@ -85,9 +84,9 @@ public class HistogramImplTest {
 
         histogram.report(histogram.getName(), histogram.getTags(), reporter);
 
-        assertEquals(new Long(3L), reporter.durationSamples.get(Duration.ofMillis(10)));
-        assertEquals(new Long(5L), reporter.durationSamples.get(Duration.ofMillis(60)));
-        assertEquals(buckets, reporter.buckets);
+        assertEquals(new Long(3L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
+        assertEquals(new Long(5L), reporter.getDurationSamples().get(Duration.ofMillis(60)));
+        assertEquals(buckets, reporter.getBuckets());
     }
 
     @Test
@@ -153,51 +152,5 @@ public class HistogramImplTest {
         expectedMap.put(Duration.MAX_VALUE, 5L);
 
         assertEquals(expectedMap, histogram.snapshotDurations());
-    }
-
-    @Test
-    public void bucketPairs() {
-        BucketPair[] expectedPairs = new BucketPair[]{
-            new BucketPairImpl(
-                -Double.MAX_VALUE,
-                Double.MAX_VALUE,
-                Duration.MIN_VALUE,
-                Duration.MAX_VALUE
-            )
-        };
-
-        assertArrayEquals(expectedPairs, BucketPairImpl.bucketPairs(null));
-
-        expectedPairs = new BucketPair[]{
-            new BucketPairImpl(
-                -Double.MAX_VALUE,
-                0,
-                Duration.MIN_VALUE,
-                Duration.ZERO
-            ),
-            new BucketPairImpl(
-                0,
-                50,
-                Duration.ZERO,
-                Duration.ofSeconds(50)
-            ),
-            new BucketPairImpl(
-                50,
-                100,
-                Duration.ofSeconds(50),
-                Duration.ofSeconds(100)
-            ),
-            new BucketPairImpl(
-                100,
-                Double.MAX_VALUE,
-                Duration.ofSeconds(100),
-                Duration.MAX_VALUE
-            ),
-        };
-
-        assertArrayEquals(
-            expectedPairs,
-            BucketPairImpl.bucketPairs(ValueBuckets.linear(0, 50, 3))
-        );
     }
 }

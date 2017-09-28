@@ -23,24 +23,16 @@ package com.uber.m3.tally.m3.thrift;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 
 /**
  * A Thrift transport that sends to multiple connections
  */
 public class TMultiUdpClient extends TTransport implements AutoCloseable {
-    public static final int MAX_BUFFER_SIZE = 65536;
+    private TTransport[] transports;
 
-    public final Object sendLock = new Object();
-
-    protected TTransport[] transports;
-
-    protected TMultiUdpClient(SocketAddress[] socketAddresses) throws SocketException {
+    public TMultiUdpClient(SocketAddress[] socketAddresses) throws SocketException {
         if (socketAddresses == null || socketAddresses.length == 0) {
             throw new IllegalArgumentException("Must provide at least one SocketAddress");
         }
@@ -48,7 +40,7 @@ public class TMultiUdpClient extends TTransport implements AutoCloseable {
         transports = new TTransport[socketAddresses.length];
 
         for (int i = 0; i < socketAddresses.length; i++) {
-            transports[0] = new TUdpClient(socketAddresses[i]);
+            transports[i] = new TUdpClient(socketAddresses[i]);
         }
     }
 
@@ -84,11 +76,9 @@ public class TMultiUdpClient extends TTransport implements AutoCloseable {
 
     @Override
     public void write(byte[] bytes, int offset, int length) throws TTransportException {
-        if (!isOpen()) {
-            throw new TTransportException(TTransportException.NOT_OPEN);
+        for (TTransport transport : transports) {
+            transport.write(bytes, offset, length);
         }
-
-
     }
 
     @Override

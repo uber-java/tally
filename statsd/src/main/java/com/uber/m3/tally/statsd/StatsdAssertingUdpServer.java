@@ -28,7 +28,7 @@ import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.Set;
 
-public class StatsdAssertingUdpServer implements Runnable{
+public class StatsdAssertingUdpServer implements Runnable {
     private final int TIMEOUT_MILLIS = 1000;
     private final int RECEIVE_MAX_SIZE = 1024;
     private final SocketAddress socketAddress;

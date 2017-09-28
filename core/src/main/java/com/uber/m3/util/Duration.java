@@ -92,8 +92,8 @@ public class Duration implements Comparable<Duration> {
      * @param nanos number of nanos in this {@link Duration}
      * @return a {@link Duration} of these nanos
      */
-    public static Duration ofNanos(double nanos) {
-        return new Duration((long) nanos);
+    public static Duration ofNanos(long nanos) {
+        return new Duration(nanos);
     }
 
     /**
@@ -194,6 +194,10 @@ public class Duration implements Comparable<Duration> {
     public String toString() {
         if (nanos == 0) {
             return "0s";
+        } else if (nanos == Long.MIN_VALUE) {
+            // Return hard coded response as workaround because
+            // Math.abs(Long.MIN_VALUE) == Long.MIN_VALUE
+            return "-2562047h47m16.854775808s";
         }
 
         boolean isNegative = nanos < 0;

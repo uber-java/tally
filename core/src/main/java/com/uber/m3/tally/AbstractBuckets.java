@@ -39,7 +39,7 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
         if (buckets == null) {
             this.buckets = new ArrayList<>();
         } else {
-            this.buckets = Arrays.asList(buckets);
+            this.buckets = new ArrayList<>(Arrays.asList(buckets));
         }
     }
 

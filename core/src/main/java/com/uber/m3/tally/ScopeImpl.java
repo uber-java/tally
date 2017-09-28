@@ -244,7 +244,7 @@ class ScopeImpl implements Scope {
      * Returns a {@link Snapshot} of this {@link Scope}.
      * @return a {@link Snapshot} of this {@link Scope}
      */
-    Snapshot snapshot() {
+    public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
         for (ScopeImpl subscope : registry.subscopes.values()) {

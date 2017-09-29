@@ -33,4 +33,4 @@ before_install:
   - ./ci/before_install.sh
 
 after_success:
-  - ./gradlew jacocoRootReport coveralls
+  - ./ci/after_success.sh

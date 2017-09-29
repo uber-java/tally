@@ -189,3 +189,13 @@ task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
 }
 
 test.finalizedBy jacocoRootReport
+
+// Create javadoc containing all subprojects for full online documentation
+test.finalizedBy tasks.create([
+    name: 'masterJavaDoc',
+    type: Javadoc,
+    dependsOn: subprojects.collect{it.getName() + ':classes'}
+]) {
+    classpath = files(subprojects.collect{ it.sourceSets.main.compileClasspath })
+    source = subprojects.collect{ it.sourceSets.main.allJava }
+}

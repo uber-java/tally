@@ -52,7 +52,7 @@ public class Duration implements Comparable<Duration> {
     /**
      * The number of milliseconds in a second.
      */
-    public static final long MILLIS_PER_SECOND = 1000;
+    public static final long MILLIS_PER_SECOND = 1_000;
 
     /**
      * The number of seconds in a minute.
@@ -209,7 +209,8 @@ public class Duration implements Comparable<Duration> {
         long secondsInNanos = nanosLocal % NANOS_PER_MINUTE;
         int nanoOffset = (int) (nanosLocal % NANOS_PER_SECOND);
 
-        StringBuilder buf = new StringBuilder(24);
+        // 25 capacity from max String length produced from Long.MIN_VALUE nanos
+        StringBuilder buf = new StringBuilder(25);
 
         if (isNegative) {
             buf.append("-");

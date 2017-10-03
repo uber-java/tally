@@ -83,6 +83,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
     private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
+    private static final int MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS = 1000;
 
     private static final int DEFAULT_FLUSH_TRY_COUNT = 2;
     private static final int FLUSH_RETRY_DELAY_MILLIS = 200;
@@ -155,7 +156,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             addAndRunProcessor();
         } catch (TTransportException | SocketException e) {
-            throw new IllegalArgumentException("Exception creating M3Reporter", e);
+            throw new RuntimeException("Exception creating M3Reporter", e);
         }
     }
 
@@ -211,7 +212,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
 
-            throw new RuntimeException(e);
+            LOG.warn("Interrupted while trying to queue flush sentinel");
         }
     }
 
@@ -269,10 +270,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         metrics.clear();
 
         if (exception != null) {
-            throw new RuntimeException(
-                String.format("Failed to flush metrics after %s tries", maxTries),
-                exception
-            );
+            LOG.warn("Failed to flush metrics after %s tries. Stack trace:\n%s", maxTries, exception.getStackTrace());
         }
     }
 
@@ -561,7 +559,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private class Processor implements Runnable {
-        List<Metric> metrics = new ArrayList<>(freeBytes / 10);
+        List<Metric> pendingMetrics = new ArrayList<>(freeBytes / 10);
         int metricsSize = 0;
 
         @Override
@@ -572,9 +570,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = metricQueue.take();
+                    SizedMetric sizedMetric = metricQueue.poll(MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS, TimeUnit.MILLISECONDS);
 
-                    flushMetricIteration(sizedMetric);
+                    if (sizedMetric != null) {
+                        flushMetricIteration(sizedMetric);
+                    } else if (!pendingMetrics.isEmpty()) {
+                        // If we don't get any new metrics after waiting the specified time,
+                        // flush what we have so far.
+                        flushMetricIteration(SizedMetric.FLUSH);
+                    }
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -590,7 +594,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             Metric metric = sizedMetric.getMetric();
 
             if (sizedMetric == SizedMetric.FLUSH) {
-                flush(metrics);
+                flush(pendingMetrics);
 
                 return;
             }
@@ -598,11 +602,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             int size = sizedMetric.getSize();
 
             if (metricsSize + size > freeBytes) {
-                flush(metrics);
+                flush(pendingMetrics);
                 metricsSize = 0;
             }
 
-            metrics.add(metric);
+            pendingMetrics.add(metric);
 
             metricsSize += size;
         }
@@ -612,7 +616,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 flushMetricIteration(metricQueue.remove());
             }
 
-            flush(metrics);
+            flush(pendingMetrics);
         }
     }
 

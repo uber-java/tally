@@ -61,7 +61,7 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
             try {
                 socket.send(new DatagramPacket(bytes, length));
             } catch (IOException e) {
-                throw new TTransportException("Cannot flush closed transport", e);
+                throw new TTransportException(e);
             } finally {
                 writeBuffer.clear();
             }

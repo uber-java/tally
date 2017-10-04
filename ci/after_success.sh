@@ -6,7 +6,7 @@
 git checkout --orphan gh-pages
 git reset
 cp -r build/docs/javadoc/ docs
-git clean -fdxe docs/*
+git clean -fdxe /docs
 git add -A
 git commit -m "Update Javadoc"
-git push -f origin gh-pages
+git push -f https://${GITHUB_TOKEN}@github.com/uber-java/tally.git gh-pages

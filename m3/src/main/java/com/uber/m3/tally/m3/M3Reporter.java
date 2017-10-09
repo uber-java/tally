@@ -210,8 +210,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             metricQueue.put(SizedMetric.FLUSH);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-
             LOG.warn("Interrupted while trying to queue flush sentinel");
         }
     }
@@ -245,8 +243,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                         try {
                             Thread.sleep(FLUSH_RETRY_DELAY_MILLIS);
                         } catch (InterruptedException interruptedException) {
-                            Thread.currentThread().interrupt();
-
                             // If someone interrupts this thread, we should probably
                             // not still try to flush
                             tryFlush = false;
@@ -300,8 +296,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
                 );
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-
                 LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
             }
 
@@ -552,8 +546,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-
             LOG.warn(String.format("Interrupted queueing metric: %s", sizedMetric.getMetric().getName()));
         }
     }

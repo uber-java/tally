@@ -142,6 +142,8 @@ subprojects {
         toolVersion = '6.19'
     }
 
+    checkstyleMain.exclude '**/generated/**/*'
+
     ext."signing.secretKeyRingFile" = "../ci/${ext.secretKeyRingFileName}"
 
     task sourcesJar(type: Jar, dependsOn: classes) {

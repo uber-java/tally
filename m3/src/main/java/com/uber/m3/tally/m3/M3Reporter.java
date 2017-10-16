@@ -102,6 +102,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private final MetricBatch metricBatch = new MetricBatch();
 
+    // calcLock protects both calc and calcProtocol
     private final Object calcLock = new Object();
     private TCalcTransport calc;
     private TProtocol calcProtocol;
@@ -115,13 +116,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     // Holds metrics to be flushed
     private final BlockingQueue<SizedMetric> metricQueue;
     // The service used to execute metric flushes
-    private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+    private ExecutorService executor;
     // Used to keep track of how many processors are in progress in
     // order to wait for them to finish before closing
     private Phaser phaser = new Phaser(1);
-
-    private final Object isOpenLock = new Object();
-    private boolean isOpen = true;
 
     private TTransport transport;
 
@@ -153,6 +151,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
             metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
+
+            executor = builder.executor;
 
             addAndRunProcessor();
         } catch (TTransportException | SocketException e) {
@@ -272,37 +272,31 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     @Override
     public void close() {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.warn("M3Reporter already closed");
-                return;
-            }
+        // Put sentinal value in queue so that processors know to disregard anything that comes after it.
+        queueSizedMetric(SizedMetric.CLOSE);
 
-            // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
-            // thread(s) or else they will block forever
-            executor.shutdownNow();
+        // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
+        // thread(s) or else they will block forever
+        executor.shutdownNow();
 
-            // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
-            // to return from flushing
-            try {
-                phaser.awaitAdvanceInterruptibly(
-                    phaser.arrive(),
-                    MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
-                    TimeUnit.MILLISECONDS
-                );
-            } catch (TimeoutException e) {
-                LOG.warn(
-                    "M3Reporter closing before Processors complete after waiting timeout of %dms!",
-                    MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
-                );
-            } catch (InterruptedException e) {
-                LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
-            }
-
-            transport.close();
-
-            isOpen = false;
+        // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
+        // to return from flushing
+        try {
+            phaser.awaitAdvanceInterruptibly(
+                phaser.arrive(),
+                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
+                TimeUnit.MILLISECONDS
+            );
+        } catch (TimeoutException e) {
+            LOG.warn(
+                "M3Reporter closing before Processors complete after waiting timeout of %dms!",
+                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+            );
+        } catch (InterruptedException e) {
+            LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
+
+        transport.close();
     }
 
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
@@ -372,54 +366,33 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.error("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
-
-            reportCounterInternal(name, tags, value);
-        }
+        reportCounterInternal(name, tags, value);
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.error("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
+        GaugeValue gaugeValue = new GaugeValue();
+        gaugeValue.setDValue(value);
 
-            GaugeValue gaugeValue = new GaugeValue();
-            gaugeValue.setDValue(value);
+        MetricValue metricValue = new MetricValue();
+        metricValue.setGauge(gaugeValue);
 
-            MetricValue metricValue = new MetricValue();
-            metricValue.setGauge(gaugeValue);
+        Metric metric = newMetric(name, tags, metricValue);
 
-            Metric metric = newMetric(name, tags, metricValue);
-
-            queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
-        }
+        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
     }
 
     @Override
     public void reportTimer(String name, Map<String, String> tags, Duration interval) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.error("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
+        TimerValue timerValue = new TimerValue();
+        timerValue.setI64Value(interval.getNanos());
 
-            TimerValue timerValue = new TimerValue();
-            timerValue.setI64Value(interval.getNanos());
+        MetricValue metricValue = new MetricValue();
+        metricValue.setTimer(timerValue);
 
-            MetricValue metricValue = new MetricValue();
-            metricValue.setTimer(timerValue);
+        Metric metric = newMetric(name, tags, metricValue);
 
-            Metric metric = newMetric(name, tags, metricValue);
-
-            queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
-        }
+        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
     }
 
     @Override
@@ -431,44 +404,37 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         double bucketUpperBound,
         long samples
     ) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.error("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
+        // Append histogram bucket-specific tags
+        int bucketIdLen = String.valueOf(buckets.size()).length();
+        bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
 
-            // Append histogram bucket-specific tags
-            int bucketIdLen = String.valueOf(buckets.size()).length();
-            bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
+        String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-            String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
+        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
 
-            BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
-
-            if (tags == null) {
-                tags = new HashMap<>(2, 1);
-            }
-
-            for (int i = 0; i < bucketPairs.length; i++) {
-                // Look for the first pair with an upper bound greater than or equal
-                // to the given upper bound.
-                if (bucketPairs[i].upperBoundValue() >= bucketUpperBound) {
-                    String idTagValue = String.format(bucketIdFmt, i);
-
-                    tags.put(bucketIdTagName, idTagValue);
-                    tags.put(bucketTagName,
-                        String.format("%s-%s",
-                            valueBucketString(bucketPairs[i].lowerBoundValue()),
-                            valueBucketString(bucketPairs[i].upperBoundValue())
-                        )
-                    );
-
-                    break;
-                }
-            }
-
-            reportCounterInternal(name, tags, samples);
+        if (tags == null) {
+            tags = new HashMap<>();
         }
+
+        for (int i = 0; i < bucketPairs.length; i++) {
+            // Look for the first pair with an upper bound greater than or equal
+            // to the given upper bound.
+            if (bucketPairs[i].upperBoundValue() >= bucketUpperBound) {
+                String idTagValue = String.format(bucketIdFmt, i);
+
+                tags.put(bucketIdTagName, idTagValue);
+                tags.put(bucketTagName,
+                    String.format("%s-%s",
+                        valueBucketString(bucketPairs[i].lowerBoundValue()),
+                        valueBucketString(bucketPairs[i].upperBoundValue())
+                    )
+                );
+
+                break;
+            }
+        }
+
+        reportCounterInternal(name, tags, samples);
     }
 
     @Override
@@ -480,44 +446,37 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         Duration bucketUpperBound,
         long samples
     ) {
-        synchronized (isOpenLock) {
-            if (!isOpen) {
-                LOG.error("Reporter already closed; no more metrics can be flushed");
-                return;
-            }
+        // Append histogram bucket-specific tags
+        int bucketIdLen = String.valueOf(buckets.size()).length();
+        bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
 
-            // Append histogram bucket-specific tags
-            int bucketIdLen = String.valueOf(buckets.size()).length();
-            bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
+        String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-            String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
+        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
 
-            BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
-
-            if (tags == null) {
-                tags = new HashMap<>(2, 1);
-            }
-
-            for (int i = 0; i < bucketPairs.length; i++) {
-                // Look for the first pair with an upper bound greater than or equal
-                // to the given upper bound.
-                if (bucketPairs[i].upperBoundDuration().compareTo(bucketUpperBound) >= 0) {
-                    String idTagValue = String.format(bucketIdFmt, i);
-
-                    tags.put(bucketIdTagName, idTagValue);
-                    tags.put(bucketTagName,
-                        String.format("%s-%s",
-                            durationBucketString(bucketPairs[i].lowerBoundDuration()),
-                            durationBucketString(bucketPairs[i].upperBoundDuration())
-                        )
-                    );
-
-                    break;
-                }
-            }
-
-            reportCounterInternal(name, tags, samples);
+        if (tags == null) {
+            tags = new HashMap<>(2, 1);
         }
+
+        for (int i = 0; i < bucketPairs.length; i++) {
+            // Look for the first pair with an upper bound greater than or equal
+            // to the given upper bound.
+            if (bucketPairs[i].upperBoundDuration().compareTo(bucketUpperBound) >= 0) {
+                String idTagValue = String.format(bucketIdFmt, i);
+
+                tags.put(bucketIdTagName, idTagValue);
+                tags.put(bucketTagName,
+                    String.format("%s-%s",
+                        durationBucketString(bucketPairs[i].lowerBoundDuration()),
+                        durationBucketString(bucketPairs[i].upperBoundDuration())
+                    )
+                );
+
+                break;
+            }
+        }
+
+        reportCounterInternal(name, tags, samples);
     }
 
     // Relies on the calling function to provide guarantees of the reporter being open
@@ -558,22 +517,33 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         public void run() {
             try {
                 while (!executor.isShutdown()) {
-                    // This `take` call will block until there is an item on the queue to take.
+                    // This `poll` call will block for at most the specified duration to take an item
+                    // off the queue. If we get an item, we append it to the queue to be flushed,
+                    // otherwise we flush what we have so far.
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
                     SizedMetric sizedMetric = metricQueue.poll(MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS, TimeUnit.MILLISECONDS);
 
+                    // Drop metrics that came in after close
+                    if (sizedMetric == SizedMetric.CLOSE) {
+                        metricQueue.clear();
+                        break;
+                    }
+
                     if (sizedMetric != null) {
                         flushMetricIteration(sizedMetric);
-                    } else if (!pendingMetrics.isEmpty()) {
-                        // If we don't get any new metrics after waiting the specified time,
-                        // flush what we have so far.
+                        continue;
+                    }
+
+                    // If we don't get any new metrics after waiting the specified time,
+                    // flush what we have so far.
+                    if (!pendingMetrics.isEmpty()) {
                         flushMetricIteration(SizedMetric.FLUSH);
                     }
                 }
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                // Don't care if we get interrupted - the finally block will clean up
             } finally {
                 flushRemainingMetrics();
 
@@ -619,6 +589,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private SocketAddress[] socketAddresses;
         private String service;
         private String env;
+        private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
@@ -668,6 +639,17 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
          */
         public Builder env(String env) {
             this.env = env;
+
+            return this;
+        }
+
+        /**
+         * Configures the executor of this {@link Builder}.
+         * @param executor the value to set
+         * @return this {@link Builder} with the new value set
+         */
+        public Builder executor(ExecutorService executor) {
+            this.executor = executor;
 
             return this;
         }

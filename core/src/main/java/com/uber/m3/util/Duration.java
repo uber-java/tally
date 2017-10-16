@@ -79,6 +79,9 @@ public class Duration implements Comparable<Duration> {
      */
     public static final long NANOS_PER_HOUR = NANOS_PER_MINUTE * MINUTES_PER_HOUR;
 
+    // Max string length produced from a Duration is 25 when nanos == Long.MIN_VALUE
+    private static final int STRING_BUILDER_INIT_CAP = 25;
+
     // Long.MAX_VALUE nanos > 290 years, which should be good enough
     private final long nanos;
 
@@ -190,6 +193,12 @@ public class Duration implements Comparable<Duration> {
         return Long.compare(nanos, other.nanos);
     }
 
+    /**
+     * This toString method is designed to mimic Go's time.Duration String(). In short, it is
+     * designed so that the least granular unit is used such that the first digit is not 0,
+     * e.g. 100µs instead of 0.1ms.
+     * @return String representation of this {@link Duration}
+     */
     @Override
     public String toString() {
         if (nanos == 0) {
@@ -209,8 +218,7 @@ public class Duration implements Comparable<Duration> {
         long secondsInNanos = nanosLocal % NANOS_PER_MINUTE;
         int nanoOffset = (int) (nanosLocal % NANOS_PER_SECOND);
 
-        // 25 capacity from max String length produced from Long.MIN_VALUE nanos
-        StringBuilder buf = new StringBuilder(25);
+        StringBuilder buf = new StringBuilder(STRING_BUILDER_INIT_CAP);
 
         if (isNegative) {
             buf.append("-");

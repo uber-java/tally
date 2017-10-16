@@ -100,8 +100,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private M3.Client client;
 
-    private final MetricBatch metricBatch = new MetricBatch();
-
     // calcLock protects both calc and calcProtocol
     private final Object calcLock = new Object();
     private TCalcTransport calc;
@@ -154,13 +152,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             executor = builder.executor;
 
-            addAndRunProcessor();
+            addAndRunProcessor(builder.metricTagSet);
         } catch (TTransportException | SocketException e) {
             throw new RuntimeException("Exception creating M3Reporter", e);
         }
     }
 
     private int calculateFreeBytes(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
+        MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
         metricBatch.setMetrics(new ArrayList<Metric>());
 
@@ -194,10 +193,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void addAndRunProcessor() {
+    private void addAndRunProcessor(Set<MetricTag> commonTags) {
         phaser.register();
 
-        executor.execute(new Processor());
+        executor.execute(new Processor(commonTags));
     }
 
     @Override
@@ -214,60 +213,51 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void flush(List<Metric> metrics) {
-        flush(metrics, DEFAULT_FLUSH_TRY_COUNT);
+    private void flush(List<Metric> metrics, Set<MetricTag> commonTags) {
+        flush(metrics, commonTags, DEFAULT_FLUSH_TRY_COUNT);
     }
 
-    private void flush(List<Metric> metrics, int maxTries) {
+    private void flush(List<Metric> metrics, Set<MetricTag> commonTags, int maxTries) {
         if (metrics.isEmpty()) {
             return;
         }
 
-        TException exception = null;
-
         int tries = 0;
         boolean tryFlush = true;
 
-        synchronized (metricBatch) {
-            metricBatch.setMetrics(metrics);
+        MetricBatch metricBatch = new MetricBatch();
+        metricBatch.setCommonTags(commonTags);
+        metricBatch.setMetrics(metrics);
 
-            while (tryFlush) {
-                try {
-                    client.emitMetricBatch(metricBatch);
+        while (tryFlush) {
+            try {
+                client.emitMetricBatch(metricBatch);
 
-                    tryFlush = false;
-                } catch (TException tException) {
-                    tries++;
+                tryFlush = false;
+            } catch (TException tException) {
+                tries++;
 
-                    if (tries < maxTries) {
-                        try {
-                            Thread.sleep(FLUSH_RETRY_DELAY_MILLIS);
-                        } catch (InterruptedException interruptedException) {
-                            // If someone interrupts this thread, we should probably
-                            // not still try to flush
-                            tryFlush = false;
-
-                            exception = new TException("Interrupted while about to retry emitting metrics", tException);
-                        }
-                    } else {
+                if (tries < maxTries) {
+                    try {
+                        Thread.sleep(FLUSH_RETRY_DELAY_MILLIS);
+                    } catch (InterruptedException interruptedException) {
+                        // If someone interrupts this thread, we should probably
+                        // not still try to flush
                         tryFlush = false;
 
-                        // Store exception to throw later after clean up.
-                        // Don't want to put everything in a finally block here,
-                        // which will hold the lock unnecessarily long
-                        exception = tException;
+                        LOG.warn("Interrupted while about to retry emitting metrics");
                     }
+                } else {
+                    tryFlush = false;
+
+                    LOG.warn("Failed to flush metrics after %s tries", maxTries);
                 }
             }
-
-            metricBatch.setMetrics(null);
         }
+
+        metricBatch.setMetrics(null);
 
         metrics.clear();
-
-        if (exception != null) {
-            LOG.warn("Failed to flush metrics after %s tries. Stack trace:\n%s", maxTries, exception.getStackTrace());
-        }
     }
 
     @Override
@@ -509,9 +499,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private class Processor implements Runnable {
+    class Processor implements Runnable {
+        final Set<MetricTag> commonTags;
         List<Metric> pendingMetrics = new ArrayList<>(freeBytes / 10);
         int metricsSize = 0;
+
+        Processor(Set<MetricTag> commonTags) {
+            this.commonTags = commonTags;
+        }
 
         @Override
         public void run() {
@@ -556,7 +551,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             Metric metric = sizedMetric.getMetric();
 
             if (sizedMetric == SizedMetric.FLUSH) {
-                flush(pendingMetrics);
+                flush(pendingMetrics, commonTags);
 
                 return;
             }
@@ -564,7 +559,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             int size = sizedMetric.getSize();
 
             if (metricsSize + size > freeBytes) {
-                flush(pendingMetrics);
+                flush(pendingMetrics, commonTags);
                 metricsSize = 0;
             }
 
@@ -578,7 +573,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 flushMetricIteration(metricQueue.remove());
             }
 
-            flush(pendingMetrics);
+            flush(pendingMetrics, commonTags);
         }
     }
 

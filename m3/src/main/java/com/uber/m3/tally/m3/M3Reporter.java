@@ -570,7 +570,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private void flushRemainingMetrics() {
             while (!metricQueue.isEmpty()) {
-                flushMetricIteration(metricQueue.remove());
+                SizedMetric sizedMetric = metricQueue.remove();
+
+                // Don't care about metrics that came in after close
+                if (sizedMetric == SizedMetric.CLOSE) {
+                    break;
+                }
+
+                flushMetricIteration(sizedMetric);
             }
 
             flush(pendingMetrics, commonTags);

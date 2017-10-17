@@ -499,7 +499,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    class Processor implements Runnable {
+    private class Processor implements Runnable {
         final Set<MetricTag> commonTags;
         List<Metric> pendingMetrics = new ArrayList<>(freeBytes / 10);
         int metricsSize = 0;

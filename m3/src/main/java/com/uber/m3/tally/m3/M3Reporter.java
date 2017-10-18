@@ -403,7 +403,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
 
         if (tags == null) {
-            tags = new HashMap<>();
+            // We know that the HashMap will only contain two items at this point,
+            // therefore initialCapacity of 2 and loadFactor of 1.
+            tags = new HashMap<>(2, 1);
         }
 
         for (int i = 0; i < bucketPairs.length; i++) {
@@ -445,6 +447,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
 
         if (tags == null) {
+            // We know that the HashMap will only contain two items at this point,
+            // therefore initialCapacity of 2 and loadFactor of 1.
             tags = new HashMap<>(2, 1);
         }
 

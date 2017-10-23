@@ -85,9 +85,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
     private static final int MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS = 1000;
 
-    private static final int DEFAULT_FLUSH_TRY_COUNT = 2;
-    private static final int FLUSH_RETRY_DELAY_MILLIS = 200;
-
     private static final int DEFAULT_METRIC_SIZE = 100;
 
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
@@ -214,15 +211,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void flush(List<Metric> metrics, Set<MetricTag> commonTags) {
-        flush(metrics, commonTags, DEFAULT_FLUSH_TRY_COUNT);
-    }
-
-    private void flush(List<Metric> metrics, Set<MetricTag> commonTags, int maxTries) {
         if (metrics.isEmpty()) {
             return;
         }
 
-        int tries = 0;
         boolean tryFlush = true;
 
         MetricBatch metricBatch = new MetricBatch();
@@ -235,23 +227,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
                 tryFlush = false;
             } catch (TException tException) {
-                tries++;
-
-                if (tries < maxTries) {
-                    try {
-                        Thread.sleep(FLUSH_RETRY_DELAY_MILLIS);
-                    } catch (InterruptedException interruptedException) {
-                        // If someone interrupts this thread, we should probably
-                        // not still try to flush
-                        tryFlush = false;
-
-                        LOG.warn("Interrupted while about to retry emitting metrics");
-                    }
-                } else {
-                    tryFlush = false;
-
-                    LOG.warn("Failed to flush metrics after %s tries", maxTries);
-                }
+                LOG.warn("Failed to flush metrics: " + tException.getMessage());
             }
         }
 

@@ -83,10 +83,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
     private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
-    private static final int MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS = 1000;
 
     private static final int DEFAULT_METRIC_SIZE = 100;
-
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
     private static final int DEFAULT_MAX_PACKET_SIZE = 1440;
 
@@ -101,6 +99,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private final Object calcLock = new Object();
     private TCalcTransport calc;
     private TProtocol calcProtocol;
+
+    private int maxProcessorWaitUntilFlushMillis;
 
     private int freeBytes;
 
@@ -140,6 +140,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             calc = (TCalcTransport) calcProtocol.getTransport();
 
             freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, builder.metricTagSet);
+
+            maxProcessorWaitUntilFlushMillis = builder.maxProcessorWaitUntilFlushMillis;
 
             bucketIdTagName = builder.histogramBucketIdName;
             bucketTagName = builder.histogramBucketName;
@@ -215,20 +217,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        boolean tryFlush = true;
-
         MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
         metricBatch.setMetrics(metrics);
 
-        while (tryFlush) {
-            try {
-                client.emitMetricBatch(metricBatch);
+        try {
+            client.emitMetricBatch(metricBatch);
 
-                tryFlush = false;
-            } catch (TException tException) {
-                LOG.warn("Failed to flush metrics: " + tException.getMessage());
-            }
+        } catch (TException tException) {
+            LOG.warn("Failed to flush metrics: " + tException.getMessage());
         }
 
         metricBatch.setMetrics(null);
@@ -498,7 +495,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = metricQueue.poll(MAX_PROCESSOR_WAIT_UNTIL_FLUSH_MILLIS, TimeUnit.MILLISECONDS);
+                    SizedMetric sizedMetric = metricQueue.poll(maxProcessorWaitUntilFlushMillis, TimeUnit.MILLISECONDS);
 
                     // Drop metrics that came in after close
                     if (sizedMetric == SizedMetric.CLOSE) {
@@ -532,7 +529,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             if (sizedMetric == SizedMetric.FLUSH) {
                 flush(pendingMetrics, commonTags);
-
                 return;
             }
 
@@ -579,6 +575,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private boolean includeHost = true;
         private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
+        private int maxProcessorWaitUntilFlushMillis = 10_000;
         private String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         private String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         private int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
@@ -676,6 +673,17 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
          */
         public Builder maxPacketSizeBytes(int maxPacketSizeBytes) {
             this.maxPacketSizeBytes = maxPacketSizeBytes;
+
+            return this;
+        }
+
+        /**
+         * Configures the maximum wait time in milliseconds size in bytes of this {@link Builder}.
+         * @param maxProcessorWaitUntilFlushMillis the value to set
+         * @return this {@link Builder} with the new value set
+         */
+        public Builder maxProcessorWaitUntilFlushMillis(int maxProcessorWaitUntilFlushMillis) {
+            this.maxProcessorWaitUntilFlushMillis = maxProcessorWaitUntilFlushMillis;
 
             return this;
         }

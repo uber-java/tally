@@ -22,6 +22,7 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -35,7 +36,15 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     protected List<T> buckets;
 
     AbstractBuckets(T[] buckets) {
-        this.buckets = Arrays.asList(buckets);
+        if (buckets == null) {
+            this.buckets = new ArrayList<>();
+        } else {
+            this.buckets = new ArrayList<>(Arrays.asList(buckets));
+        }
+    }
+
+    AbstractBuckets() {
+        this(null);
     }
 
     @Override

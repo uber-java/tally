@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-include 'core', 'example', 'statsd'
+include 'core', 'example', 'statsd', 'm3'
 
 rootProject.name = 'tally'
 

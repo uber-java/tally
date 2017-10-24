@@ -26,8 +26,12 @@ import com.uber.m3.util.Duration;
  * {@link Buckets} implementation backed by {@code Double} values.
  */
 public class ValueBuckets extends AbstractBuckets<Double> {
-    ValueBuckets(Double[] values) {
+    public ValueBuckets(Double[] values) {
         super(values);
+    }
+
+    public ValueBuckets() {
+        super();
     }
 
     @Override

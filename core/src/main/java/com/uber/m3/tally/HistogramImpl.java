@@ -36,7 +36,6 @@ class HistogramImpl implements Histogram {
     private Type type;
     private String name;
     private ImmutableMap<String, String> tags;
-    private StatsReporter reporter;
     private Buckets specification;
     private List<HistogramBucket> buckets;
     private List<Double> lookupByValue;
@@ -46,8 +45,7 @@ class HistogramImpl implements Histogram {
         String name,
         ImmutableMap<String, String> tags,
         StatsReporter reporter,
-        Buckets buckets,
-        CachedHistogram cachedHistogram
+        Buckets buckets
     ) {
         if (buckets instanceof DurationBuckets) {
             type = Type.DURATION;
@@ -55,12 +53,11 @@ class HistogramImpl implements Histogram {
             type = Type.VALUE;
         }
 
-        BucketPair[] pairs = bucketPairs(buckets);
+        BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
         int pairsLen = pairs.length;
 
         this.name = name;
         this.tags = tags;
-        this.reporter = reporter;
         specification = buckets;
         this.buckets = new ArrayList<>(pairsLen);
         lookupByValue = new ArrayList<>(pairsLen);
@@ -71,19 +68,9 @@ class HistogramImpl implements Histogram {
                 pair.lowerBoundValue(),
                 pair.upperBoundValue(),
                 pair.lowerBoundDuration(),
-                pair.upperBoundDuration(),
-                cachedHistogram
+                pair.upperBoundDuration()
             ));
         }
-    }
-
-    HistogramImpl(
-        String name,
-        ImmutableMap<String, String> tags,
-        StatsReporter reporter,
-        Buckets buckets
-    ) {
-        this(name, tags, reporter, buckets, null);
     }
 
     private void addBucket(HistogramBucket bucket) {
@@ -154,25 +141,6 @@ class HistogramImpl implements Histogram {
         }
     }
 
-    void cachedReport() {
-        for (HistogramBucket bucket : buckets) {
-            long samples = bucket.samples.value();
-
-            if (samples == 0) {
-                continue;
-            }
-
-            switch (type) {
-                case VALUE:
-                    bucket.cachedValueBucket.reportSamples(samples);
-                    break;
-                case DURATION:
-                    bucket.cachedDurationBucket.reportSamples(samples);
-                    break;
-            }
-        }
-    }
-
     Map<Double, Long> snapshotValues() {
         if (type == Type.DURATION) {
             return null;
@@ -201,104 +169,24 @@ class HistogramImpl implements Histogram {
         return durations;
     }
 
-    static BucketPair[] bucketPairs(Buckets buckets) {
-        if (buckets == null || buckets.size() < 1) {
-            return new BucketPair[]{
-                new BucketPairImpl(
-                    -Double.MAX_VALUE,
-                    Double.MAX_VALUE,
-                    Duration.MIN_VALUE,
-                    Duration.MAX_VALUE
-                )
-            };
-        }
-
-        if (buckets instanceof DurationBuckets) {
-            // If using duration buckets separating negative times and
-            // positive times is very much desirable as depending on the
-            // reporter will create buckets "-infinity,0" and "0,{first_bucket}"
-            // instead of just "-infinity,{first_bucket}" which for time
-            // durations is not desirable nor pragmatic
-            boolean hasZero = false;
-
-            for (Duration duration : buckets.asDurations()) {
-                if (duration.equals(Duration.ZERO)) {
-                    hasZero = true;
-                    break;
-                }
-            }
-
-            if (!hasZero) {
-                ((DurationBuckets) buckets).add(Duration.ZERO);
-            }
-        }
-
-        Collections.sort(buckets);
-
-        Double[] asValueBuckets = buckets.asValues();
-        Duration[] asDurationBuckets = buckets.asDurations();
-        BucketPair[] pairs = new BucketPair[buckets.size() + 1];
-
-        // Add lower bound
-        pairs[0] = new BucketPairImpl(
-            -Double.MAX_VALUE,
-            asValueBuckets[0],
-            Duration.MIN_VALUE,
-            asDurationBuckets[0]
-        );
-
-        double prevValueBucket = asValueBuckets[0];
-        Duration prevDurationBucket = asDurationBuckets[0];
-
-        for (int i = 1; i < buckets.size(); i++) {
-            pairs[i] = new BucketPairImpl(
-                prevValueBucket,
-                asValueBuckets[i],
-                prevDurationBucket,
-                asDurationBuckets[i]
-            );
-
-            prevValueBucket = asValueBuckets[i];
-            prevDurationBucket = asDurationBuckets[i];
-        }
-
-        // Add upper bound
-        pairs[pairs.length - 1] = new BucketPairImpl(
-            prevValueBucket,
-            Double.MAX_VALUE,
-            prevDurationBucket,
-            Duration.MAX_VALUE
-        );
-
-        return pairs;
-    }
-
     class HistogramBucket {
         CounterImpl samples;
         double valueLowerBound;
         double valueUpperBound;
         Duration durationLowerBound;
         Duration durationUpperBound;
-        CachedHistogramBucket cachedValueBucket;
-        CachedHistogramBucket cachedDurationBucket;
 
         HistogramBucket(
             double valueLowerBound,
             double valueUpperBound,
             Duration durationLowerBound,
-            Duration durationUpperBound,
-            CachedHistogram cachedHistogram
+            Duration durationUpperBound
         ) {
             samples = new CounterImpl();
             this.valueLowerBound = valueLowerBound;
             this.valueUpperBound = valueUpperBound;
             this.durationLowerBound = durationLowerBound;
             this.durationUpperBound = durationUpperBound;
-
-            if (cachedHistogram != null) {
-                cachedValueBucket = cachedHistogram.valueBucket(valueLowerBound, valueUpperBound);
-                cachedDurationBucket = cachedHistogram.durationBucket(durationLowerBound, durationUpperBound);
-            }
         }
     }
 

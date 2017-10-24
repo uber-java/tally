@@ -40,6 +40,11 @@ public class Duration implements Comparable<Duration> {
     public static final Duration MAX_VALUE = new Duration(Long.MAX_VALUE);
 
     /**
+     * The number of nanoseconds in a microsecond.
+     */
+    public static final long NANOS_PER_MICRO = 1_000;
+
+    /**
      * The number of nanoseconds in a millisecond.
      */
     public static final long NANOS_PER_MILLI = 1_000_000;
@@ -47,7 +52,7 @@ public class Duration implements Comparable<Duration> {
     /**
      * The number of milliseconds in a second.
      */
-    public static final long MILLIS_PER_SECOND = 1000;
+    public static final long MILLIS_PER_SECOND = 1_000;
 
     /**
      * The number of seconds in a minute.
@@ -74,6 +79,9 @@ public class Duration implements Comparable<Duration> {
      */
     public static final long NANOS_PER_HOUR = NANOS_PER_MINUTE * MINUTES_PER_HOUR;
 
+    // Max string length produced from a Duration is 25 when nanos == Long.MIN_VALUE
+    private static final int STRING_BUILDER_INIT_CAP = 25;
+
     // Long.MAX_VALUE nanos > 290 years, which should be good enough
     private final long nanos;
 
@@ -87,8 +95,8 @@ public class Duration implements Comparable<Duration> {
      * @param nanos number of nanos in this {@link Duration}
      * @return a {@link Duration} of these nanos
      */
-    public static Duration ofNanos(double nanos) {
-        return new Duration((long) nanos);
+    public static Duration ofNanos(long nanos) {
+        return new Duration(nanos);
     }
 
     /**
@@ -185,21 +193,32 @@ public class Duration implements Comparable<Duration> {
         return Long.compare(nanos, other.nanos);
     }
 
+    /**
+     * This toString method is designed to mimic Go's time.Duration String(). In short, it is
+     * designed so that the least granular unit is used such that the first digit is not 0,
+     * e.g. 100µs instead of 0.1ms.
+     * @return String representation of this {@link Duration}
+     */
     @Override
     public String toString() {
         if (nanos == 0) {
             return "0s";
+        } else if (nanos == Long.MIN_VALUE) {
+            // Return hard coded response as workaround because
+            // Math.abs(Long.MIN_VALUE) == Long.MIN_VALUE
+            return "-2562047h47m16.854775808s";
         }
 
         boolean isNegative = nanos < 0;
 
-        long localNanos = Math.abs(nanos);
+        long nanosLocal = Math.abs(nanos);
 
-        long hours = localNanos / NANOS_PER_HOUR;
-        int minutes = (int) ((localNanos % NANOS_PER_HOUR) / NANOS_PER_MINUTE);
-        float seconds = (float) (localNanos % NANOS_PER_MINUTE) / (float) NANOS_PER_SECOND;
+        long hours = nanosLocal / NANOS_PER_HOUR;
+        int minutes = (int) ((nanosLocal % NANOS_PER_HOUR) / NANOS_PER_MINUTE);
+        long secondsInNanos = nanosLocal % NANOS_PER_MINUTE;
+        int nanoOffset = (int) (nanosLocal % NANOS_PER_SECOND);
 
-        StringBuilder buf = new StringBuilder(16);
+        StringBuilder buf = new StringBuilder(STRING_BUILDER_INIT_CAP);
 
         if (isNegative) {
             buf.append("-");
@@ -210,11 +229,42 @@ public class Duration implements Comparable<Duration> {
         if (minutes != 0) {
             buf.append(minutes).append("m");
         }
-        if (seconds != 0) {
-            buf.append(seconds).append("s");
+        if (secondsInNanos / NANOS_PER_SECOND > 0) {
+            appendDurationSegment(buf, secondsInNanos, 9, "s");
+        } else if (nanoOffset > 0) {
+            // If less than one second, print the highest unit that is >1
+            if (nanoOffset / NANOS_PER_MILLI > 0) {
+                appendDurationSegment(buf, nanoOffset, 6, "ms");
+            } else if (nanoOffset / NANOS_PER_MICRO > 0) {
+                appendDurationSegment(buf, nanoOffset % NANOS_PER_MILLI, 3, "µs");
+            } else {
+                buf.append(nanoOffset).append("ns");
+            }
         }
 
         return buf.toString();
+    }
+
+    private static void appendDurationSegment(
+        StringBuilder buf,
+        long durationPart,
+        int exponent,
+        String suffix
+    ) {
+        buf.append(durationPart);
+
+        int decimalIdx = buf.length() - exponent;
+
+        // Remove trailing 0s if they come after decimal
+        while (decimalIdx < buf.length() && buf.charAt(buf.length() - 1) == '0') {
+            buf.setLength(buf.length() - 1);
+        }
+
+        if (decimalIdx < buf.length()) {
+            buf.insert(decimalIdx, '.');
+        }
+
+        buf.append(suffix);
     }
 
     @Override

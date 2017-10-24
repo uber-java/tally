@@ -33,7 +33,7 @@ plugins {
     id 'signing'
     id 'checkstyle'
     id 'jacoco'
-    id 'net.researchgate.release' version '2.4.0' apply false
+    id 'net.researchgate.release' version '2.6.0' apply false
     id 'com.github.kt3k.coveralls' version '2.8.1'
 }
 
@@ -126,13 +126,6 @@ allprojects {
         }
     }
 
-    // ----------------------
-    // Build & Release
-    // ----------------------
-    task wrapper(type: Wrapper) {
-        gradleVersion = '3.3'
-    }
-
     release {
         tagTemplate = '$name-$version'
     }
@@ -171,6 +164,11 @@ subprojects {
 
 ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
 
+task wrapper(type: Wrapper) {
+    // Gradle version 4+ required for JMH benchmarking, otherwise v3.5+ is sufficient
+    gradleVersion = '4.0'
+}
+
 // ----------------------
 // Fat jar task factories
 // ----------------------
@@ -206,7 +204,8 @@ def fatJavadocJar(name, projects) {
         type: Javadoc,
         dependsOn: projects.collect{it + ':classes'}
     ]) {
-        source = projects.collect{ project(it).sourceSets.main.allSource }
+        classpath = files(projects.collect{ project(it).sourceSets.main.compileClasspath })
+        source = projects.collect{ project(it).sourceSets.main.allJava }
     }
 
     return tasks.create([
@@ -221,11 +220,18 @@ def fatJavadocJar(name, projects) {
 }
 
 // --------------------------------------
-// StatsD fat jar
+// StatsD reporter fat jar
 // --------------------------------------
 
 def statsd_fat_jar_name = 'tally-statsd-fat'
 def statsd_fat_jar_projs = [':tally-core', ':tally-statsd']
+
+// --------------------------------------
+// M3 reporter fat jar
+// --------------------------------------
+
+def m3_fat_jar_name = 'tally-m3-fat'
+def m3_fat_jar_projs = [':tally-core', ':tally-m3']
 
 // -------------------
 // Fat jars to publish
@@ -233,7 +239,10 @@ def statsd_fat_jar_projs = [':tally-core', ':tally-statsd']
 artifacts {
     archives fatJar(statsd_fat_jar_name, statsd_fat_jar_projs),
         fatSourcesJar(statsd_fat_jar_name, statsd_fat_jar_projs),
-        fatJavadocJar(statsd_fat_jar_name, statsd_fat_jar_projs)
+        fatJavadocJar(statsd_fat_jar_name, statsd_fat_jar_projs),
+        fatJar(m3_fat_jar_name, m3_fat_jar_projs),
+        fatSourcesJar(m3_fat_jar_name, m3_fat_jar_projs),
+        fatJavadocJar(m3_fat_jar_name, m3_fat_jar_projs)
 }
 
 nexusStaging {}
@@ -248,7 +257,7 @@ coveralls {
 task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
     dependsOn = subprojects.test
     sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories =  files(subprojects.sourceSets.main.output.classesDir)
+    classDirectories =  files(subprojects.sourceSets.main.output.classesDirs)
     executionData = files(subprojects.jacocoTestReport.executionData)
 
     reports {

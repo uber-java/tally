@@ -26,8 +26,12 @@ import com.uber.m3.util.Duration;
  * {@link Buckets} implementation backed by {@link Duration}s.
  */
 public class DurationBuckets extends AbstractBuckets<Duration> {
-    DurationBuckets(Duration[] durations) {
+    public DurationBuckets(Duration[] durations) {
         super(durations);
+    }
+
+    public DurationBuckets() {
+        super();
     }
 
     @Override

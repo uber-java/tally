@@ -37,13 +37,11 @@ class TimerImpl implements Timer, StopwatchRecorder {
     private String name;
     private ImmutableMap<String, String> tags;
     private StatsReporter reporter;
-    private CachedTimer cachedTimer;
     private Values unreported = new Values();
 
-    TimerImpl(String name, ImmutableMap<String, String> tags, StatsReporter reporter, CachedTimer cachedTimer) {
+    TimerImpl(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
         this.name = name;
         this.tags = tags;
-        this.cachedTimer = cachedTimer;
 
         if (reporter == null) {
             this.reporter = new NoReporterSink();
@@ -52,17 +50,9 @@ class TimerImpl implements Timer, StopwatchRecorder {
         }
     }
 
-    TimerImpl(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
-        this(name, tags, reporter, null);
-    }
-
     @Override
     public void record(Duration interval) {
-        if (cachedTimer != null) {
-            cachedTimer.reportTimer(interval);
-        } else {
-            reporter.reportTimer(name, tags, interval);
-        }
+        reporter.reportTimer(name, tags, interval);
     }
 
     @Override
@@ -94,7 +84,11 @@ class TimerImpl implements Timer, StopwatchRecorder {
     }
 
     static class Values {
-        private ReadWriteLock rwlock = new ReentrantReadWriteLock();
+        // Using a ReadWriteLock here to protect against multithreaded reads
+        // and writes separately. In other places, synchronized blocks are used
+        // instead as this separation is not needed e.g. we only lock a
+        // ConcurrentHashMap when doing writes and not for reads.
+        private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
         private List<Duration> values = new ArrayList<>();
 
         Lock readLock() {

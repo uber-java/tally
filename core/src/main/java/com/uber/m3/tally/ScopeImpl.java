@@ -28,16 +28,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Default {@link Scope} implementation.
  */
 class ScopeImpl implements Scope {
     private StatsReporter reporter;
-    private CachedStatsReporter cachedReporter;
-    private BaseStatsReporter baseReporter;
     private String prefix;
     private String separator;
     private ImmutableMap<String, String> tags;
@@ -48,17 +44,12 @@ class ScopeImpl implements Scope {
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
-    // the middle of looping and reporting through all metrics. Therefore, locks
-    // are generally only used when having to allocate new metrics.
-    private Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
-    private Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
-    private Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
-    private Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
-
-    private Lock counterAllocationLock = new ReentrantLock();
-    private Lock gaugeAllocationLock = new ReentrantLock();
-    private Lock timerAllocationLock = new ReentrantLock();
-    private Lock histogramAllocationLock = new ReentrantLock();
+    // the middle of looping and reporting through all metrics. Therefore, we only
+    // synchronize on these maps when having to allocate new metrics.
+    private final Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
+    private final Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
+    private final Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
+    private final Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -66,8 +57,6 @@ class ScopeImpl implements Scope {
         this.registry = registry;
 
         this.reporter = builder.reporter;
-        this.cachedReporter = builder.cachedReporter;
-        this.baseReporter = builder.baseReporter;
         this.prefix = builder.prefix;
         this.separator = builder.separator;
         this.tags = builder.tags;
@@ -82,21 +71,13 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        counterAllocationLock.lock();
-
-        if (!counters.containsKey(name)) {
-            CachedCounter cachedCounter = null;
-
-            if (cachedReporter != null) {
-                cachedCounter = cachedReporter.allocateCounter(fullyQualifiedName(name), tags);
+        synchronized (counters) {
+            if (!counters.containsKey(name)) {
+                counters.put(name, new CounterImpl());
             }
 
-            counters.put(name, new CounterImpl(cachedCounter));
+            counter = counters.get(name);
         }
-
-        counter = counters.get(name);
-
-        counterAllocationLock.unlock();
 
         return counter;
     }
@@ -109,21 +90,13 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        gaugeAllocationLock.lock();
-
-        if (!gauges.containsKey(name)) {
-            CachedGauge cachedGauge = null;
-
-            if (cachedReporter != null) {
-                cachedGauge = cachedReporter.allocateGauge(fullyQualifiedName(name), tags);
+        synchronized (gauges) {
+            if (!gauges.containsKey(name)) {
+                gauges.put(name, new GaugeImpl());
             }
 
-            gauges.put(name, new GaugeImpl(cachedGauge));
+            gauge = gauges.get(name);
         }
-
-        gauge = gauges.get(name);
-
-        gaugeAllocationLock.unlock();
 
         return gauge;
     }
@@ -136,23 +109,13 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        timerAllocationLock.lock();
-
-        if (!timers.containsKey(name)) {
-            CachedTimer cachedTimer = null;
-
-            String fullName = fullyQualifiedName(name);
-
-            if (cachedReporter != null) {
-                cachedTimer = cachedReporter.allocateTimer(fullName, tags);
+        synchronized (timers) {
+            if (!timers.containsKey(name)) {
+                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
             }
 
-            timers.put(name, new TimerImpl(fullName, tags, reporter, cachedTimer));
+            timer = timers.get(name);
         }
-
-        timer = timers.get(name);
-
-        timerAllocationLock.unlock();
 
         return timer;
     }
@@ -169,23 +132,13 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        histogramAllocationLock.lock();
-
-        if (!histograms.containsKey(name)) {
-            CachedHistogram cachedHistogram = null;
-
-            String fullName = fullyQualifiedName(name);
-
-            if (cachedReporter != null) {
-                cachedHistogram = cachedReporter.allocateHistogram(fullName, tags, buckets);
+        synchronized (histograms) {
+            if (!histograms.containsKey(name)) {
+                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
             }
 
-            histograms.put(name, new HistogramImpl(fullName, tags, reporter, buckets, cachedHistogram));
+            histogram = histograms.get(name);
         }
-
-        histogram = histograms.get(name);
-
-        histogramAllocationLock.unlock();
 
         return histogram;
     }
@@ -202,8 +155,8 @@ class ScopeImpl implements Scope {
 
     @Override
     public Capabilities capabilities() {
-        if (baseReporter != null) {
-            return baseReporter.capabilities();
+        if (reporter != null) {
+            return reporter.capabilities();
         }
 
         return CapableOf.NONE;
@@ -220,7 +173,7 @@ class ScopeImpl implements Scope {
         reportLoopIteration();
 
         // Now that all metrics should be known to the reporter, close the reporter
-        baseReporter.close();
+        reporter.close();
     }
 
     /**
@@ -246,30 +199,8 @@ class ScopeImpl implements Scope {
         reporter.flush();
     }
 
-    /**
-     * Reports using the specified cachedReporter.
-     * @param cachedReporter the cachedReporter to report
-     */
-    void cachedReport(CachedStatsReporter cachedReporter) {
-        for (CounterImpl counter : counters.values()) {
-            counter.cachedReport();
-        }
-
-        for (GaugeImpl gauge : gauges.values()) {
-            gauge.cachedReport();
-        }
-
-        // No operations on timers required here; they report directly to the StatsReporter
-        // i.e. they are not buffered
-
-        for (HistogramImpl histogram : histograms.values()) {
-            histogram.cachedReport();
-        }
-
-        cachedReporter.flush();
-    }
-
     // Serializes a map to generate a key for a prefix/map combination
+    // Non-generic EMPTY ImmutableMap will never contain any elements
     @SuppressWarnings("unchecked")
     static String keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
         if (prefix == null) {
@@ -313,7 +244,7 @@ class ScopeImpl implements Scope {
      * Returns a {@link Snapshot} of this {@link Scope}.
      * @return a {@link Snapshot} of this {@link Scope}
      */
-    Snapshot snapshot() {
+    public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
         for (ScopeImpl subscope : registry.subscopes.values()) {
@@ -398,25 +329,24 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        registry.allocationLock.lock();
+        Scope subscope;
 
-        if (!registry.subscopes.containsKey(key)) {
-            registry.subscopes.put(
-                key,
-                new ScopeBuilder(scheduler, registry)
-                    .reporter(reporter)
-                    .cachedReporter(cachedReporter)
-                    .prefix(prefix)
-                    .separator(separator)
-                    .tags(mergedTags)
-                    .defaultBuckets(defaultBuckets)
-                    .build()
-            );
+        synchronized (registry.allocationLock) {
+            if (!registry.subscopes.containsKey(key)) {
+                registry.subscopes.put(
+                    key,
+                    new ScopeBuilder(scheduler, registry)
+                        .reporter(reporter)
+                        .prefix(prefix)
+                        .separator(separator)
+                        .tags(mergedTags)
+                        .defaultBuckets(defaultBuckets)
+                        .build()
+                );
+            }
+
+            subscope = registry.subscopes.get(key);
         }
-
-        Scope subscope = registry.subscopes.get(key);
-
-        registry.allocationLock.unlock();
 
         return subscope;
     }
@@ -430,12 +360,6 @@ class ScopeImpl implements Scope {
                 subscope.report(reporter);
             }
         }
-
-        if (cachedReporter != null) {
-            for (ScopeImpl subscope : subscopes) {
-                subscope.cachedReport(cachedReporter);
-            }
-        }
     }
 
     class ReportLoop implements Runnable {
@@ -445,7 +369,7 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        Lock allocationLock = new ReentrantLock();
+        final Object allocationLock = new Object();
         Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

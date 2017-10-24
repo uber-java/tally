@@ -7,6 +7,7 @@ This document summarizes information relevant to Java tally contributors.
 ### Prerequisites
 In order to build this project, you must have:
 - JDK-7 or later
+- Apache Thrift 0.9.x -- only if you plan to make changes to Thrift files and recompile (regenerate) source files
 
 ### Building and testing
 Gradle is used to build tally. Run this from the top-level directory to build the project:
@@ -18,6 +19,12 @@ To run the project's tests:
 ```bash
 ./gradlew check
 ```
+
+By default, the build does *not* compile Thrift files to generate sources. If you make changes to Thrift files and need
+regenerate sources, make sure you have thrift 0.9.x installed and build with the `genThrift` property set, e.g.
+```bash
+./gradlew clean :tally-m3:build -PgenThrift
+``` 
 
 ### Making changes
 The source code of tally is managed using GitHub, and as such, we use its features to, for example,

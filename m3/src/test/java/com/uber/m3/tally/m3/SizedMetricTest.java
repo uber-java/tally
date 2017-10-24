@@ -18,15 +18,48 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.m3;
 
-/**
- * Interface for reporting histogram samples to a specific bucket.
- */
-public interface CachedHistogramBucket {
-    /**
-     * Report a sample to a specific bucket.
-     * @param value value to report
-     */
-    void reportSamples(long value);
+import com.uber.m3.thrift.generated.Metric;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+
+public class SizedMetricTest {
+    @Test
+    public void simpleSizedMetric() {
+        Metric metric = new Metric();
+
+        SizedMetric sizedMetric = new SizedMetric(metric, 1);
+
+        assertEquals(sizedMetric.getMetric(), metric);
+        assertEquals(sizedMetric.getSize(), 1);
+    }
+
+    @Test
+    public void nullSizedMetric() {
+        SizedMetric sizedMetric = new SizedMetric(null, 9);
+
+        assertEquals(sizedMetric.getMetric(), null);
+        assertEquals(sizedMetric.getSize(), 9);
+    }
+
+    @Test
+    public void setters() {
+        SizedMetric sizedMetric = new SizedMetric();
+
+        sizedMetric.setSize(9);
+
+        assertEquals(9, sizedMetric.getSize());
+
+        sizedMetric.setSize(11);
+        sizedMetric.setSize(12);
+
+        assertEquals(12, sizedMetric.getSize());
+
+        Metric metric1 = new Metric();
+        sizedMetric.setMetric(metric1);
+
+        assertEquals(metric1, sizedMetric.getMetric());
+    }
 }

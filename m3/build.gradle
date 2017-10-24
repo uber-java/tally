@@ -18,15 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+plugins {
+    id "org.jruyi.thrift" version "0.4.0"
+    id "me.champeau.gradle.jmh" version "0.4.3"
+}
 
-/**
- * A cached count for reporting an individual {@link Counter}.
- */
-public interface CachedCounter {
-    /**
-     * Reports a count for a {@link Counter}.
-     * @param value value to report
-     */
-    void reportCount(long value);
+description = 'tally M3 reporter'
+
+dependencies {
+    compile('org.apache.thrift:libthrift:0.9.3')
+
+    compile project(':tally-core')
+}
+
+compileThrift {
+    generator 'java', 'private-members'
+
+    outputDir "${projectDir}/src/generated/java"
+
+    createGenFolder false
+
+    onlyIf {
+        project.hasProperty('genThrift')
+    }
+}
+
+jmh {
+    benchmarkMode = ['Throughput']
+
+    warmupIterations = 0
+
+    iterations = 5
+    batchSize = 1
+
+    fork = 1
+    forceGC = true
+    includeTests = true
 }

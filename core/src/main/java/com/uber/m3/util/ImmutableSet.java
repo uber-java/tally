@@ -119,4 +119,40 @@ public class ImmutableSet<E> implements Set<E> {
     public int hashCode() {
         return set.hashCode();
     }
+
+    /**
+     * Helper class to construct {@link ImmutableSet}s.
+     * @param <E> the type of elements in this set
+     */
+    public static class Builder<E> {
+        private HashSet<E> set;
+
+        public Builder() {
+            this(16, 0.75f);
+        }
+
+        public Builder(int initialCapacity) {
+            this(initialCapacity, 1);
+        }
+
+        public Builder(int initialCapacity, float loadFactor) {
+            set = new HashSet<>(initialCapacity, loadFactor);
+        }
+
+        public Builder<E> add(E element) {
+            set.add(element);
+
+            return this;
+        }
+
+        public Builder<E> addAll(Set<E> otherSet) {
+            set.addAll(otherSet);
+
+            return this;
+        }
+
+        public ImmutableSet<E> build() {
+            return new ImmutableSet<>(set);
+        }
+    }
 }

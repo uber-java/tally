@@ -68,12 +68,10 @@ public class MockM3Server {
                 processor.process(protocol, protocol);
             } catch (TException e) {
                 if (transport.isOpen()) {
-                    // If we reach here and the transport is still open, then
-                    // something bad probably happened.
-                    e.printStackTrace();
+                    throw new RuntimeException("Error processing metrics", e);
                 }
-                // Otherwise no-op because we're trying to read from a closed
-                // socket (after someone called close()).
+                // Don't care if transport is closed - just ignore that we're
+                // trying to read from a closed socket (after someone called close()).
             }
         }
     }

@@ -55,10 +55,10 @@ This runs the `PrintStatsReporterExample` class in the `tally-example` project.
 
 All artifacts are published under the group `com.uber.m3`.
 
-1. `tally-statsd-fat`: Fat jar version of the tally StatsD reporter
-1. `tally-example`: Example usages with different reporters
+1. `tally-m3`: The tally M3 reporter
 1. `tally-statsd`: The tally StatsD reporter
 1. `tally-core`: tally core functionality that includes interfaces and utilities to report metrics to M3
+1. `tally-example`: Example usages with different reporters
 
 ## Versioning
 We follow semantic versioning outlined [here](http://semver.org/spec/v2.0.0.html). In summary,

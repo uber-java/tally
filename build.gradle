@@ -23,7 +23,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath('io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3')
+        classpath('io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.11.0')
     }
 }
 
@@ -33,7 +33,6 @@ plugins {
     id 'signing'
     id 'checkstyle'
     id 'jacoco'
-    id 'net.researchgate.release' version '2.6.0' apply false
     id 'com.github.kt3k.coveralls' version '2.8.1'
 }
 
@@ -46,13 +45,12 @@ configurations.archives.artifacts.clear()
 
 allprojects {
     group = 'com.uber.m3'
-    version = '0.0.1-SNAPSHOT'
+    version = '0.1.1'
 
     apply plugin: 'java'
     apply plugin: 'maven'
     apply plugin: 'signing'
     apply plugin: 'jacoco'
-    apply plugin: 'net.researchgate.release'
 
     sourceCompatibility = 1.7
     targetCompatibility = 1.7
@@ -125,12 +123,6 @@ allprojects {
             }
         }
     }
-
-    release {
-        tagTemplate = '$name-$version'
-    }
-
-    afterReleaseBuild.dependsOn uploadArchives
 }
 
 subprojects {

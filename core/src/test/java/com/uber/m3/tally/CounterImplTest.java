@@ -39,25 +39,25 @@ public class CounterImplTest {
     public void inc() {
         counter.inc(1);
         counter.report("", null, reporter);
-        assertEquals(1, reporter.prevCounter);
+        assertEquals(1, reporter.nextCounterVal());
 
         counter.inc(1);
         counter.report("", null, reporter);
-        assertEquals(1, reporter.prevCounter);
+        assertEquals(1, reporter.nextCounterVal());
 
         counter.inc(1);
         counter.inc(1);
         counter.report("", null, reporter);
-        assertEquals(2, reporter.prevCounter);
+        assertEquals(2, reporter.nextCounterVal());
 
         counter.inc(3);
         counter.report("", null, reporter);
-        assertEquals(3, reporter.prevCounter);
+        assertEquals(3, reporter.nextCounterVal());
 
         counter.inc(1);
         counter.inc(-3);
         counter.report("", null, reporter);
-        assertEquals(-2, reporter.prevCounter);
+        assertEquals(-2, reporter.nextCounterVal());
     }
 
     @Test

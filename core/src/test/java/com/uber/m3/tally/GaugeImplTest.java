@@ -41,21 +41,21 @@ public class GaugeImplTest {
     public void update() {
         gauge.update(42);
         gauge.report("", null, reporter);
-        assertEquals(42, reporter.prevGauge, EPSILON);
+        assertEquals(42, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(2);
         gauge.update(8);
         gauge.report("", null, reporter);
-        assertEquals(8, reporter.prevGauge, EPSILON);
+        assertEquals(8, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(0);
         gauge.report("", null, reporter);
-        assertEquals(0, reporter.prevGauge, EPSILON);
+        assertEquals(0, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(1);
         gauge.update(-3);
         gauge.report("", null, reporter);
-        assertEquals(-3, reporter.prevGauge, EPSILON);
+        assertEquals(-3, reporter.nextGaugeVal(), EPSILON);
     }
 
     @Test

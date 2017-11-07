@@ -154,4 +154,35 @@ public class ImmutableSetTest {
         assertTrue(set.equals(set));
         assertFalse(set.equals(2));
     }
+
+    @Test
+    public void builder() {
+        ImmutableSet.Builder<String> builder = new ImmutableSet.Builder<String>(3)
+            .add("foo")
+            .add("bar")
+            .add("baz");
+
+        ImmutableSet<String> set = builder.build();
+
+        HashSet<String> testSet = new HashSet<>(2, 1);
+        testSet.add("bar");
+        testSet.add("baz");
+
+        assertEquals(3, set.size());
+        assertTrue(set.contains("foo"));
+        assertTrue(set.containsAll(testSet));
+        assertFalse(set.contains("nope"));
+
+        testSet.add("another");
+        testSet.add("new");
+        builder.addAll(testSet);
+
+        set = new ImmutableSet.Builder<String>()
+            .add("foo")
+            .addAll(testSet)
+            .build();
+        assertTrue(set.contains("foo"));
+        assertTrue(set.containsAll(testSet));
+        assertFalse(set.contains("still nope"));
+    }
 }

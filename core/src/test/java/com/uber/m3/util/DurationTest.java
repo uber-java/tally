@@ -165,6 +165,11 @@ public class DurationTest {
         assertEquals("99.009µs", Duration.ofNanos(99_009).toString());
 
         assertEquals("-1.25s", Duration.ofSeconds(-1.25).toString());
+        assertEquals("-5ns", Duration.ofNanos(-5).toString());
         assertEquals("-34h17m36.7s", Duration.ofSeconds(-123456.7).toString());
+
+        assertEquals("2562047h47m16.854775807s", Duration.MAX_VALUE.toString());
+        assertEquals("-2562047h47m16.854775808s", Duration.MIN_VALUE.toString());
+        assertEquals("-2562047h47m16.854775807s", Duration.ofNanos(Long.MIN_VALUE + 1).toString());
     }
 }

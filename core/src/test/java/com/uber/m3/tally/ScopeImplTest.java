@@ -229,4 +229,9 @@ public class ScopeImplTest {
         assertEquals("snapshot-timer", timers.get("snapshot-timer+").name());
         assertEquals(null, timers.get("snapshot-timer+").tags());
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void nonPositiveReportInterval() {
+        new RootScopeBuilder().reportEvery(Duration.ofSeconds(-10));
+    }
 }

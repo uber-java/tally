@@ -50,11 +50,11 @@ public class ScopeBuilder {
         Duration.ofSeconds(5),
     });
 
-    StatsReporter reporter = null;
-    String prefix = "";
-    String separator = DEFAULT_SEPARATOR;
-    ImmutableMap<String, String> tags;
-    Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
+    protected StatsReporter reporter = null;
+    protected String prefix = "";
+    protected String separator = DEFAULT_SEPARATOR;
+    protected ImmutableMap<String, String> tags;
+    protected Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
 
     private ScheduledExecutorService scheduler;
     private ScopeImpl.Registry registry;
@@ -140,13 +140,14 @@ public class ScopeBuilder {
      * @return the root scope created
      */
     public Scope reportEvery(Duration interval) {
-        ScopeImpl scope = build();
+        if (interval.compareTo(Duration.ZERO) <= 0) {
+            throw new IllegalArgumentException("Reporting interval must be a positive Duration");
+        }
 
+        ScopeImpl scope = build();
         registry.subscopes.put(ScopeImpl.keyForPrefixedStringMap(prefix, tags), scope);
 
-        if (interval.compareTo(Duration.ZERO) > 0) {
-            scheduler.scheduleWithFixedDelay(scope.new ReportLoop(), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
-        }
+        scheduler.scheduleWithFixedDelay(scope.new ReportLoop(), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
 
         return scope;
     }

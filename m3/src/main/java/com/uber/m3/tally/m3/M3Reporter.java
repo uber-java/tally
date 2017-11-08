@@ -564,21 +564,22 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
      * Builder pattern to construct an {@link M3Reporter}.
      */
     public static class Builder {
-        private SocketAddress[] socketAddresses;
-        private String service;
-        private String env;
-        private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        protected SocketAddress[] socketAddresses;
+        protected String service;
+        protected String env;
+        protected ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
-        private ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
+        protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
+        protected boolean includeHost = true;
+        protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
+        protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
+        protected int maxProcessorWaitUntilFlushMillis = 10_000;
+        protected String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
+        protected String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
+        protected int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
+
         private Set<MetricTag> metricTagSet;
-        private boolean includeHost = true;
-        private int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
-        private int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
-        private int maxProcessorWaitUntilFlushMillis = 10_000;
-        private String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
-        private String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
-        private int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
 
         /**
          * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.

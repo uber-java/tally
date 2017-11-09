@@ -57,26 +57,6 @@ public class BucketPairImpl implements BucketPair {
             };
         }
 
-        if (buckets instanceof DurationBuckets) {
-            // If using duration buckets separating negative times and
-            // positive times is very much desirable as depending on the
-            // reporter will create buckets "-infinity,0" and "0,{first_bucket}"
-            // instead of just "-infinity,{first_bucket}" which for time
-            // durations is not desirable nor pragmatic
-            boolean hasZero = false;
-
-            for (Duration duration : buckets.asDurations()) {
-                if (duration.equals(Duration.ZERO)) {
-                    hasZero = true;
-                    break;
-                }
-            }
-
-            if (!hasZero) {
-                ((DurationBuckets) buckets).add(Duration.ZERO);
-            }
-        }
-
         Collections.sort(buckets);
 
         Double[] asValueBuckets = buckets.asValues();

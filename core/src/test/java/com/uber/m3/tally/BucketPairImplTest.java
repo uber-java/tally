@@ -76,30 +76,6 @@ public class BucketPairImplTest {
     }
 
     @Test
-    public void addZeroBucket() {
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(
-            DurationBuckets.linear(Duration.ofMillis(-30), Duration.ofMillis(20), 3)
-        );
-
-        assertEquals(5, bucketPairs.length);
-
-        assertEquals(Duration.MIN_VALUE, bucketPairs[0].lowerBoundDuration());
-        assertEquals(Duration.ofMillis(-30), bucketPairs[0].upperBoundDuration());
-
-        assertEquals(Duration.ofMillis(-30), bucketPairs[1].lowerBoundDuration());
-        assertEquals(Duration.ofMillis(-10), bucketPairs[1].upperBoundDuration());
-
-        assertEquals(Duration.ofMillis(-10), bucketPairs[2].lowerBoundDuration());
-        assertEquals(Duration.ZERO, bucketPairs[2].upperBoundDuration());
-
-        assertEquals(Duration.ZERO, bucketPairs[3].lowerBoundDuration());
-        assertEquals(Duration.ofMillis(10), bucketPairs[3].upperBoundDuration());
-
-        assertEquals(Duration.ofMillis(10), bucketPairs[4].lowerBoundDuration());
-        assertEquals(Duration.MAX_VALUE, bucketPairs[4].upperBoundDuration());
-    }
-
-    @Test
     public void testToString() {
         BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(
             ValueBuckets.linear(-100, 200, 2)

@@ -91,7 +91,7 @@ allprojects {
                     }
 
                     pom.project {
-                        name project.getPath()
+                        name project.getName()
                         description project.description
                         packaging 'jar'
                         url 'https://github.com/uber-java/tally'

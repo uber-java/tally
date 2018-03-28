@@ -27,6 +27,7 @@ import org.junit.Test;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class HistogramImplTest {
     private TestStatsReporter reporter;
@@ -87,6 +88,26 @@ public class HistogramImplTest {
         assertEquals(new Long(3L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
         assertEquals(new Long(5L), reporter.getDurationSamples().get(Duration.ofMillis(60)));
         assertEquals(buckets, reporter.getBuckets());
+    }
+
+    @Test
+    public void recordStopwatch() {
+        Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(10), 10);
+
+        histogram = new HistogramImpl(
+            "",
+            null,
+            reporter,
+            buckets
+        );
+
+        Stopwatch stopwatch = histogram.start();
+        assertNotNull(stopwatch);
+        stopwatch.Stop();
+
+        histogram.report(histogram.getName(), histogram.getTags(), reporter);
+
+        assertEquals(new Long(1L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
     }
 
     @Test

@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * Default implementation of a {@link Histogram}.
  */
-class HistogramImpl implements Histogram {
+class HistogramImpl implements Histogram, StopwatchRecorder {
     private Type type;
     private String name;
     private ImmutableMap<String, String> tags;
@@ -107,7 +107,7 @@ class HistogramImpl implements Histogram {
 
     @Override
     public Stopwatch start() {
-        return null;
+        return new Stopwatch(System.nanoTime(), this);
     }
 
     String getName() {
@@ -167,6 +167,11 @@ class HistogramImpl implements Histogram {
         }
 
         return durations;
+    }
+
+    @Override
+    public void recordStopwatch(long stopwatchStart) {
+        recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
     }
 
     class HistogramBucket {

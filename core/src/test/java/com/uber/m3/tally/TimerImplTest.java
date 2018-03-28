@@ -48,7 +48,7 @@ public class TimerImplTest {
         assertEquals(Duration.ofMinutes(2), reporter.nextTimerVal());
 
         Stopwatch stopwatch = timer.start();
-        stopwatch.Stop();
+        stopwatch.stop();
 
         Duration duration = reporter.nextTimerVal();
         assertNotNull(duration);

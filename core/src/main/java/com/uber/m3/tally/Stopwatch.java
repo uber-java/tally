@@ -44,7 +44,16 @@ public class Stopwatch {
     /**
      * Stop the stopwatch.
      */
-    public void Stop() {
+    public void stop() {
         recorder.recordStopwatch(startNanos);
+    }
+
+    /**
+     * Stop the stopwatch.
+     * @deprecated because the wrong casing was used. Use {@link #stop()} instead.
+     */
+    @Deprecated
+    public void Stop() {
+        stop();
     }
 }

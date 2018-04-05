@@ -103,7 +103,7 @@ public class HistogramImplTest {
 
         Stopwatch stopwatch = histogram.start();
         assertNotNull(stopwatch);
-        stopwatch.Stop();
+        stopwatch.stop();
 
         histogram.report(histogram.getName(), histogram.getTags(), reporter);
 

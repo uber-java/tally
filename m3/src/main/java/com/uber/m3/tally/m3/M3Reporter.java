@@ -423,6 +423,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             // We know that the HashMap will only contain two items at this point,
             // therefore initialCapacity of 2 and loadFactor of 1.
             tags = new HashMap<>(2, 1);
+        } else {
+            // Copy over the map since it might be unmodifiable and, even if it's
+            // not, we don't want to modify it.
+            tags = new HashMap<>(tags);
         }
 
         for (int i = 0; i < bucketPairs.length; i++) {

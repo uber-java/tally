@@ -43,6 +43,20 @@ compileThrift {
     }
 }
 
+task testJar(type: Jar) {
+    classifier = 'test'
+
+    from (sourceSets.test.output) {
+        // Test classes will probably not be useful to others
+        exclude '**/*Test*'
+    }
+}
+
+// Expose testing utility classes
+artifacts {
+    archives testJar
+}
+
 jmh {
     benchmarkMode = ['Throughput']
 

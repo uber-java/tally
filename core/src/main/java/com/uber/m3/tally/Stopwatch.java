@@ -36,7 +36,7 @@ public class Stopwatch {
      *                   to current time
      * @param recorder   the recorder used to record this {@link Stopwatch}
      */
-    Stopwatch(long startNanos, StopwatchRecorder recorder) {
+    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
         this.startNanos = startNanos;
         this.recorder = recorder;
     }

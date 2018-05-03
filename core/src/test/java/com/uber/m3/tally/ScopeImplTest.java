@@ -23,7 +23,6 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;

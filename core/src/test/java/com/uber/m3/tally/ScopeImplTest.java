@@ -22,6 +22,7 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -107,6 +108,16 @@ public class ScopeImplTest {
 
         // Make sure the reporter received gauge update
         assertEquals(123, reporter.nextGaugeVal(), EPSILON);
+    }
+
+    @Test
+    public void closeWithoutReporter() throws ScopeCloseException {
+        try (Scope scope = new RootScopeBuilder().reportEvery(Duration.ofMinutes(1))) {
+            // Create a gauge, update it, and let the AutoCloseable interface
+            // functionality close the scope right away.
+            Gauge shortLifeGauge = scope.gauge("shortLifeGauge");
+            shortLifeGauge.update(123);
+        }
     }
 
     @Test

@@ -172,8 +172,10 @@ class ScopeImpl implements Scope {
         // all metrics.
         reportLoopIteration();
 
-        // Now that all metrics should be known to the reporter, close the reporter
-        reporter.close();
+        if (reporter != null) {
+            // Now that all metrics should be known to the reporter, close the reporter
+            reporter.close();
+        }
     }
 
     /**

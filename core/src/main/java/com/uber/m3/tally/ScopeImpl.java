@@ -365,8 +365,28 @@ class ScopeImpl implements Scope {
     }
 
     class ReportLoop implements Runnable {
+        private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
+
+        ReportLoop(Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+            this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+        }
+
         public void run() {
-            reportLoopIteration();
+            try {
+                reportLoopIteration();
+            } catch (Exception uncaughtException) {
+                if (uncaughtExceptionHandler != null) {
+                    reportUncaughtException(uncaughtException);
+                }
+            }
+        }
+
+        private void reportUncaughtException(Exception uncaughtException) {
+            try {
+                uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), uncaughtException);
+            } catch (Exception ignored) {
+                // ignore exception
+            }
         }
     }
 

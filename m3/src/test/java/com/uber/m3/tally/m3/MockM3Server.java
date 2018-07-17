@@ -21,7 +21,7 @@
 package com.uber.m3.tally.m3;
 
 import com.uber.m3.tally.m3.thrift.TUdpServer;
-import com.uber.m3.thrift.generated.M3;
+import com.uber.m3.thrift.gen.M3;
 import org.apache.thrift.TException;
 import org.apache.thrift.TProcessor;
 import org.apache.thrift.protocol.TCompactProtocol;

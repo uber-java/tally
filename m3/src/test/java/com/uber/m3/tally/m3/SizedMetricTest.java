@@ -20,7 +20,7 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.thrift.generated.Metric;
+import com.uber.m3.thrift.gen.Metric;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

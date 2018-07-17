@@ -45,7 +45,7 @@ configurations.archives.artifacts.clear()
 
 allprojects {
     group = 'com.uber.m3'
-    version = '0.2.2'
+    version = '0.2.3'
 
     apply plugin: 'java'
     apply plugin: 'maven'
@@ -134,7 +134,7 @@ subprojects {
         toolVersion = '6.19'
     }
 
-    checkstyleMain.exclude '**/generated/**/*'
+    checkstyleMain.exclude '**/generated/**/*', '**/gen/*'
 
     ext."signing.secretKeyRingFile" = "../ci/${ext.secretKeyRingFileName}"
 

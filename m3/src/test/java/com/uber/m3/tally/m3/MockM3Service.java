@@ -20,9 +20,9 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.thrift.generated.M3;
-import com.uber.m3.thrift.generated.Metric;
-import com.uber.m3.thrift.generated.MetricBatch;
+import com.uber.m3.thrift.gen.M3;
+import com.uber.m3.thrift.gen.Metric;
+import com.uber.m3.thrift.gen.MetricBatch;
 import org.apache.thrift.transport.TTransportException;
 
 import java.util.ArrayList;

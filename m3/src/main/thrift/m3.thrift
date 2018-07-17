@@ -1,4 +1,4 @@
-namespace java com.uber.m3.thrift.generated
+namespace java com.uber.m3.thrift.gen
 
 /**
 * Different types of count values

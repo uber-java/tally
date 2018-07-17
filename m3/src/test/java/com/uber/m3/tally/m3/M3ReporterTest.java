@@ -25,13 +25,13 @@ import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.DurationBuckets;
 
 import com.uber.m3.tally.ValueBuckets;
-import com.uber.m3.thrift.generated.CountValue;
-import com.uber.m3.thrift.generated.GaugeValue;
-import com.uber.m3.thrift.generated.Metric;
-import com.uber.m3.thrift.generated.MetricBatch;
-import com.uber.m3.thrift.generated.MetricTag;
-import com.uber.m3.thrift.generated.MetricValue;
-import com.uber.m3.thrift.generated.TimerValue;
+import com.uber.m3.thrift.gen.CountValue;
+import com.uber.m3.thrift.gen.GaugeValue;
+import com.uber.m3.thrift.gen.Metric;
+import com.uber.m3.thrift.gen.MetricBatch;
+import com.uber.m3.thrift.gen.MetricTag;
+import com.uber.m3.thrift.gen.MetricValue;
+import com.uber.m3.thrift.gen.TimerValue;
 
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;

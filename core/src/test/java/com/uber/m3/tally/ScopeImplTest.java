@@ -20,13 +20,15 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.Duration;
-import com.uber.m3.util.ImmutableMap;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -34,6 +36,8 @@ import static org.junit.Assert.assertTrue;
 
 public class ScopeImplTest {
     private static final double EPSILON = 1e-10;
+    private static final int REPORT_INTERVAL_MILLIS = 10;
+    private static final int SLEEP_MILLIS = 20;
 
     @Test
     public void metricCreation() {
@@ -122,9 +126,6 @@ public class ScopeImplTest {
 
     @Test
     public void subscopes() {
-        final int REPORT_INTERVAL_MILLIS = 10;
-        final int SLEEP_MILLIS = 20;
-
         TestStatsReporter reporter = new TestStatsReporter();
 
         ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>(2)
@@ -244,5 +245,94 @@ public class ScopeImplTest {
     @Test(expected = IllegalArgumentException.class)
     public void nonPositiveReportInterval() {
         new RootScopeBuilder().reportEvery(Duration.ofSeconds(-10));
+    }
+
+    @Test
+    public void exceptionInReportLoop() throws ScopeCloseException, InterruptedException {
+        final AtomicInteger uncaghtExceptionReported = new AtomicInteger();
+        ThrowingStatsReporter reporter = new ThrowingStatsReporter();
+        final UncaughtExceptionHandler uncaughtExceptionHandler = new UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                uncaghtExceptionReported.incrementAndGet();
+            }
+        };
+
+        Scope scope = new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(Duration.ofMillis(REPORT_INTERVAL_MILLIS),
+                uncaughtExceptionHandler);
+
+        try {
+            scope.counter("hi").inc(1);
+            Thread.sleep(SLEEP_MILLIS);
+
+            assertEquals(1, uncaghtExceptionReported.get());
+            assertEquals(1, reporter.getNumberOfReportedMetrics());
+
+            // Run again to verify it reports again.
+            scope.counter("hi").inc(1);
+            Thread.sleep(SLEEP_MILLIS);
+
+            assertEquals(2, uncaghtExceptionReported.get());
+            assertEquals(2, reporter.getNumberOfReportedMetrics());
+        } finally {
+            scope.close();
+        }
+    }
+
+    private static class ThrowingStatsReporter implements StatsReporter {
+        private final AtomicInteger reported = new AtomicInteger();
+
+        public int getNumberOfReportedMetrics() {
+            return reported.get();
+        }
+
+        @Override
+        public void reportCounter(String name, Map<String, String> tags, long value) {
+            reported.incrementAndGet();
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void reportGauge(String name, Map<String, String> tags, double value) {
+            reported.incrementAndGet();
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+            reported.incrementAndGet();
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void reportHistogramValueSamples(String name, Map<String, String> tags,
+                                                Buckets buckets, double bucketLowerBound,
+                                                double bucketUpperBound, long samples) {
+            reported.incrementAndGet();
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void reportHistogramDurationSamples(String name, Map<String, String> tags,
+                                                   Buckets buckets, Duration bucketLowerBound,
+                                                   Duration bucketUpperBound, long samples) {
+            reported.incrementAndGet();
+            throw new RuntimeException();
+        }
+
+        @Override
+        public Capabilities capabilities() {
+            return CapableOf.NONE;
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() {
+        }
     }
 }

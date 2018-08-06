@@ -140,6 +140,18 @@ public class ScopeBuilder {
      * @return the root scope created
      */
     public Scope reportEvery(Duration interval) {
+        return reportEvery(interval, null);
+    }
+
+    /**
+     * Creates a root scope and starts reporting with the specified interval
+     * @param interval duration between each report
+     * @param uncaughtExceptionHandler an  {@link java.lang.Thread.UncaughtExceptionHandler} that's
+     *                                 called when there's an uncaught exception in the report loop
+     * @return the root scope created
+     */
+    public Scope reportEvery(Duration interval,
+                             Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
         if (interval.compareTo(Duration.ZERO) <= 0) {
             throw new IllegalArgumentException("Reporting interval must be a positive Duration");
         }
@@ -147,7 +159,7 @@ public class ScopeBuilder {
         ScopeImpl scope = build();
         registry.subscopes.put(ScopeImpl.keyForPrefixedStringMap(prefix, tags), scope);
 
-        scheduler.scheduleWithFixedDelay(scope.new ReportLoop(), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        scheduler.scheduleWithFixedDelay(scope.new ReportLoop(uncaughtExceptionHandler), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
 
         return scope;
     }

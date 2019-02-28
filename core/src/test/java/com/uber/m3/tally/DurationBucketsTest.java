@@ -220,7 +220,14 @@ public class DurationBucketsTest {
         );
 
         assertThat("custom buckets are created as per our expectations",
-                DurationBuckets.custom(1, 2, 3, 5, 7, 10),
+                DurationBuckets.custom(
+                        Duration.ofMillis(1),
+                        Duration.ofMillis(2),
+                        Duration.ofMillis(3),
+                        Duration.ofMillis(5),
+                        Duration.ofMillis(7),
+                        Duration.ofMillis(10)
+                ),
                 CoreMatchers.equalTo(expectedBuckets));
     }
 
@@ -231,7 +238,11 @@ public class DurationBucketsTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void customFailWithUnsortedBuckets() {
-        DurationBuckets.custom(3, 5, 1);
+        DurationBuckets.custom(
+                Duration.ofMillis(1),
+                Duration.ofMillis(3),
+                Duration.ofMillis(2)
+        );
     }
 
     @Test

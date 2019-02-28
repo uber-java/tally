@@ -107,22 +107,22 @@ public class ValueBuckets extends AbstractBuckets<Double> {
     /**
      * Helper function to create {@link ValueBuckets} with custom buckets.
      *
-     * @param bucketUpperValues sorted (ascending order) values of bucket's upper bound
+     * @param sortedBucketUpperValues sorted (ascending order) values of bucket's upper bound
      * @return {@link ValueBuckets} of the specified paramters
      */
-    public static ValueBuckets custom(double... bucketUpperValues) {
-        if (bucketUpperValues == null || bucketUpperValues.length == 0) {
+    public static ValueBuckets custom(double... sortedBucketUpperValues) {
+        if (sortedBucketUpperValues == null || sortedBucketUpperValues.length == 0) {
             throw new IllegalArgumentException("Must have a positive number of buckets");
         }
-        for (int i = 0; i < bucketUpperValues.length - 1; i++) {
-            if (bucketUpperValues[i] > bucketUpperValues[i + 1]) {
+        for (int i = 0; i < sortedBucketUpperValues.length - 1; i++) {
+            if (sortedBucketUpperValues[i] > sortedBucketUpperValues[i + 1]) {
                 throw new IllegalArgumentException("bucketUpperValues has to be sorted in ascending order");
             }
         }
 
-        Double[] buckets = new Double[bucketUpperValues.length];
-        for (int i = 0; i < bucketUpperValues.length; i++) {
-            buckets[i] = bucketUpperValues[i];
+        Double[] buckets = new Double[sortedBucketUpperValues.length];
+        for (int i = 0; i < sortedBucketUpperValues.length; i++) {
+            buckets[i] = sortedBucketUpperValues[i];
         }
         return new ValueBuckets(buckets);
     }

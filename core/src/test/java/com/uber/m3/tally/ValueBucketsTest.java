@@ -116,11 +116,11 @@ public class ValueBucketsTest {
     @Test
     public void custom() {
         ValueBuckets expectedBuckets = new ValueBuckets(new Double[] {
-                1d,
-                2d,
-                3d,
-                5d,
-                7d
+            1d,
+            2d,
+            3d,
+            5d,
+            7d
         });
         assertThat("Buckets are created as per our expectations",
                 ValueBuckets.custom(1D, 2D, 3D, 5D, 7D),

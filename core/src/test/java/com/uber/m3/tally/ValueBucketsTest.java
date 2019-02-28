@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
 import com.uber.m3.util.Duration;

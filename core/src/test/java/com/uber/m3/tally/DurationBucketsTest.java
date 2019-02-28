@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
 import com.uber.m3.util.Duration;

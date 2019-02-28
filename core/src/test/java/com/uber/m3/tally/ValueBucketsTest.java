@@ -20,8 +20,9 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.Duration;
 import org.junit.Test;
+
+import com.uber.m3.util.Duration;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -108,6 +109,30 @@ public class ValueBucketsTest {
             1.5,
             5
         ));
+    }
+
+    @Test
+    public void custom() {
+        ValueBuckets expectedBuckets = new ValueBuckets(new Double[] {
+                1d,
+                2d,
+                3d,
+                5d,
+                7d
+        });
+        assertThat("Buckets are created as per our expectations",
+                ValueBuckets.custom(1D, 2D, 3D, 5D, 7D),
+                CoreMatchers.equalTo(expectedBuckets));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void customFailOnEmptyBucket() {
+        ValueBuckets.custom();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void customFailOnUnsortedBuckets() {
+        ValueBuckets.custom(1, 3, 2);
     }
 
     @Test

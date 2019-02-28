@@ -103,4 +103,27 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
         return new ValueBuckets(buckets);
     }
+
+    /**
+     * Helper function to create {@link ValueBuckets} with custom buckets.
+     *
+     * @param bucketUpperValues sorted (ascending order) values of bucket's upper bound
+     * @return {@link ValueBuckets} of the specified paramters
+     */
+    public static ValueBuckets custom(double... bucketUpperValues) {
+        if (bucketUpperValues == null || bucketUpperValues.length == 0) {
+            throw new IllegalArgumentException("Must have a positive number of buckets");
+        }
+        for (int i = 0; i < bucketUpperValues.length - 1; i++) {
+            if (bucketUpperValues[i] > bucketUpperValues[i + 1]) {
+                throw new IllegalArgumentException("bucketUpperValues has to be sorted in ascending order");
+            }
+        }
+
+        Double[] buckets = new Double[bucketUpperValues.length];
+        for (int i = 0; i < bucketUpperValues.length; i++) {
+            buckets[i] = bucketUpperValues[i];
+        }
+        return new ValueBuckets(buckets);
+    }
 }

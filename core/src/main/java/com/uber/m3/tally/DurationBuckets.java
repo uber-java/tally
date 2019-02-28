@@ -117,7 +117,7 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
 
         for (int i = 0; i < sortedDurations.length - 1; i++) {
             if (sortedDurations[i].compareTo(sortedDurations[i + 1]) >= 0) {
-                throw new IllegalArgumentException("bucketUpperMillis has to be sorted in ascending order");
+                throw new IllegalArgumentException("bucketUpperMillis has to be sorted in ascending order with unique values");
             }
         }
         return new DurationBuckets(sortedDurations);

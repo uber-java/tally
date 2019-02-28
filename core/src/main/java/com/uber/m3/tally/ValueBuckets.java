@@ -115,8 +115,8 @@ public class ValueBuckets extends AbstractBuckets<Double> {
             throw new IllegalArgumentException("Must have a positive number of buckets");
         }
         for (int i = 0; i < sortedBucketUpperValues.length - 1; i++) {
-            if (sortedBucketUpperValues[i] > sortedBucketUpperValues[i + 1]) {
-                throw new IllegalArgumentException("bucketUpperValues has to be sorted in ascending order");
+            if (sortedBucketUpperValues[i] >= sortedBucketUpperValues[i + 1]) {
+                throw new IllegalArgumentException("bucketUpperValues has to be sorted and unique values in ascending order");
             }
         }
 

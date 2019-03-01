@@ -103,4 +103,23 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
 
         return new DurationBuckets(buckets);
     }
+
+    /**
+     * Allows to create bucket with finer bucket creation control
+     *
+     * @param sortedDurations sorted values (ascending) of upper bound of the buckets
+     * @return {@link DurationBuckets} of the specified parameters
+     */
+    public static DurationBuckets custom(Duration... sortedDurations) {
+        if (sortedDurations == null || sortedDurations.length == 0) {
+            throw new IllegalArgumentException("at least one upper bucket value has to be specified");
+        }
+
+        for (int i = 0; i < sortedDurations.length - 1; i++) {
+            if (sortedDurations[i].compareTo(sortedDurations[i + 1]) >= 0) {
+                throw new IllegalArgumentException("bucketUpperMillis has to be sorted in ascending order with unique values");
+            }
+        }
+        return new DurationBuckets(sortedDurations);
+    }
 }

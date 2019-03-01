@@ -20,18 +20,21 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.Duration;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import org.hamcrest.CoreMatchers;
+import org.junit.Test;
+
+import com.uber.m3.util.Duration;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 
 public class DurationBucketsTest {
     @Test
@@ -201,6 +204,45 @@ public class DurationBucketsTest {
             1.5,
             5
         ));
+    }
+
+    @Test
+    public void custom() {
+        DurationBuckets expectedBuckets = new DurationBuckets(
+                new Duration[] {
+                        Duration.ofMillis(1),
+                        Duration.ofMillis(2),
+                        Duration.ofMillis(3),
+                        Duration.ofMillis(5),
+                        Duration.ofMillis(7),
+                        Duration.ofMillis(10),
+                }
+        );
+
+        assertThat("custom buckets are created as per our expectations",
+                DurationBuckets.custom(
+                        Duration.ofMillis(1),
+                        Duration.ofMillis(2),
+                        Duration.ofMillis(3),
+                        Duration.ofMillis(5),
+                        Duration.ofMillis(7),
+                        Duration.ofMillis(10)
+                ),
+                CoreMatchers.equalTo(expectedBuckets));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void customFailWithEmptyBuckets() {
+        DurationBuckets.custom();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void customFailWithUnsortedBuckets() {
+        DurationBuckets.custom(
+                Duration.ofMillis(1),
+                Duration.ofMillis(3),
+                Duration.ofMillis(2)
+        );
     }
 
     @Test

@@ -168,7 +168,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             metricBatch.write(calcProtocol);
             size = calc.getSizeAndReset();
         } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: %s", DEFAULT_METRIC_SIZE);
+            LOG.warn("Unable to calculate metric batch size. Defaulting to: {}", DEFAULT_METRIC_SIZE);
             size = DEFAULT_METRIC_SIZE;
         }
 
@@ -187,7 +187,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             return InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            LOG.warn("Unable to determine hostname. Defaulting to: %s", DEFAULT_TAG_VALUE);
+            LOG.warn("Unable to determine hostname. Defaulting to: {}", DEFAULT_TAG_VALUE);
             return DEFAULT_TAG_VALUE;
         }
     }
@@ -252,7 +252,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             );
         } catch (TimeoutException e) {
             LOG.warn(
-                "M3Reporter closing before Processors complete after waiting timeout of %dms!",
+                "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
                 MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
             );
         } catch (InterruptedException e) {
@@ -476,7 +476,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {
-            LOG.warn(String.format("Interrupted queueing metric: %s", sizedMetric.getMetric().getName()));
+            LOG.warn(String.format("Interrupted queueing metric: {}", sizedMetric.getMetric().getName()));
         }
     }
 

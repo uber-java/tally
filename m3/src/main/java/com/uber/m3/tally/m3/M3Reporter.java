@@ -726,7 +726,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
          */
         public Builder histogramBucketTagPrecision(int histogramBucketTagPrecision) {
             this.histogramBucketTagPrecision = histogramBucketTagPrecision;
-
             return this;
         }
 

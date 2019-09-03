@@ -53,7 +53,7 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
             type = Type.VALUE;
         }
 
-        BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
+        BucketPair[] pairs = BucketPair.create(buckets);
         int pairsLen = pairs.length;
 
         this.name = name;

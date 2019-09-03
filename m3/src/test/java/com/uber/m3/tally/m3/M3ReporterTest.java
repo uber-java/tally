@@ -23,7 +23,6 @@ package com.uber.m3.tally.m3;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.DurationBuckets;
-
 import com.uber.m3.tally.ValueBuckets;
 import com.uber.m3.thrift.gen.CountValue;
 import com.uber.m3.thrift.gen.GaugeValue;
@@ -32,7 +31,6 @@ import com.uber.m3.thrift.gen.MetricBatch;
 import com.uber.m3.thrift.gen.MetricTag;
 import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
-
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.junit.BeforeClass;
@@ -47,10 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Phaser;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class M3ReporterTest {
     private static final double EPSILON = 1e-9;

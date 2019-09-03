@@ -22,11 +22,66 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
+import java.util.Collections;
+
 /**
  * A BucketPair describes the lower and upper bounds
  * for a derived bucket from a buckets set.
  */
 public interface BucketPair {
+
+    static BucketPair[] create(Buckets buckets) {
+        if (buckets == null || buckets.size() < 1) {
+            return new BucketPair[]{
+                new BucketPairImpl(
+                    -Double.MAX_VALUE,
+                    Double.MAX_VALUE,
+                    Duration.MIN_VALUE,
+                    Duration.MAX_VALUE
+                )
+            };
+        }
+
+        Collections.sort(buckets);
+
+        Double[] asValueBuckets = buckets.asValues();
+        Duration[] asDurationBuckets = buckets.asDurations();
+        BucketPair[] pairs = new BucketPair[buckets.size() + 1];
+
+        // Add lower bound
+        pairs[0] = new BucketPairImpl(
+            -Double.MAX_VALUE,
+            asValueBuckets[0],
+            Duration.MIN_VALUE,
+            asDurationBuckets[0]
+        );
+
+        double prevValueBucket = asValueBuckets[0];
+        Duration prevDurationBucket = asDurationBuckets[0];
+
+        for (int i = 1; i < buckets.size(); i++) {
+            pairs[i] = new BucketPairImpl(
+                prevValueBucket,
+                asValueBuckets[i],
+                prevDurationBucket,
+                asDurationBuckets[i]
+            );
+
+            prevValueBucket = asValueBuckets[i];
+            prevDurationBucket = asDurationBuckets[i];
+        }
+
+        // Add upper bound
+        pairs[pairs.length - 1] = new BucketPairImpl(
+            prevValueBucket,
+            Double.MAX_VALUE,
+            prevDurationBucket,
+            Duration.MAX_VALUE
+        );
+
+        return pairs;
+    }
+
     /**
      * Returns the lower bound as a {@code double}
      * @return the lower bound as a {@code double}

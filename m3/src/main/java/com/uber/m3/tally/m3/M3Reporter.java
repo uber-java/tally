@@ -21,7 +21,6 @@
 package com.uber.m3.tally.m3;
 
 import com.uber.m3.tally.BucketPair;
-import com.uber.m3.tally.BucketPairImpl;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
@@ -372,7 +371,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+        BucketPair[] bucketPairs = BucketPair.create(buckets);
 
         if (tags == null) {
             // We know that the HashMap will only contain two items at this point,
@@ -420,7 +419,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+        BucketPair[] bucketPairs = BucketPair.create(buckets);
 
         if (tags == null) {
             // We know that the HashMap will only contain two items at this point,

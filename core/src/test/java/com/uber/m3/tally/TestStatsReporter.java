@@ -27,7 +27,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 
-public class TestStatsReporter implements StatsReporter {
+class TestStatsReporter implements StatsReporter {
+
     private Queue<MetricStruct<Long>> counters = new LinkedBlockingDeque<>();
     private Queue<MetricStruct<Double>> gauges = new LinkedBlockingDeque<>();
     private Queue<MetricStruct<Duration>> timers = new LinkedBlockingDeque<>();
@@ -40,11 +41,11 @@ public class TestStatsReporter implements StatsReporter {
         counters.add(new MetricStruct<>(name, tags, value));
     }
 
-    public MetricStruct<Long> nextCounter() {
+    MetricStruct<Long> nextCounter() {
         return counters.remove();
     }
 
-    public long nextCounterVal() {
+    long nextCounterVal() {
         return counters.remove().getValue();
     }
 
@@ -53,11 +54,11 @@ public class TestStatsReporter implements StatsReporter {
         gauges.add(new MetricStruct<>(name, tags, value));
     }
 
-    public MetricStruct<Double> nextGauge() {
+    MetricStruct<Double> nextGauge() {
         return gauges.remove();
     }
 
-    public double nextGaugeVal() {
+    double nextGaugeVal() {
         return gauges.remove().getValue();
     }
 
@@ -66,11 +67,11 @@ public class TestStatsReporter implements StatsReporter {
         timers.add(new MetricStruct<>(name, tags, interval));
     }
 
-    public MetricStruct<Duration> nextTimer() {
+    MetricStruct<Duration> nextTimer() {
         return timers.remove();
     }
 
-    public Duration nextTimerVal() {
+    Duration nextTimerVal() {
         return timers.remove().getValue();
     }
 
@@ -114,15 +115,15 @@ public class TestStatsReporter implements StatsReporter {
         // No-op
     }
 
-    public Map<Duration, Long> getDurationSamples() {
+    Map<Duration, Long> getDurationSamples() {
         return durationSamples;
     }
 
-    public Map<Double, Long> getValueSamples() {
+    Map<Double, Long> getValueSamples() {
         return valueSamples;
     }
 
-    public Buckets getBuckets() {
+    Buckets getBuckets() {
         return buckets;
     }
 

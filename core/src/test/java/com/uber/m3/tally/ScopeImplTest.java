@@ -217,7 +217,7 @@ public class ScopeImplTest {
             System.err.println("Interrupted while sleeping! Let's continue anyway...");
         }
 
-        Snapshot snapshot = ((ScopeImpl) rootScope).snapshot();
+        Snapshot snapshot = ((TestScope) rootScope).snapshot();
 
         Map<String, CounterSnapshot> counters = snapshot.counters();
         assertEquals(1, counters.size());

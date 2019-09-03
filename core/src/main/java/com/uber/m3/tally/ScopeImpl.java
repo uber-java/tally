@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Default {@link Scope} implementation.
  */
-class ScopeImpl implements Scope {
+class ScopeImpl implements Scope, TestScope {
     private StatsReporter reporter;
     private String prefix;
     private String separator;
@@ -244,6 +244,7 @@ class ScopeImpl implements Scope {
      * Returns a {@link Snapshot} of this {@link Scope}.
      * @return a {@link Snapshot} of this {@link Scope}
      */
+    @Override
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 

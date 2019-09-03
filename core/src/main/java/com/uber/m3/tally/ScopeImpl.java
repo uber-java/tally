@@ -71,15 +71,8 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        synchronized (counters) {
-            if (!counters.containsKey(name)) {
-                counters.put(name, new CounterImpl());
-            }
-
-            counter = counters.get(name);
-        }
-
-        return counter;
+        counters.putIfAbsent(name, new CounterImpl());
+        return counters.get(name);
     }
 
     @Override
@@ -90,15 +83,9 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        synchronized (gauges) {
-            if (!gauges.containsKey(name)) {
-                gauges.put(name, new GaugeImpl());
-            }
+        gauges.putIfAbsent(name, new GaugeImpl());
+        return gauges.get(name);
 
-            gauge = gauges.get(name);
-        }
-
-        return gauge;
     }
 
     @Override
@@ -109,15 +96,9 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        synchronized (timers) {
-            if (!timers.containsKey(name)) {
-                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
-            }
+        timers.putIfAbsent(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.get(name);
 
-            timer = timers.get(name);
-        }
-
-        return timer;
     }
 
     @Override
@@ -132,15 +113,8 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        synchronized (histograms) {
-            if (!histograms.containsKey(name)) {
-                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
-            }
-
-            histogram = histograms.get(name);
-        }
-
-        return histogram;
+        histograms.putIfAbsent(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
+        return histograms.get(name);
     }
 
     @Override
@@ -182,7 +156,7 @@ class ScopeImpl implements Scope {
      * Reports using the specified reporter.
      * @param reporter the reporter to report
      */
-    void report(StatsReporter reporter) {
+    private void report(StatsReporter reporter) {
         for (Map.Entry<String, CounterImpl> counter : counters.entrySet()) {
             counter.getValue().report(fullyQualifiedName(counter.getKey()), tags, reporter);
         }
@@ -234,7 +208,7 @@ class ScopeImpl implements Scope {
         return keyBuffer.toString();
     }
 
-    String fullyQualifiedName(String name) {
+    private String fullyQualifiedName(String name) {
         if (prefix == null || prefix.length() == 0) {
             return name;
         }
@@ -331,26 +305,17 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        Scope subscope;
-
-        synchronized (registry.allocationLock) {
-            if (!registry.subscopes.containsKey(key)) {
-                registry.subscopes.put(
-                    key,
-                    new ScopeBuilder(scheduler, registry)
-                        .reporter(reporter)
-                        .prefix(prefix)
-                        .separator(separator)
-                        .tags(mergedTags)
-                        .defaultBuckets(defaultBuckets)
-                        .build()
-                );
-            }
-
-            subscope = registry.subscopes.get(key);
-        }
-
-        return subscope;
+        registry.subscopes.putIfAbsent(
+            key,
+            new ScopeBuilder(scheduler, registry)
+                .reporter(reporter)
+                .prefix(prefix)
+                .separator(separator)
+                .tags(mergedTags)
+                .defaultBuckets(defaultBuckets)
+                .build()
+        );
+        return registry.subscopes.get(key);
     }
 
     // One iteration of reporting this scope and all its subscopes
@@ -391,7 +356,6 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        final Object allocationLock = new Object();
         Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

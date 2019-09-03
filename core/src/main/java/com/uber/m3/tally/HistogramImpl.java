@@ -174,7 +174,7 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
     }
 
-    class HistogramBucket {
+    static class HistogramBucket {
         CounterImpl samples;
         double valueLowerBound;
         double valueUpperBound;

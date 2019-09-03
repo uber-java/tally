@@ -34,9 +34,8 @@ import java.util.HashSet;
 import static org.junit.Assert.assertEquals;
 
 public class StatsdReporterTest {
-    private final int PORT = 4434;
+    private static final int PORT = 4434;
 
-    private StatsDClient statsd;
     private StatsdReporter reporter;
 
     @Test
@@ -55,7 +54,7 @@ public class StatsdReporterTest {
         Thread serverThread = new Thread(server);
         serverThread.start();
 
-        statsd = new NonBlockingStatsDClient("statsd-test", "localhost", PORT);
+        StatsDClient statsd = new NonBlockingStatsDClient("statsd-test", "localhost", PORT);
         reporter = new StatsdReporter(statsd);
 
         reporter.reportCounter("statsd-count", null, 4);

@@ -50,7 +50,7 @@ public class ImmutableSetTest {
     public void size() {
         assertEquals(4, set.size());
 
-        set = new ImmutableSet<>(new HashSet<String>(0));
+        set = new ImmutableSet<>(new HashSet<>(0));
 
         assertEquals(0, set.size());
     }
@@ -59,7 +59,7 @@ public class ImmutableSetTest {
     public void isEmpty() {
         assertFalse(set.isEmpty());
 
-        set = new ImmutableSet<>(new HashSet<String>(0));
+        set = new ImmutableSet<>(new HashSet<>(0));
 
         assertTrue(set.isEmpty());
     }
@@ -119,7 +119,7 @@ public class ImmutableSetTest {
 
     @Test(expected = UnsupportedOperationException.class)
     public void addAll() {
-        set.addAll(new HashSet<String>());
+        set.addAll(new HashSet<>());
     }
 
     @Test(expected = UnsupportedOperationException.class)
@@ -141,18 +141,18 @@ public class ImmutableSetTest {
     public void equals() {
         ImmutableSet<String> equalSet = new ImmutableSet<>(helperSet);
 
-        assertTrue(set.equals(equalSet));
+        assertEquals(set, equalSet);
         assertEquals(set.hashCode(), equalSet.hashCode());
 
         helperSet.add("zz");
         ImmutableSet<String> differentSet = new ImmutableSet<>(helperSet);
 
-        assertFalse(set.equals(differentSet));
+        assertNotEquals(set, differentSet);
         assertNotEquals(set.hashCode(), differentSet.hashCode());
 
-        assertFalse(set.equals(null));
-        assertTrue(set.equals(set));
-        assertFalse(set.equals(2));
+        assertNotEquals(null, set);
+        assertEquals(set, set);
+        assertNotEquals(2, set);
     }
 
     @Test

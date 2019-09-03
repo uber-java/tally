@@ -6,7 +6,7 @@ This document summarizes information relevant to Java tally contributors.
 
 ### Prerequisites
 In order to build this project, you must have:
-- JDK-7 or later
+- JDK-8 or later
 - Apache Thrift 0.9.x -- only if you plan to make changes to Thrift files and recompile (regenerate) source files
 
 ### Building and testing

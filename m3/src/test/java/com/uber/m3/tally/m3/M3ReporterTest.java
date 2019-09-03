@@ -53,9 +53,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class M3ReporterTest {
-    private static double EPSILON = 1e-9;
-
-    private static SocketAddress socketAddress;
+    private static final double EPSILON = 1e-9;
 
     private static final int MAX_QUEUE_SIZE = 1000;
     private static final int MAX_PACKET_SIZE_BYTES = 1440;
@@ -65,6 +63,8 @@ public class M3ReporterTest {
             "env", "test",
             "host", "test-host"
         );
+
+    private static SocketAddress socketAddress;
 
     @BeforeClass
     public static void setup() {
@@ -82,12 +82,7 @@ public class M3ReporterTest {
         final MockM3Server server = new MockM3Server(phaser, true, socketAddress);
         M3Reporter reporter = null;
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -244,12 +239,7 @@ public class M3ReporterTest {
 
         final MockM3Server server = new MockM3Server(phaser, true, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -280,12 +270,7 @@ public class M3ReporterTest {
     public void reporterAfterCloseNoThrow() {
         final MockM3Server server = new MockM3Server(new Phaser(), true, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -313,12 +298,7 @@ public class M3ReporterTest {
 
         final MockM3Server server = new MockM3Server(phaser, true, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -422,12 +402,7 @@ public class M3ReporterTest {
 
         final MockM3Server server = new MockM3Server(phaser, true, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();

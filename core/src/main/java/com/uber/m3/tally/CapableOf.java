@@ -69,8 +69,8 @@ public class CapableOf implements Capabilities {
     public int hashCode() {
         int code = 0;
 
-        code = 31 * code + new Boolean(reporting).hashCode();
-        code = 31 * code + new Boolean(tagging).hashCode();
+        code = 31 * code + Boolean.valueOf(reporting).hashCode();
+        code = 31 * code + Boolean.valueOf(tagging).hashCode();
 
         return code;
     }

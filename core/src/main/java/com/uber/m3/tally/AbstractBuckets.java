@@ -32,10 +32,10 @@ import java.util.ListIterator;
 /**
  * Abstract {@link Buckets} implementation for common functionality.
  */
-public abstract class AbstractBuckets<T> implements Buckets<T> {
-    protected List<T> buckets;
+public abstract class AbstractBuckets<E> implements Buckets<E> {
+    protected List<E> buckets;
 
-    AbstractBuckets(T[] buckets) {
+    AbstractBuckets(E[] buckets) {
         if (buckets == null) {
             this.buckets = new ArrayList<>();
         } else {
@@ -74,7 +74,7 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public Iterator<T> iterator() {
+    public Iterator<E> iterator() {
         return buckets.iterator();
     }
 
@@ -84,7 +84,7 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public boolean add(T o) {
+    public boolean add(E o) {
         return buckets.add(o);
     }
 
@@ -94,12 +94,12 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public boolean addAll(Collection c) {
+    public boolean addAll(Collection<? extends E> c) {
         return buckets.addAll(c);
     }
 
     @Override
-    public boolean addAll(int index, Collection c) {
+    public boolean addAll(int index, Collection<? extends E> c) {
         return buckets.addAll(index, c);
     }
 
@@ -109,22 +109,22 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public T get(int index) {
+    public E get(int index) {
         return buckets.get(index);
     }
 
     @Override
-    public T set(int index, T element) {
+    public E set(int index, E element) {
         return buckets.set(index, element);
     }
 
     @Override
-    public void add(int index, T element) {
+    public void add(int index, E element) {
         buckets.add(index, element);
     }
 
     @Override
-    public T remove(int index) {
+    public E remove(int index) {
         return buckets.remove(index);
     }
 
@@ -139,27 +139,27 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public ListIterator<T> listIterator() {
+    public ListIterator<E> listIterator() {
         return buckets.listIterator();
     }
 
     @Override
-    public ListIterator<T> listIterator(int index) {
+    public ListIterator<E> listIterator(int index) {
         return buckets.listIterator(index);
     }
 
     @Override
-    public List<T> subList(int fromIndex, int toIndex) {
+    public List<E> subList(int fromIndex, int toIndex) {
         return buckets.subList(fromIndex, toIndex);
     }
 
     @Override
-    public boolean retainAll(Collection c) {
+    public boolean retainAll(Collection<?> c) {
         return buckets.retainAll(c);
     }
 
     @Override
-    public boolean removeAll(Collection c) {
+    public boolean removeAll(Collection<?> c) {
         return buckets.removeAll(c);
     }
 
@@ -169,7 +169,7 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
     }
 
     @Override
-    public Object[] toArray(Object[] a) {
+    public <T> T[] toArray(T[] a) {
         return buckets.toArray(a);
     }
 

@@ -32,11 +32,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class MockM3Service implements M3.Iface {
-    ReadWriteLock lock = new ReentrantReadWriteLock();
-    List<MetricBatch> batches = new ArrayList<>();
-    List<Metric> metrics = new ArrayList<>();
-    Phaser phaser;
-    boolean countBatches;
+    private ReadWriteLock lock = new ReentrantReadWriteLock();
+    private List<MetricBatch> batches = new ArrayList<>();
+    private List<Metric> metrics = new ArrayList<>();
+    private Phaser phaser;
+    private boolean countBatches;
 
     public MockM3Service(Phaser phaser, boolean countBatches) {
         this.phaser = phaser;

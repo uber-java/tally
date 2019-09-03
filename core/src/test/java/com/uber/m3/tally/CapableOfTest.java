@@ -20,15 +20,13 @@
 
 package com.uber.m3.tally;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class CapableOfTest {
     @Test
-    public void capabilities() throws Exception {
+    public void capabilities() {
         Capabilities capabilities = new CapableOf(false, true);
 
         assertFalse(capabilities.reporting());
@@ -45,16 +43,16 @@ public class CapableOfTest {
     }
 
     @Test
-    public void equalsHashCode() throws Exception {
-        assertFalse(CapableOf.NONE.equals(null));
-        assertFalse(CapableOf.NONE.equals(9));
+    public void equalsHashCode() {
+        assertNotEquals(null, CapableOf.NONE);
+        assertNotEquals(9, CapableOf.NONE);
 
-        assertFalse(CapableOf.NONE.equals(CapableOf.REPORTING));
-        assertFalse(new CapableOf(true, false).equals(new CapableOf(false, true)));
+        assertNotEquals(CapableOf.NONE, CapableOf.REPORTING);
+        assertNotEquals(new CapableOf(true, false), new CapableOf(false, true));
 
-        assertTrue(CapableOf.REPORTING.equals(CapableOf.REPORTING));
-        assertTrue(CapableOf.REPORTING.equals(new CapableOf(true, false)));
+        assertEquals(CapableOf.REPORTING, CapableOf.REPORTING);
+        assertEquals(CapableOf.REPORTING, new CapableOf(true, false));
         assertEquals(CapableOf.REPORTING.hashCode(), new CapableOf(true, false).hashCode());
-        assertTrue(new CapableOf(false, false).equals(new CapableOf(false, false)));
+        assertEquals(new CapableOf(false, false), new CapableOf(false, false));
     }
 }

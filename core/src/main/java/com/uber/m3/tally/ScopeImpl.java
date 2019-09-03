@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Default {@link Scope} implementation.
  */
-class ScopeImpl implements Scope {
+class ScopeImpl implements Scope, TestScope {
     private StatsReporter reporter;
     private String prefix;
     private String separator;
@@ -154,6 +154,7 @@ class ScopeImpl implements Scope {
 
     /**
      * Reports using the specified reporter.
+     *
      * @param reporter the reporter to report
      */
     private void report(StatsReporter reporter) {
@@ -218,8 +219,10 @@ class ScopeImpl implements Scope {
 
     /**
      * Returns a {@link Snapshot} of this {@link Scope}.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
+    @Override
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 

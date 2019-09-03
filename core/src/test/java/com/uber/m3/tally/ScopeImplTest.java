@@ -29,7 +29,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class ScopeImplTest {
     private static final double EPSILON = 1e-10;
@@ -148,9 +150,9 @@ public class ScopeImplTest {
 
         ImmutableMap<String, String> additionalTags =
             new ImmutableMap.Builder<String, String>(2)
-            .put("new_key", "new_val")
-            .put("baz", "quz")
-            .build();
+                .put("new_key", "new_val")
+                .put("baz", "quz")
+                .build();
         Scope taggedSubscope = rootScope.tagged(additionalTags);
         Timer taggedTimer = taggedSubscope.timer("tagged_timer");
         taggedTimer.record(Duration.ofSeconds(6));
@@ -177,9 +179,9 @@ public class ScopeImplTest {
         assertEquals("tagged_timer", timer.getName());
         ImmutableMap<String, String> expectedTags =
             new ImmutableMap.Builder<String, String>(4)
-            .putAll(tags)
-            .putAll(additionalTags)
-            .build();
+                .putAll(tags)
+                .putAll(additionalTags)
+                .build();
         assertEquals(expectedTags, timer.getTags());
     }
 
@@ -239,8 +241,13 @@ public class ScopeImplTest {
         assertNull(timers.get("snapshot-timer+").tags());
     }
 
+    @Test
+    public void zeroReportInterval() {
+        new RootScopeBuilder().reportEvery(Duration.ZERO);
+    }
+
     @Test(expected = IllegalArgumentException.class)
-    public void nonPositiveReportInterval() {
+    public void negativeReportInterval() {
         new RootScopeBuilder().reportEvery(Duration.ofSeconds(-10));
     }
 
@@ -295,17 +302,21 @@ public class ScopeImplTest {
         }
 
         @Override
-        public void reportHistogramValueSamples(String name, Map<String, String> tags,
-                                                Buckets buckets, double bucketLowerBound,
-                                                double bucketUpperBound, long samples) {
+        public void reportHistogramValueSamples(
+            String name, Map<String, String> tags,
+            Buckets buckets, double bucketLowerBound,
+            double bucketUpperBound, long samples
+        ) {
             reported.incrementAndGet();
             throw new RuntimeException();
         }
 
         @Override
-        public void reportHistogramDurationSamples(String name, Map<String, String> tags,
-                                                   Buckets buckets, Duration bucketLowerBound,
-                                                   Duration bucketUpperBound, long samples) {
+        public void reportHistogramDurationSamples(
+            String name, Map<String, String> tags,
+            Buckets buckets, Duration bucketLowerBound,
+            Duration bucketUpperBound, long samples
+        ) {
             reported.incrementAndGet();
             throw new RuntimeException();
         }

@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
 public class ScopeImplTest {
     private static final double EPSILON = 1e-10;
@@ -221,24 +220,29 @@ public class ScopeImplTest {
         Map<String, CounterSnapshot> counters = snapshot.counters();
         assertEquals(1, counters.size());
         assertEquals("snapshot-counter", counters.get("snapshot-counter+").name());
-        assertNull(counters.get("snapshot-counter+").tags());
+        assertNotNull(counters.get("snapshot-counter+").tags());
+        assertEquals(0, counters.get("snapshot-counter+").tags().size());
 
         Map<String, GaugeSnapshot> gauges = snapshot.gauges();
         assertEquals(3, gauges.size());
         assertEquals("snapshot-gauge", gauges.get("snapshot-gauge+").name());
-        assertNull(gauges.get("snapshot-gauge+").tags());
+        assertNotNull(gauges.get("snapshot-gauge+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge+").tags().size());
         assertEquals(120, gauges.get("snapshot-gauge+").value(), EPSILON);
         assertEquals("snapshot-gauge2", gauges.get("snapshot-gauge2+").name());
-        assertNull(gauges.get("snapshot-gauge2+").tags());
+        assertNotNull(gauges.get("snapshot-gauge2+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge2+").tags().size());
         assertEquals(220, gauges.get("snapshot-gauge2+").value(), EPSILON);
         assertEquals("snapshot-gauge3", gauges.get("snapshot-gauge3+").name());
-        assertNull(gauges.get("snapshot-gauge3+").tags());
+        assertNotNull(gauges.get("snapshot-gauge3+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge3+").tags().size());
         assertEquals(320, gauges.get("snapshot-gauge3+").value(), EPSILON);
 
         Map<String, TimerSnapshot> timers = snapshot.timers();
         assertEquals(1, timers.size());
         assertEquals("snapshot-timer", timers.get("snapshot-timer+").name());
-        assertNull(timers.get("snapshot-timer+").tags());
+        assertNotNull(timers.get("snapshot-timer+").tags());
+        assertEquals(0, timers.get("snapshot-timer+").tags().size());
     }
 
     @Test

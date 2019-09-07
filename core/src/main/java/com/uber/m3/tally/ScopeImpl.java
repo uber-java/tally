@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.Sanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import java.util.Arrays;
@@ -33,14 +34,15 @@ import java.util.concurrent.ScheduledExecutorService;
  * Default {@link Scope} implementation.
  */
 class ScopeImpl implements Scope, TestScope {
-    private StatsReporter reporter;
-    private String prefix;
-    private String separator;
-    private ImmutableMap<String, String> tags;
-    private Buckets defaultBuckets;
+    private final StatsReporter reporter;
+    private final String prefix;
+    private final String separator;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets defaultBuckets;
+    private final Sanitizer sanitizer;
 
-    private ScheduledExecutorService scheduler;
-    private Registry registry;
+    private final ScheduledExecutorService scheduler;
+    private final Registry registry;
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
@@ -56,15 +58,50 @@ class ScopeImpl implements Scope, TestScope {
         this.scheduler = scheduler;
         this.registry = registry;
 
+        this.sanitizer = builder.sanitizer;
         this.reporter = builder.reporter;
-        this.prefix = builder.prefix;
-        this.separator = builder.separator;
-        this.tags = builder.tags;
+        this.prefix = this.sanitizer.name(builder.prefix);
+        this.separator = this.sanitizer.name(builder.separator);
+        this.tags = copyAndSanitizeMap(builder.tags);
         this.defaultBuckets = builder.defaultBuckets;
+    }
+
+    // Serializes a map to generate a key for a prefix/map combination
+    // Non-generic EMPTY ImmutableMap will never contain any elements
+    @SuppressWarnings("unchecked")
+    static String keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
+        if (prefix == null) {
+            prefix = "";
+        }
+
+        if (stringMap == null) {
+            stringMap = ImmutableMap.EMPTY;
+        }
+
+        Set<String> keySet = stringMap.keySet();
+        String[] sortedKeys = keySet.toArray(new String[keySet.size()]);
+        Arrays.sort(sortedKeys);
+
+        StringBuilder keyBuffer = new StringBuilder(prefix.length() + sortedKeys.length * 20);
+        keyBuffer.append(prefix);
+        keyBuffer.append("+");
+
+        for (int i = 0; i < sortedKeys.length; i++) {
+            keyBuffer.append(sortedKeys[i]);
+            keyBuffer.append("=");
+            keyBuffer.append(stringMap.get(sortedKeys[i]));
+
+            if (i != sortedKeys.length - 1) {
+                keyBuffer.append(",");
+            }
+        }
+
+        return keyBuffer.toString();
     }
 
     @Override
     public Counter counter(String name) {
+        name = sanitizer.name(name);
         CounterImpl counter = counters.get(name);
 
         if (counter != null) {
@@ -77,6 +114,7 @@ class ScopeImpl implements Scope, TestScope {
 
     @Override
     public Gauge gauge(String name) {
+        name = sanitizer.name(name);
         GaugeImpl gauge = gauges.get(name);
 
         if (gauge != null) {
@@ -90,6 +128,7 @@ class ScopeImpl implements Scope, TestScope {
 
     @Override
     public Timer timer(String name) {
+        name = sanitizer.name(name);
         TimerImpl timer = timers.get(name);
 
         if (timer != null) {
@@ -103,6 +142,7 @@ class ScopeImpl implements Scope, TestScope {
 
     @Override
     public Histogram histogram(String name, Buckets buckets) {
+        name = sanitizer.name(name);
         if (buckets == null) {
             buckets = defaultBuckets;
         }
@@ -119,11 +159,12 @@ class ScopeImpl implements Scope, TestScope {
 
     @Override
     public Scope tagged(Map<String, String> tags) {
-        return subScopeHelper(prefix, tags);
+        return subScopeHelper(prefix, copyAndSanitizeMap(tags));
     }
 
     @Override
     public Scope subScope(String name) {
+        name = sanitizer.name(name);
         return subScopeHelper(fullyQualifiedName(name), null);
     }
 
@@ -174,39 +215,6 @@ class ScopeImpl implements Scope, TestScope {
         }
 
         reporter.flush();
-    }
-
-    // Serializes a map to generate a key for a prefix/map combination
-    // Non-generic EMPTY ImmutableMap will never contain any elements
-    @SuppressWarnings("unchecked")
-    static String keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
-        if (prefix == null) {
-            prefix = "";
-        }
-
-        if (stringMap == null) {
-            stringMap = ImmutableMap.EMPTY;
-        }
-
-        Set<String> keySet = stringMap.keySet();
-        String[] sortedKeys = keySet.toArray(new String[keySet.size()]);
-        Arrays.sort(sortedKeys);
-
-        StringBuilder keyBuffer = new StringBuilder(prefix.length() + sortedKeys.length * 20);
-        keyBuffer.append(prefix);
-        keyBuffer.append("+");
-
-        for (int i = 0; i < sortedKeys.length; i++) {
-            keyBuffer.append(sortedKeys[i]);
-            keyBuffer.append("=");
-            keyBuffer.append(stringMap.get(sortedKeys[i]));
-
-            if (i != sortedKeys.length - 1) {
-                keyBuffer.append(",");
-            }
-        }
-
-        return keyBuffer.toString();
     }
 
     private String fullyQualifiedName(String name) {
@@ -292,19 +300,24 @@ class ScopeImpl implements Scope, TestScope {
         return snap;
     }
 
-    // Helper function used to create subscopes
-    private Scope subScopeHelper(String prefix, Map<String, String> tags) {
-        ImmutableMap.Builder<String, String> mapBuilder = new ImmutableMap.Builder<>();
-
-        if (this.tags != null) {
-            mapBuilder.putAll(this.tags);
-        }
+    private ImmutableMap<String, String> copyAndSanitizeMap(Map<String, String> tags) {
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
         if (tags != null) {
-            // New tags override old tag buckets
-            mapBuilder.putAll(tags);
+            tags.forEach((key, value) -> builder.put(sanitizer.key(key), sanitizer.value(value)));
         }
+        return builder.build();
+    }
 
-        ImmutableMap<String, String> mergedTags = mapBuilder.build();
+    // Helper function used to create subscopes
+    private Scope subScopeHelper(String prefix, ImmutableMap<String, String> tags) {
+        ImmutableMap<String, String> mergedTags = this.tags;
+        if (tags != null) {
+            ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
+            builder.putAll(this.tags);
+            // New tags override old tags
+            builder.putAll(tags);
+            mergedTags = builder.build();
+        }
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
@@ -316,6 +329,7 @@ class ScopeImpl implements Scope, TestScope {
                 .separator(separator)
                 .tags(mergedTags)
                 .defaultBuckets(defaultBuckets)
+                .sanitizer(sanitizer)
                 .build()
         );
         return registry.subscopes.get(key);
@@ -330,6 +344,10 @@ class ScopeImpl implements Scope, TestScope {
                 subscope.report(reporter);
             }
         }
+    }
+
+    static class Registry {
+        Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 
     class ReportLoop implements Runnable {
@@ -356,9 +374,5 @@ class ScopeImpl implements Scope, TestScope {
                 // ignore exception
             }
         }
-    }
-
-    static class Registry {
-        Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

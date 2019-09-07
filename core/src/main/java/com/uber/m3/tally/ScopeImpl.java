@@ -205,12 +205,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.counters().put(
-                    id,
-                    new CounterSnapshotImpl(
-                        name,
-                        tags,
-                        counter.getValue().snapshot()
-                    )
+                        id,
+                        new CounterSnapshotImpl(
+                                name,
+                                tags,
+                                counter.getValue().snapshot()
+                        )
                 );
             }
 
@@ -220,12 +220,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.gauges().put(
-                    id,
-                    new GaugeSnapshotImpl(
-                        name,
-                        tags,
-                        gauge.getValue().snapshot()
-                    )
+                        id,
+                        new GaugeSnapshotImpl(
+                                name,
+                                tags,
+                                gauge.getValue().snapshot()
+                        )
                 );
             }
 
@@ -235,12 +235,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.timers().put(
-                    id,
-                    new TimerSnapshotImpl(
-                        name,
-                        tags,
-                        timer.getValue().snapshot()
-                    )
+                        id,
+                        new TimerSnapshotImpl(
+                                name,
+                                tags,
+                                timer.getValue().snapshot()
+                        )
                 );
             }
 
@@ -250,13 +250,13 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.histograms().put(
-                    id,
-                    new HistogramSnapshotImpl(
-                        name,
-                        tags,
-                        histogram.getValue().snapshotValues(),
-                        histogram.getValue().snapshotDurations()
-                    )
+                        id,
+                        new HistogramSnapshotImpl(
+                                name,
+                                tags,
+                                histogram.getValue().snapshotValues(),
+                                histogram.getValue().snapshotDurations()
+                        )
                 );
             }
         }
@@ -281,14 +281,14 @@ class ScopeImpl implements Scope {
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
         return registry.subscopes.computeIfAbsent(
-            key,
-            (k) -> new ScopeBuilder(scheduler, registry)
-                .reporter(reporter)
-                .prefix(prefix)
-                .separator(separator)
-                .tags(mergedTags)
-                .defaultBuckets(defaultBuckets)
-                .build()
+                key,
+                (k) -> new ScopeBuilder(scheduler, registry)
+                        .reporter(reporter)
+                        .prefix(prefix)
+                        .separator(separator)
+                        .tags(mergedTags)
+                        .defaultBuckets(defaultBuckets)
+                        .build()
         );
     }
 

@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.Sanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import java.util.Arrays;
@@ -33,14 +34,15 @@ import java.util.concurrent.ScheduledExecutorService;
  * Default {@link Scope} implementation.
  */
 class ScopeImpl implements Scope {
-    private StatsReporter reporter;
-    private String prefix;
-    private String separator;
-    private ImmutableMap<String, String> tags;
-    private Buckets defaultBuckets;
+    private final StatsReporter reporter;
+    private final String prefix;
+    private final String separator;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets defaultBuckets;
+    private final Sanitizer sanitizer;
 
-    private ScheduledExecutorService scheduler;
-    private Registry registry;
+    private final ScheduledExecutorService scheduler;
+    private final Registry registry;
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
@@ -55,16 +57,17 @@ class ScopeImpl implements Scope {
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
         this.scheduler = scheduler;
         this.registry = registry;
-
+        this.sanitizer = builder.sanitizer;
         this.reporter = builder.reporter;
-        this.prefix = builder.prefix;
-        this.separator = builder.separator;
-        this.tags = builder.tags;
+        this.prefix = this.sanitizer.name(builder.prefix);
+        this.separator = this.sanitizer.name(builder.separator);
+        this.tags = copyAndSanitizeMap(builder.tags);
         this.defaultBuckets = builder.defaultBuckets;
     }
 
     @Override
     public Counter counter(String name) {
+        name = sanitizer.name(name);
         CounterImpl counter = counters.get(name);
 
         if (counter != null) {
@@ -84,6 +87,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Gauge gauge(String name) {
+        name = sanitizer.name(name);
         GaugeImpl gauge = gauges.get(name);
 
         if (gauge != null) {
@@ -103,6 +107,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Timer timer(String name) {
+        name = sanitizer.name(name);
         TimerImpl timer = timers.get(name);
 
         if (timer != null) {
@@ -122,6 +127,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Histogram histogram(String name, Buckets buckets) {
+        name = sanitizer.name(name);
         if (buckets == null) {
             buckets = defaultBuckets;
         }
@@ -145,11 +151,12 @@ class ScopeImpl implements Scope {
 
     @Override
     public Scope tagged(Map<String, String> tags) {
-        return subScopeHelper(prefix, tags);
+        return subScopeHelper(prefix, copyAndSanitizeMap(tags));
     }
 
     @Override
     public Scope subScope(String name) {
+        name = sanitizer.name(name);
         return subScopeHelper(fullyQualifiedName(name), null);
     }
 
@@ -232,7 +239,7 @@ class ScopeImpl implements Scope {
         return keyBuffer.toString();
     }
 
-    String fullyQualifiedName(String name) {
+    private String fullyQualifiedName(String name) {
         if (prefix == null || prefix.length() == 0) {
             return name;
         }
@@ -313,6 +320,14 @@ class ScopeImpl implements Scope {
         return snap;
     }
 
+    private ImmutableMap<String, String> copyAndSanitizeMap(Map<String, String> tags) {
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
+        if (tags != null) {
+            tags.forEach((key, value) -> builder.put(sanitizer.key(key), sanitizer.value(value)));
+        }
+        return builder.build();
+    }
+
     // Helper function used to create subscopes
     private Scope subScopeHelper(String prefix, Map<String, String> tags) {
         ImmutableMap.Builder<String, String> mapBuilder = new ImmutableMap.Builder<>();
@@ -337,6 +352,7 @@ class ScopeImpl implements Scope {
                 .separator(separator)
                 .tags(mergedTags)
                 .defaultBuckets(defaultBuckets)
+                .sanitizer(sanitizer)
                 .build()
         );
     }

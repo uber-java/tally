@@ -20,19 +20,17 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableMap;
+import org.junit.Test;
+
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Test;
-
-import com.uber.m3.util.Duration;
-import com.uber.m3.util.ImmutableMap;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class ScopeImplTest {
     private static final double EPSILON = 1e-10;
@@ -54,21 +52,21 @@ public class ScopeImplTest {
 
         Counter sameCounter = scope.counter("new-counter");
         // Should be the same Counter object and not a new instance
-        assertTrue(counter == sameCounter);
+        assertEquals(counter, sameCounter);
 
         Gauge gauge = scope.gauge("new-gauge");
         assertNotNull(gauge);
 
         Gauge sameGauge = scope.gauge("new-gauge");
         // Should be the same Gauge object and not a new instance
-        assertTrue(gauge == sameGauge);
+        assertEquals(gauge, sameGauge);
 
         Timer timer = scope.timer("new-timer");
         assertNotNull(timer);
 
         Timer sameTimer = scope.timer("new-timer");
         // Should be the same Timer object and not a new instance
-        assertTrue(timer == sameTimer);
+        assertEquals(timer, sameTimer);
 
         Histogram histogram = scope.histogram(
             "new-histogram",
@@ -78,7 +76,7 @@ public class ScopeImplTest {
 
         Histogram sameHistogram = scope.histogram("new-histogram", null);
         // Should be the same Histogram object and not a new instance
-        assertTrue(histogram == sameHistogram);
+        assertEquals(histogram, sameHistogram);
     }
 
     @Test
@@ -151,9 +149,9 @@ public class ScopeImplTest {
 
         ImmutableMap<String, String> additionalTags =
             new ImmutableMap.Builder<String, String>(2)
-            .put("new_key", "new_val")
-            .put("baz", "quz")
-            .build();
+                .put("new_key", "new_val")
+                .put("baz", "quz")
+                .build();
         Scope taggedSubscope = rootScope.tagged(additionalTags);
         Timer taggedTimer = taggedSubscope.timer("tagged_timer");
         taggedTimer.record(Duration.ofSeconds(6));
@@ -180,9 +178,9 @@ public class ScopeImplTest {
         assertEquals("tagged_timer", timer.getName());
         ImmutableMap<String, String> expectedTags =
             new ImmutableMap.Builder<String, String>(4)
-            .putAll(tags)
-            .putAll(additionalTags)
-            .build();
+                .putAll(tags)
+                .putAll(additionalTags)
+                .build();
         assertEquals(expectedTags, timer.getTags());
     }
 
@@ -222,24 +220,29 @@ public class ScopeImplTest {
         Map<String, CounterSnapshot> counters = snapshot.counters();
         assertEquals(1, counters.size());
         assertEquals("snapshot-counter", counters.get("snapshot-counter+").name());
-        assertEquals(null, counters.get("snapshot-counter+").tags());
+        assertNotNull(counters.get("snapshot-counter+").tags());
+        assertEquals(0, counters.get("snapshot-counter+").tags().size());
 
         Map<String, GaugeSnapshot> gauges = snapshot.gauges();
         assertEquals(3, gauges.size());
         assertEquals("snapshot-gauge", gauges.get("snapshot-gauge+").name());
-        assertEquals(null, gauges.get("snapshot-gauge+").tags());
+        assertNotNull(gauges.get("snapshot-gauge+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge+").tags().size());
         assertEquals(120, gauges.get("snapshot-gauge+").value(), EPSILON);
         assertEquals("snapshot-gauge2", gauges.get("snapshot-gauge2+").name());
-        assertEquals(null, gauges.get("snapshot-gauge2+").tags());
+        assertNotNull(gauges.get("snapshot-gauge2+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge2+").tags().size());
         assertEquals(220, gauges.get("snapshot-gauge2+").value(), EPSILON);
         assertEquals("snapshot-gauge3", gauges.get("snapshot-gauge3+").name());
-        assertEquals(null, gauges.get("snapshot-gauge3+").tags());
+        assertNotNull(gauges.get("snapshot-gauge3+").tags());
+        assertEquals(0, gauges.get("snapshot-gauge3+").tags().size());
         assertEquals(320, gauges.get("snapshot-gauge3+").value(), EPSILON);
 
         Map<String, TimerSnapshot> timers = snapshot.timers();
         assertEquals(1, timers.size());
         assertEquals("snapshot-timer", timers.get("snapshot-timer+").name());
-        assertEquals(null, timers.get("snapshot-timer+").tags());
+        assertNotNull(timers.get("snapshot-timer+").tags());
+        assertEquals(0, timers.get("snapshot-timer+").tags().size());
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -258,12 +261,10 @@ public class ScopeImplTest {
             }
         };
 
-        Scope scope = new RootScopeBuilder()
+        try (Scope scope = new RootScopeBuilder()
             .reporter(reporter)
-            .reportEvery(Duration.ofMillis(REPORT_INTERVAL_MILLIS),
-                uncaughtExceptionHandler);
+            .reportEvery(Duration.ofMillis(REPORT_INTERVAL_MILLIS), uncaughtExceptionHandler)) {
 
-        try {
             scope.counter("hi").inc(1);
             Thread.sleep(SLEEP_MILLIS);
 
@@ -276,8 +277,6 @@ public class ScopeImplTest {
 
             assertEquals(2, uncaghtExceptionReported.get());
             assertEquals(2, reporter.getNumberOfReportedMetrics());
-        } finally {
-            scope.close();
         }
     }
 
@@ -307,17 +306,27 @@ public class ScopeImplTest {
         }
 
         @Override
-        public void reportHistogramValueSamples(String name, Map<String, String> tags,
-                                                Buckets buckets, double bucketLowerBound,
-                                                double bucketUpperBound, long samples) {
+        public void reportHistogramValueSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            double bucketLowerBound,
+            double bucketUpperBound,
+            long samples
+        ) {
             reported.incrementAndGet();
             throw new RuntimeException();
         }
 
         @Override
-        public void reportHistogramDurationSamples(String name, Map<String, String> tags,
-                                                   Buckets buckets, Duration bucketLowerBound,
-                                                   Duration bucketUpperBound, long samples) {
+        public void reportHistogramDurationSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            Duration bucketLowerBound,
+            Duration bucketUpperBound,
+            long samples
+        ) {
             reported.incrementAndGet();
             throw new RuntimeException();
         }

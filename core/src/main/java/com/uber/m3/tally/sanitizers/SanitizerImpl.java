@@ -18,33 +18,47 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.sanitizers;
 
 /**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
+ * SanitizerImpl sanitizes the provided input based on the function executed.
  */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+class SanitizerImpl implements Sanitizer {
 
-    /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
-     */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
+    private final Sanitize nameSanitizer;
+    private final Sanitize keySanitizer;
+    private final Sanitize valueSanitizer;
+
+    SanitizerImpl(Sanitize nameSanitizer, Sanitize keySanitizer, Sanitize valueSanitizer) {
+        this.nameSanitizer = nameSanitizer;
+        this.keySanitizer = keySanitizer;
+        this.valueSanitizer = valueSanitizer;
     }
 
     /**
-     * Stop the stopwatch.
+     * Name sanitizes the provided 'name' string.
+     * @param name the name string
+     * @return the sanitized name
      */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+    public String name(String name) {
+        return this.nameSanitizer.sanitize(name);
+    }
+
+    /**
+     * Key sanitizes the provided 'key' string.
+     * @param key the key string
+     * @return the sanitized key
+     */
+    public String key(String key) {
+        return this.keySanitizer.sanitize(key);
+    }
+
+    /**
+     * Value sanitizes the provided 'value' string.
+     * @param value the value string
+     * @return the sanitized value
+     */
+    public String value(String value) {
+        return this.valueSanitizer.sanitize(value);
     }
 }

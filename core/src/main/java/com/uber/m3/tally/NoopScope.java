@@ -20,31 +20,19 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+
 /**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
+ * NoopScope is scope that does not report stats.
  */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+public class NoopScope {
 
     /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
+     * Creates a new NoopScope.
      */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
-    }
-
-    /**
-     * Stop the stopwatch.
-     */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+    public static Scope create() {
+        return new RootScopeBuilder()
+            .reporter(new NullStatsReporter())
+            .reportEvery(Duration.ZERO);
     }
 }

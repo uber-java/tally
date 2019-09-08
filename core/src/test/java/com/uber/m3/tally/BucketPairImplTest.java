@@ -23,10 +23,7 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class BucketPairImplTest {
     @Test
@@ -40,7 +37,7 @@ public class BucketPairImplTest {
             )
         };
 
-        assertArrayEquals(expectedPairs, BucketPairImpl.bucketPairs(null));
+        assertArrayEquals(expectedPairs, BucketPair.create(null));
 
         expectedPairs = new BucketPair[]{
             new BucketPairImpl(
@@ -71,15 +68,13 @@ public class BucketPairImplTest {
 
         assertArrayEquals(
             expectedPairs,
-            BucketPairImpl.bucketPairs(ValueBuckets.linear(0, 50, 3))
+            BucketPair.create(ValueBuckets.linear(0, 50, 3))
         );
     }
 
     @Test
     public void testToString() {
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(
-            ValueBuckets.linear(-100, 200, 2)
-        );
+        BucketPair[] bucketPairs = BucketPair.create(ValueBuckets.linear(-100, 200, 2));
 
         // Unlike Duration buckets, we don't add a 0 in the buckets
         assertEquals(3, bucketPairs.length);
@@ -87,21 +82,21 @@ public class BucketPairImplTest {
         assertEquals("[-1m40s, 1m40s]", bucketPairs[1].toString());
         assertEquals("[1m40s, 2562047h47m16.854775807s]", bucketPairs[2].toString());
 
-        BucketPair[] emptyBucketPairs = BucketPairImpl.bucketPairs(null);
+        BucketPair[] emptyBucketPairs = BucketPair.create(null);
         assertEquals(1, emptyBucketPairs.length);
         assertEquals("[-2562047h47m16.854775808s, 2562047h47m16.854775807s]", emptyBucketPairs[0].toString());
     }
 
     @Test
     public void equalsHashCode() {
-        BucketPair bucketPair = BucketPairImpl.bucketPairs(null)[0];
-        BucketPair sameBucketPair = BucketPairImpl.bucketPairs(null)[0];
+        BucketPair bucketPair = BucketPair.create(null)[0];
+        BucketPair sameBucketPair = BucketPair.create(null)[0];
 
-        assertTrue(bucketPair.equals(sameBucketPair));
-        assertTrue(bucketPair.equals(bucketPair));
+        assertEquals(bucketPair, sameBucketPair);
+        assertEquals(bucketPair, bucketPair);
         assertEquals(bucketPair.hashCode(), sameBucketPair.hashCode());
 
-        assertFalse(bucketPair.equals(null));
-        assertFalse(bucketPair.equals(9));
+        assertNotEquals(null, bucketPair);
+        assertNotEquals(9, bucketPair);
     }
 }

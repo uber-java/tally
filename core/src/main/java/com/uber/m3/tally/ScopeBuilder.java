@@ -20,6 +20,8 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.Sanitizer;
+import com.uber.m3.tally.sanitizers.SanitizerBuilder;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
@@ -32,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ScopeBuilder {
     private static final String DEFAULT_SEPARATOR = ".";
-    private static final Buckets DEFAULT_SCOPE_BUCKETS = new DurationBuckets(new Duration[] {
+    private static final Buckets DEFAULT_SCOPE_BUCKETS = new DurationBuckets(new Duration[]{
         Duration.ZERO,
         Duration.ofMillis(10),
         Duration.ofMillis(15),
@@ -55,6 +57,7 @@ public class ScopeBuilder {
     protected String separator = DEFAULT_SEPARATOR;
     protected ImmutableMap<String, String> tags;
     protected Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
+    protected Sanitizer sanitizer = new SanitizerBuilder().build();
 
     private ScheduledExecutorService scheduler;
     private ScopeImpl.Registry registry;
@@ -67,7 +70,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the reporter
+     * Update the reporter.
+     *
      * @param reporter value to update to
      * @return Builder with new param updated
      */
@@ -77,7 +81,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the prefix
+     * Update the prefix.
+     *
      * @param prefix value to update to
      * @return Builder with new param updated
      */
@@ -87,7 +92,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the separator
+     * Update the separator.
+     *
      * @param separator value to update to
      * @return Builder with new param updated
      */
@@ -97,7 +103,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the tags, cloning the tags map to an ImmutableMap
+     * Update the tags, cloning the tags map to an ImmutableMap.
+     *
      * @param tags value to update to
      * @return Builder with new param updated
      */
@@ -108,7 +115,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the tags. Since this function takes an ImmutableMap, we don't need to clone it
+     * Update the tags. Since this function takes an ImmutableMap, we don't need to clone it.
+     *
      * @param tags value to update to
      * @return Builder with new param updated
      */
@@ -119,12 +127,24 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the defaultBuckets
+     * Update the defaultBuckets.
+     *
      * @param defaultBuckets value to update to
      * @return Builder with new param updated
      */
     public ScopeBuilder defaultBuckets(Buckets defaultBuckets) {
         this.defaultBuckets = defaultBuckets;
+        return this;
+    }
+
+    /**
+     * Update the sanitizer.
+     *
+     * @param sanitizer value to update to
+     * @return Builder with new param updated
+     */
+    public ScopeBuilder sanitizer(Sanitizer sanitizer) {
+        this.sanitizer = sanitizer;
         return this;
     }
 
@@ -135,7 +155,8 @@ public class ScopeBuilder {
     }
 
     /**
-     * Creates a root scope and starts reporting with the specified interval
+     * Creates a root scope and starts reporting with the specified interval.
+     *
      * @param interval duration between each report
      * @return the root scope created
      */
@@ -144,22 +165,28 @@ public class ScopeBuilder {
     }
 
     /**
-     * Creates a root scope and starts reporting with the specified interval
-     * @param interval duration between each report
+     * Creates a root scope and starts reporting with the specified interval.
+     *
+     * @param interval                 duration between each report
      * @param uncaughtExceptionHandler an  {@link java.lang.Thread.UncaughtExceptionHandler} that's
      *                                 called when there's an uncaught exception in the report loop
      * @return the root scope created
      */
-    public Scope reportEvery(Duration interval,
-                             Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-        if (interval.compareTo(Duration.ZERO) <= 0) {
-            throw new IllegalArgumentException("Reporting interval must be a positive Duration");
+    public Scope reportEvery(
+        Duration interval,
+        Thread.UncaughtExceptionHandler uncaughtExceptionHandler
+    ) {
+        if (interval.getNanos() < 0) {
+            throw new IllegalArgumentException("Reporting interval must be a non-negative Duration");
         }
 
         ScopeImpl scope = build();
         registry.subscopes.put(ScopeImpl.keyForPrefixedStringMap(prefix, tags), scope);
 
-        scheduler.scheduleWithFixedDelay(scope.new ReportLoop(uncaughtExceptionHandler), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        if (interval.getNanos() > 0) {
+            scheduler.scheduleWithFixedDelay(
+                scope.new ReportLoop(uncaughtExceptionHandler), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        }
 
         return scope;
     }

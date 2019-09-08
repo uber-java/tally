@@ -20,31 +20,18 @@
 
 package com.uber.m3.tally;
 
-/**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
- */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+import org.junit.Test;
 
-    /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
-     */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
-    }
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
-    /**
-     * Stop the stopwatch.
-     */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+public class NullStatsReporterTest {
+
+    @Test
+    public void capabilities() {
+        NullStatsReporter reporter = new NullStatsReporter();
+        assertNotNull(reporter.capabilities());
+        assertFalse(reporter.capabilities().reporting());
+        assertFalse(reporter.capabilities().tagging());
     }
 }

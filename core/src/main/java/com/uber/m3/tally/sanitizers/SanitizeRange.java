@@ -18,33 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.sanitizers;
 
 /**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
+ * SanitizeRange is a range of characters (inclusive on both ends).
  */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+public class SanitizeRange {
 
-    /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
-     */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
+    private final char low;
+    private final char high;
+
+    private SanitizeRange(char low, char high) {
+        this.low = low;
+        this.high = high;
     }
 
-    /**
-     * Stop the stopwatch.
-     */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+    public static SanitizeRange of(char low, char high) {
+        return new SanitizeRange(low, high);
+    }
+
+    char low() {
+        return low;
+    }
+
+    char high() {
+        return high;
     }
 }

@@ -18,33 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.sanitizers;
 
 /**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
+ * SanitizerImpl sanitizes the provided input based on the function executed.
  */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+public interface Sanitizer {
 
     /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
+     * Name sanitizes the provided 'name' string.
+     * @param name the name string
+     * @return the sanitized name
      */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
-    }
+    String name(String name);
 
     /**
-     * Stop the stopwatch.
+     * Key sanitizes the provided 'key' string.
+     * @param key the key string
+     * @return the sanitized key
      */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
-    }
+    String key(String key);
+
+    /**
+     * Value sanitizes the provided 'value' string.
+     * @param value the value string
+     * @return the sanitized value
+     */
+    String value(String value);
 }

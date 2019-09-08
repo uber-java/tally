@@ -20,47 +20,26 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.thrift.gen.Metric;
+import com.uber.m3.tally.sanitizers.Sanitizer;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
-public class SizedMetricTest {
-    @Test
-    public void simpleSizedMetric() {
-        Metric metric = new Metric();
+public class M3SanitizerTest {
 
-        SizedMetric sizedMetric = new SizedMetric(metric, 1);
-
-        assertEquals(sizedMetric.getMetric(), metric);
-        assertEquals(sizedMetric.getSize(), 1);
-    }
+    private static final String NAME = "!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-.";
+    private static final String KEY = "!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-.";
+    private static final String VALUE = "!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-.";
+    private static final String SANITIZED_NAME = "__________abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-.";
+    private static final String SANITIZED_KEY = "__________abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-_";
+    private static final String SANITIZED_VALUE = "__________abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-.";
 
     @Test
-    public void nullSizedMetric() {
-        SizedMetric sizedMetric = new SizedMetric(null, 9);
-
-        assertNull(sizedMetric.getMetric());
-        assertEquals(sizedMetric.getSize(), 9);
-    }
-
-    @Test
-    public void setters() {
-        SizedMetric sizedMetric = new SizedMetric();
-
-        sizedMetric.setSize(9);
-
-        assertEquals(9, sizedMetric.getSize());
-
-        sizedMetric.setSize(11);
-        sizedMetric.setSize(12);
-
-        assertEquals(12, sizedMetric.getSize());
-
-        Metric metric1 = new Metric();
-        sizedMetric.setMetric(metric1);
-
-        assertEquals(metric1, sizedMetric.getMetric());
+    public void m3Sanitizer() {
+        Sanitizer sanitizer = M3Sanitizer.create();
+        assertNotNull(sanitizer);
+        assertEquals(SANITIZED_NAME, sanitizer.name(NAME));
+        assertEquals(SANITIZED_KEY, sanitizer.key(KEY));
+        assertEquals(SANITIZED_VALUE, sanitizer.value(VALUE));
     }
 }

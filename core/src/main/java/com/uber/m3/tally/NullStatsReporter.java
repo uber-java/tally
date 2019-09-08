@@ -20,35 +20,64 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default implementation of a {@link Snapshot}.
+ * NullStatsReporter is an implementation of StatsReporter that simply does nothing.
  */
-class SnapshotImpl implements Snapshot {
-    private Map<String, CounterSnapshot> counters = new ConcurrentHashMap<>();
-    private Map<String, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
-    private Map<String, TimerSnapshot> timers = new ConcurrentHashMap<>();
-    private Map<String, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
-
+public class NullStatsReporter implements StatsReporter {
     @Override
-    public Map<String, CounterSnapshot> counters() {
-        return counters;
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+        // noop
     }
 
     @Override
-    public Map<String, GaugeSnapshot> gauges() {
-        return gauges;
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+        // noop
     }
 
     @Override
-    public Map<String, TimerSnapshot> timers() {
-        return timers;
+    public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+        // noop
     }
 
     @Override
-    public Map<String, HistogramSnapshot> histograms() {
-        return histograms;
+    public void reportHistogramValueSamples(
+        String name, Map<String,
+        String> tags,
+        Buckets buckets,
+        double bucketLowerBound,
+        double bucketUpperBound,
+        long samples
+    ) {
+        // noop
+    }
+
+    @Override
+    public void reportHistogramDurationSamples(
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        Duration bucketLowerBound,
+        Duration bucketUpperBound, long samples
+    ) {
+        // noop
+    }
+
+    @Override
+    public Capabilities capabilities() {
+        return CapableOf.NONE;
+    }
+
+    @Override
+    public void flush() {
+        // noop
+    }
+
+    @Override
+    public void close() {
+        // noop
     }
 }

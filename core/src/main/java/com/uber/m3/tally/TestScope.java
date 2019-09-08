@@ -20,31 +20,41 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+
+import java.util.Map;
+
 /**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
+ * TestScope is a metrics collector that has no reporting, ensuring that
+ * all emitted values have a given prefix or set of tags.
  */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+interface TestScope extends Scope {
 
     /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
+     * Creates a new TestScope that adds the ability to take snapshots of
+     * metrics emitted to it.
      */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
+    static TestScope create() {
+        return (TestScope) new RootScopeBuilder()
+            .reporter(new NullStatsReporter())
+            .reportEvery(Duration.ZERO);
     }
 
     /**
-     * Stop the stopwatch.
+     * Creates a new TestScope with given prefix/tags that adds the ability to
+     * take snapshots of metrics emitted to it.
      */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+    static TestScope create(String prefix, Map<String, String> tags) {
+        return (TestScope) new RootScopeBuilder()
+            .prefix(prefix)
+            .tags(tags)
+            .reporter(new NullStatsReporter())
+            .reportEvery(Duration.ZERO);
     }
+
+    /**
+     * Snapshot returns a copy of all values since the last report execution
+     * This is an expensive operation and should only be used for testing purposes.
+     */
+    Snapshot snapshot();
 }

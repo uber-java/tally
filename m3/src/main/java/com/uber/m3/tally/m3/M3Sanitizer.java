@@ -18,33 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.m3;
 
-/**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
- */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+import com.uber.m3.tally.sanitizers.Sanitizer;
+import com.uber.m3.tally.sanitizers.SanitizerBuilder;
+import com.uber.m3.tally.sanitizers.ValidCharacters;
+
+public class M3Sanitizer {
 
     /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
+     * Creates the default M3 sanitizer.
+     * @return default M3 sanitizer
      */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
-    }
-
-    /**
-     * Stop the stopwatch.
-     */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+    public static Sanitizer create() {
+        return new SanitizerBuilder()
+            .withReplacementCharacter(ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER)
+            .withNameCharacters(
+                ValidCharacters.of(
+                    ValidCharacters.ALPHANUMERIC_RANGE,
+                    ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
+            .withKeyCharacters(
+                ValidCharacters.of(
+                    ValidCharacters.ALPHANUMERIC_RANGE,
+                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
+            .withValueCharacters(
+                ValidCharacters.of(
+                    ValidCharacters.ALPHANUMERIC_RANGE,
+                    ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
+            .build();
     }
 }

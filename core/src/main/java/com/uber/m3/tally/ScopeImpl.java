@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.Sanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import java.util.Arrays;
@@ -32,15 +33,16 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Default {@link Scope} implementation.
  */
-class ScopeImpl implements Scope {
-    private StatsReporter reporter;
-    private String prefix;
-    private String separator;
-    private ImmutableMap<String, String> tags;
-    private Buckets defaultBuckets;
+class ScopeImpl implements Scope, TestScope {
+    private final StatsReporter reporter;
+    private final String prefix;
+    private final String separator;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets defaultBuckets;
+    private final Sanitizer sanitizer;
 
-    private ScheduledExecutorService scheduler;
-    private Registry registry;
+    private final ScheduledExecutorService scheduler;
+    private final Registry registry;
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
@@ -56,149 +58,12 @@ class ScopeImpl implements Scope {
         this.scheduler = scheduler;
         this.registry = registry;
 
+        this.sanitizer = builder.sanitizer;
         this.reporter = builder.reporter;
-        this.prefix = builder.prefix;
-        this.separator = builder.separator;
-        this.tags = builder.tags;
+        this.prefix = this.sanitizer.name(builder.prefix);
+        this.separator = this.sanitizer.name(builder.separator);
+        this.tags = copyAndSanitizeMap(builder.tags);
         this.defaultBuckets = builder.defaultBuckets;
-    }
-
-    @Override
-    public Counter counter(String name) {
-        CounterImpl counter = counters.get(name);
-
-        if (counter != null) {
-            return counter;
-        }
-
-        synchronized (counters) {
-            if (!counters.containsKey(name)) {
-                counters.put(name, new CounterImpl());
-            }
-
-            counter = counters.get(name);
-        }
-
-        return counter;
-    }
-
-    @Override
-    public Gauge gauge(String name) {
-        GaugeImpl gauge = gauges.get(name);
-
-        if (gauge != null) {
-            return gauge;
-        }
-
-        synchronized (gauges) {
-            if (!gauges.containsKey(name)) {
-                gauges.put(name, new GaugeImpl());
-            }
-
-            gauge = gauges.get(name);
-        }
-
-        return gauge;
-    }
-
-    @Override
-    public Timer timer(String name) {
-        TimerImpl timer = timers.get(name);
-
-        if (timer != null) {
-            return timer;
-        }
-
-        synchronized (timers) {
-            if (!timers.containsKey(name)) {
-                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
-            }
-
-            timer = timers.get(name);
-        }
-
-        return timer;
-    }
-
-    @Override
-    public Histogram histogram(String name, Buckets buckets) {
-        if (buckets == null) {
-            buckets = defaultBuckets;
-        }
-
-        HistogramImpl histogram = histograms.get(name);
-
-        if (histogram != null) {
-            return histogram;
-        }
-
-        synchronized (histograms) {
-            if (!histograms.containsKey(name)) {
-                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
-            }
-
-            histogram = histograms.get(name);
-        }
-
-        return histogram;
-    }
-
-    @Override
-    public Scope tagged(Map<String, String> tags) {
-        return subScopeHelper(prefix, tags);
-    }
-
-    @Override
-    public Scope subScope(String name) {
-        return subScopeHelper(fullyQualifiedName(name), null);
-    }
-
-    @Override
-    public Capabilities capabilities() {
-        if (reporter != null) {
-            return reporter.capabilities();
-        }
-
-        return CapableOf.NONE;
-    }
-
-    @Override
-    public void close() {
-        // First, stop periodic reporting of this scope
-        scheduler.shutdown();
-
-        // More metrics may have come in between the time of the last report by the
-        // scheduler and the call to close this scope, so report once more to flush
-        // all metrics.
-        reportLoopIteration();
-
-        if (reporter != null) {
-            // Now that all metrics should be known to the reporter, close the reporter
-            reporter.close();
-        }
-    }
-
-    /**
-     * Reports using the specified reporter.
-     * @param reporter the reporter to report
-     */
-    void report(StatsReporter reporter) {
-        for (Map.Entry<String, CounterImpl> counter : counters.entrySet()) {
-            counter.getValue().report(fullyQualifiedName(counter.getKey()), tags, reporter);
-        }
-
-        for (Map.Entry<String, GaugeImpl> gauge : gauges.entrySet()) {
-            gauge.getValue().report(fullyQualifiedName(gauge.getKey()), tags, reporter);
-        }
-
-        // No operations on timers required here; they report directly to the StatsReporter
-        // i.e. they are not buffered
-
-        for (Map.Entry<String, HistogramImpl> histogram : histograms.entrySet()) {
-            histogram.getValue().report(fullyQualifiedName(histogram.getKey()), tags, reporter);
-        }
-
-        reporter.flush();
     }
 
     // Serializes a map to generate a key for a prefix/map combination
@@ -234,7 +99,125 @@ class ScopeImpl implements Scope {
         return keyBuffer.toString();
     }
 
-    String fullyQualifiedName(String name) {
+    @Override
+    public Counter counter(String name) {
+        name = sanitizer.name(name);
+        CounterImpl counter = counters.get(name);
+
+        if (counter != null) {
+            return counter;
+        }
+
+        counters.putIfAbsent(name, new CounterImpl());
+        return counters.get(name);
+    }
+
+    @Override
+    public Gauge gauge(String name) {
+        name = sanitizer.name(name);
+        GaugeImpl gauge = gauges.get(name);
+
+        if (gauge != null) {
+            return gauge;
+        }
+
+        gauges.putIfAbsent(name, new GaugeImpl());
+        return gauges.get(name);
+
+    }
+
+    @Override
+    public Timer timer(String name) {
+        name = sanitizer.name(name);
+        TimerImpl timer = timers.get(name);
+
+        if (timer != null) {
+            return timer;
+        }
+
+        timers.putIfAbsent(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.get(name);
+
+    }
+
+    @Override
+    public Histogram histogram(String name, Buckets buckets) {
+        name = sanitizer.name(name);
+        if (buckets == null) {
+            buckets = defaultBuckets;
+        }
+
+        HistogramImpl histogram = histograms.get(name);
+
+        if (histogram != null) {
+            return histogram;
+        }
+
+        histograms.putIfAbsent(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
+        return histograms.get(name);
+    }
+
+    @Override
+    public Scope tagged(Map<String, String> tags) {
+        return subScopeHelper(prefix, copyAndSanitizeMap(tags));
+    }
+
+    @Override
+    public Scope subScope(String name) {
+        name = sanitizer.name(name);
+        return subScopeHelper(fullyQualifiedName(name), null);
+    }
+
+    @Override
+    public Capabilities capabilities() {
+        if (reporter != null) {
+            return reporter.capabilities();
+        }
+
+        return CapableOf.NONE;
+    }
+
+    @Override
+    public void close() {
+        // First, stop periodic reporting of this scope
+        scheduler.shutdown();
+
+        // More metrics may have come in between the time of the last report by the
+        // scheduler and the call to close this scope, so report once more to flush
+        // all metrics.
+        reportLoopIteration();
+
+        if (reporter != null) {
+            // Now that all metrics should be known to the reporter, close the reporter
+            reporter.close();
+        }
+    }
+
+    /**
+     * Reports using the specified reporter.
+     *
+     * @param reporter the reporter to report
+     */
+    private void report(StatsReporter reporter) {
+        for (Map.Entry<String, CounterImpl> counter : counters.entrySet()) {
+            counter.getValue().report(fullyQualifiedName(counter.getKey()), tags, reporter);
+        }
+
+        for (Map.Entry<String, GaugeImpl> gauge : gauges.entrySet()) {
+            gauge.getValue().report(fullyQualifiedName(gauge.getKey()), tags, reporter);
+        }
+
+        // No operations on timers required here; they report directly to the StatsReporter
+        // i.e. they are not buffered
+
+        for (Map.Entry<String, HistogramImpl> histogram : histograms.entrySet()) {
+            histogram.getValue().report(fullyQualifiedName(histogram.getKey()), tags, reporter);
+        }
+
+        reporter.flush();
+    }
+
+    private String fullyQualifiedName(String name) {
         if (prefix == null || prefix.length() == 0) {
             return name;
         }
@@ -244,8 +227,10 @@ class ScopeImpl implements Scope {
 
     /**
      * Returns a {@link Snapshot} of this {@link Scope}.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
+    @Override
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
@@ -315,42 +300,39 @@ class ScopeImpl implements Scope {
         return snap;
     }
 
-    // Helper function used to create subscopes
-    private Scope subScopeHelper(String prefix, Map<String, String> tags) {
-        ImmutableMap.Builder<String, String> mapBuilder = new ImmutableMap.Builder<>();
-
-        if (this.tags != null) {
-            mapBuilder.putAll(this.tags);
-        }
+    private ImmutableMap<String, String> copyAndSanitizeMap(Map<String, String> tags) {
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
         if (tags != null) {
-            // New tags override old tag buckets
-            mapBuilder.putAll(tags);
+            tags.forEach((key, value) -> builder.put(sanitizer.key(key), sanitizer.value(value)));
         }
+        return builder.build();
+    }
 
-        ImmutableMap<String, String> mergedTags = mapBuilder.build();
+    // Helper function used to create subscopes
+    private Scope subScopeHelper(String prefix, ImmutableMap<String, String> tags) {
+        ImmutableMap<String, String> mergedTags = this.tags;
+        if (tags != null) {
+            ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
+            builder.putAll(this.tags);
+            // New tags override old tags
+            builder.putAll(tags);
+            mergedTags = builder.build();
+        }
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        Scope subscope;
-
-        synchronized (registry.allocationLock) {
-            if (!registry.subscopes.containsKey(key)) {
-                registry.subscopes.put(
-                    key,
-                    new ScopeBuilder(scheduler, registry)
-                        .reporter(reporter)
-                        .prefix(prefix)
-                        .separator(separator)
-                        .tags(mergedTags)
-                        .defaultBuckets(defaultBuckets)
-                        .build()
-                );
-            }
-
-            subscope = registry.subscopes.get(key);
-        }
-
-        return subscope;
+        registry.subscopes.putIfAbsent(
+            key,
+            new ScopeBuilder(scheduler, registry)
+                .reporter(reporter)
+                .prefix(prefix)
+                .separator(separator)
+                .tags(mergedTags)
+                .defaultBuckets(defaultBuckets)
+                .sanitizer(sanitizer)
+                .build()
+        );
+        return registry.subscopes.get(key);
     }
 
     // One iteration of reporting this scope and all its subscopes
@@ -362,6 +344,10 @@ class ScopeImpl implements Scope {
                 subscope.report(reporter);
             }
         }
+    }
+
+    static class Registry {
+        Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 
     class ReportLoop implements Runnable {
@@ -388,10 +374,5 @@ class ScopeImpl implements Scope {
                 // ignore exception
             }
         }
-    }
-
-    static class Registry {
-        final Object allocationLock = new Object();
-        Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

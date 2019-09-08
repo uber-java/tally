@@ -21,7 +21,6 @@
 package com.uber.m3.tally.m3;
 
 import com.uber.m3.tally.BucketPair;
-import com.uber.m3.tally.BucketPairImpl;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
@@ -44,6 +43,9 @@ import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.SocketAddress;
@@ -62,10 +64,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.apache.thrift.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An M3 implementation of a {@link StatsReporter}.
@@ -160,7 +158,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private int calculateFreeBytes(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
         MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
-        metricBatch.setMetrics(new ArrayList<Metric>());
+        metricBatch.setMetrics(new ArrayList<>());
 
         int size;
 
@@ -373,7 +371,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+        BucketPair[] bucketPairs = BucketPair.create(buckets);
 
         if (tags == null) {
             // We know that the HashMap will only contain two items at this point,
@@ -421,7 +419,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+        BucketPair[] bucketPairs = BucketPair.create(buckets);
 
         if (tags == null) {
             // We know that the HashMap will only contain two items at this point,
@@ -480,7 +478,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {
-            LOG.warn(String.format("Interrupted queueing metric: {}", sizedMetric.getMetric().getName()));
+            LOG.warn("Interrupted queueing metric: {}", sizedMetric.getMetric().getName());
         }
     }
 

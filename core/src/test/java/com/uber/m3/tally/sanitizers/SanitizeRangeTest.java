@@ -18,33 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally;
+package com.uber.m3.tally.sanitizers;
 
-/**
- * A stopwatch that is used to record for {@link Timer}s and {@link Histogram}s. This implementation
- * relies on values being recorded as nanosecond-level timestamps. There is no
- * assumption that {@code startNanos} is related to the current time, but successive recordings
- * of the stopwatch are comparable with one another.
- */
-public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+import org.junit.Test;
 
-    /**
-     * Creates a stopwatch.
-     * @param startNanos initial value to set the {@link Stopwatch} to. Not necessarily related
-     *                   to current time
-     * @param recorder   the recorder used to record this {@link Stopwatch}
-     */
-    public Stopwatch(long startNanos, StopwatchRecorder recorder) {
-        this.startNanos = startNanos;
-        this.recorder = recorder;
-    }
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-    /**
-     * Stop the stopwatch.
-     */
-    public void stop() {
-        recorder.recordStopwatch(startNanos);
+public class SanitizeRangeTest {
+
+    private static final char LOW = 'a';
+    private static final char HIGH = 'z';
+
+    @Test
+    public void sanitizeRange() {
+        SanitizeRange range = SanitizeRange.of(LOW, HIGH);
+        assertNotNull(range);
+        assertEquals(LOW, range.low());
+        assertEquals(HIGH, range.high());
     }
 }

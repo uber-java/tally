@@ -7,7 +7,6 @@ language: java
 # are issues testing against oraclejdk7 in Travis:
 # https://github.com/travis-ci/travis-ci/issues/7884
 jdk:
-  - openjdk7
   - openjdk8
   - oraclejdk8
 

@@ -153,6 +153,11 @@ public class ScopeBuilder {
     public Scope reportEvery(Duration interval,
                              Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
         if (interval.compareTo(Duration.ZERO) <= 0) {
+            if (reporter != null) {
+                // The underlying transport in the reporter may have been opened at this point, so make sure to close
+                // that to not leak resources.
+                reporter.close();
+            }
             throw new IllegalArgumentException("Reporting interval must be a positive Duration");
         }
 

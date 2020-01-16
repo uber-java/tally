@@ -89,6 +89,12 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
             index = -(index + 1);
         }
 
+        // binarySearch can return collections.size(), guarding against that.
+        // pointing to last bucket is fine in that case because it's [_,infinity).
+        if (index >= buckets.size()) {
+            index = buckets.size() - 1;
+        }
+
         buckets.get(index).samples.inc(1);
     }
 
@@ -100,6 +106,12 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
             // binarySearch returns the index of the search key if it is contained in the list;
             // otherwise, (-(insertion point) - 1).
             index = -(index + 1);
+        }
+
+        // binarySearch can return collections.size(), guarding against that.
+        // pointing to last bucket is fine in that case because it's [_,infinity).
+        if (index >= buckets.size()) {
+            index = buckets.size() - 1;
         }
 
         buckets.get(index).samples.inc(1);

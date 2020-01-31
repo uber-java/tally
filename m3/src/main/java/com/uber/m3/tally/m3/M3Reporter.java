@@ -579,7 +579,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
-        protected boolean includeHost = true;
+        protected boolean includeHost = false;
         protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
         protected int maxProcessorWaitUntilFlushMillis = 10_000;

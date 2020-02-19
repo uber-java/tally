@@ -331,26 +331,16 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        Scope subscope;
-
-        synchronized (registry.allocationLock) {
-            if (!registry.subscopes.containsKey(key)) {
-                registry.subscopes.put(
-                    key,
-                    new ScopeBuilder(scheduler, registry)
-                        .reporter(reporter)
-                        .prefix(prefix)
-                        .separator(separator)
-                        .tags(mergedTags)
-                        .defaultBuckets(defaultBuckets)
-                        .build()
-                );
-            }
-
-            subscope = registry.subscopes.get(key);
-        }
-
-        return subscope;
+        return registry.subscopes.computeIfAbsent(
+            key,
+            (k) -> new ScopeBuilder(scheduler, registry)
+                .reporter(reporter)
+                .prefix(prefix)
+                .separator(separator)
+                .tags(mergedTags)
+                .defaultBuckets(defaultBuckets)
+                .build()
+        );
     }
 
     // One iteration of reporting this scope and all its subscopes
@@ -391,7 +381,6 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        final Object allocationLock = new Object();
         Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 }

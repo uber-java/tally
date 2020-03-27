@@ -86,7 +86,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
-    private static final int DEFAULT_MAX_PACKET_SIZE = 1440;
+    private static final int DEFAULT_MAX_PACKET_SIZE = 32768;
 
     private static final int THREAD_POOL_SIZE = 10;
 

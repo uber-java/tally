@@ -349,9 +349,9 @@ class ScopeImpl implements Scope {
             for (ScopeImpl subscope : subscopes) {
                 subscope.report(reporter);
             }
-        }
 
-        reporter.flush();
+            reporter.flush();
+        }
     }
 
     class ReportLoop implements Runnable {

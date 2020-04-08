@@ -39,8 +39,8 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     //       which is set at 65,535 = 8 bytes (header) + 65,527 bytes (data)
     public static final int UDP_DATA_PAYLOAD_MAX_SIZE = 65527;
 
-    public final Object receiveLock = new Object();
-    public final Object sendLock = new Object();
+    protected final Object receiveLock = new Object();
+    protected final Object sendLock = new Object();
 
     protected final DatagramSocket socket = new DatagramSocket(null);
 
@@ -56,9 +56,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         this.socketAddress = socketAddress;
 
         writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
-
         receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
-        receiveBuffer.flip();
     }
 
     @Override
@@ -129,21 +127,29 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
 
     @Override
     public int getBytesRemainingInBuffer() {
-        return receiveBuffer.remaining();
+        synchronized (receiveLock) {
+            return receiveBuffer.remaining();
+        }
     }
 
     @Override
     public byte[] getBuffer() {
-        return receiveBuffer.array();
+        synchronized (receiveLock) {
+            return receiveBuffer.array();
+        }
     }
 
     @Override
     public int getBufferPosition() {
-        return receiveBuffer.position();
+        synchronized (receiveLock) {
+            return receiveBuffer.position();
+        }
     }
 
     @Override
     public void consumeBuffer(int length) {
-        receiveBuffer.position(receiveBuffer.position() + length);
+        synchronized (receiveLock) {
+            receiveBuffer.position(receiveBuffer.position() + length);
+        }
     }
 }

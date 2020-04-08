@@ -58,14 +58,12 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
     @Override
     public void flush() throws TTransportException {
         synchronized (sendLock) {
-            // Fix the length of the buffer written so far
-            int length = writeBuffer.position();
             try {
                 socket.send(
                     // NOTE: Since flushing is a blocking operation we're deliberately
                     //       avoiding additional allocations and simply re-use the same buffer for IO
                     //       directly
-                    new DatagramPacket(writeBuffer.array(), length)
+                    new DatagramPacket(writeBuffer.array(), writeBuffer.position())
                 );
             } catch (IOException e) {
                 throw new TTransportException(e);

@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally.m3.thrift;
 
+import org.apache.http.annotation.GuardedBy;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
@@ -34,13 +35,19 @@ import java.nio.ByteBuffer;
  * Abstract class that supports Thrift UDP functionality.
  */
 public abstract class TUdpTransport extends TTransport implements AutoCloseable {
-    public static final int MAX_BUFFER_SIZE = 65536;
+    // NOTE: This is the maximum size of a single UDP packet's payload in IPv4
+    //       which is set at 65,535 = 8 bytes (header) + 65,527 bytes (data)
+    public static final int UDP_DATA_PAYLOAD_MAX_SIZE = 65527;
 
     public final Object receiveLock = new Object();
     public final Object sendLock = new Object();
 
     protected final DatagramSocket socket = new DatagramSocket(null);
+
+    @GuardedBy("receiveLock")
     protected ByteBuffer receiveBuffer;
+
+    @GuardedBy("sendLock")
     protected ByteBuffer writeBuffer;
 
     protected SocketAddress socketAddress;
@@ -48,9 +55,9 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     protected TUdpTransport(SocketAddress socketAddress) throws SocketException {
         this.socketAddress = socketAddress;
 
-        writeBuffer = ByteBuffer.allocate(MAX_BUFFER_SIZE);
+        writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
 
-        receiveBuffer = ByteBuffer.allocate(MAX_BUFFER_SIZE);
+        receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
         receiveBuffer.flip();
     }
 
@@ -77,7 +84,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
             if (!receiveBuffer.hasRemaining()) {
                 // Use ByteBuffer's backing array and manually set the position and limit to
                 // avoid having to re-copy contents to a new array via `get`
-                DatagramPacket packet = new DatagramPacket(receiveBuffer.array(), MAX_BUFFER_SIZE);
+                DatagramPacket packet = new DatagramPacket(receiveBuffer.array(), UDP_DATA_PAYLOAD_MAX_SIZE);
 
                 try {
                     socket.receive(packet);
@@ -104,11 +111,11 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         }
 
         synchronized (sendLock) {
-            if (writeBuffer.position() + length > MAX_BUFFER_SIZE) {
+            if (writeBuffer.position() + length > UDP_DATA_PAYLOAD_MAX_SIZE) {
                 throw new TTransportException(
                     String.format("Message size too large: %d is greater than available size %d",
                         length,
-                        MAX_BUFFER_SIZE - writeBuffer.position()
+                        UDP_DATA_PAYLOAD_MAX_SIZE - writeBuffer.position()
                     )
                 );
             }

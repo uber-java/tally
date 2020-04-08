@@ -52,14 +52,17 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
     @Override
     public void flush() throws TTransportException {
         synchronized (sendLock) {
-            byte[] bytes = new byte[MAX_BUFFER_SIZE];
+            // Fix the length of the buffer written so far
             int length = writeBuffer.position();
 
+            // Flip the buffer to write it over the wire in the reversed
+            // ordering
             writeBuffer.flip();
-            writeBuffer.get(bytes, 0, length);
 
             try {
-                socket.send(new DatagramPacket(bytes, length));
+                socket.send(
+                    new DatagramPacket(writeBuffer.array(), length)
+                );
             } catch (IOException e) {
                 throw new TTransportException(e);
             } finally {

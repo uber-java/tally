@@ -29,6 +29,7 @@ import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.tally.m3.thrift.TMultiUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
+import com.uber.m3.tally.m3.thrift.TUdpTransport;
 import com.uber.m3.thrift.gen.CountValue;
 import com.uber.m3.thrift.gen.GaugeValue;
 import com.uber.m3.thrift.gen.M3;
@@ -86,7 +87,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
-    private static final int DEFAULT_MAX_PACKET_SIZE = 32768;
+    private static final int DEFAULT_MAX_PACKET_SIZE = TUdpTransport.UDP_DATA_PAYLOAD_MAX_SIZE;
 
     private static final int THREAD_POOL_SIZE = 10;
 

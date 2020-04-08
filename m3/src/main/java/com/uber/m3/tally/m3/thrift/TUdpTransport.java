@@ -42,7 +42,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     protected final Object receiveLock = new Object();
     protected final Object sendLock = new Object();
 
-    protected final DatagramSocket socket = new DatagramSocket(null);
+    protected final DatagramSocket socket;
 
     @GuardedBy("receiveLock")
     protected ByteBuffer receiveBuffer;
@@ -52,11 +52,17 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
 
     protected SocketAddress socketAddress;
 
-    protected TUdpTransport(SocketAddress socketAddress) throws SocketException {
+    // NOTE: This is used in tests
+    TUdpTransport(SocketAddress socketAddress, DatagramSocket socket) {
         this.socketAddress = socketAddress;
+        this.socket = socket;
 
-        writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
-        receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
+        this.writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
+        this.receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
+    }
+
+    protected TUdpTransport(SocketAddress socketAddress) throws SocketException {
+        this(socketAddress, new DatagramSocket(null));
     }
 
     @Override

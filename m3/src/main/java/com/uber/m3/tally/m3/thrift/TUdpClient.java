@@ -24,6 +24,7 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 
@@ -38,6 +39,11 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
      */
     public TUdpClient(SocketAddress socketAddress) throws SocketException {
         super(socketAddress);
+    }
+
+    // NOTE: Thi is used in tests ONLY
+    TUdpClient(SocketAddress socketAddress, DatagramSocket socket) {
+        super(socketAddress, socket);
     }
 
     @Override

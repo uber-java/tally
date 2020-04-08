@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally.m3.thrift;
 
+import org.apache.http.annotation.GuardedBy;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
@@ -40,7 +41,11 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     public final Object sendLock = new Object();
 
     protected final DatagramSocket socket = new DatagramSocket(null);
+
+    @GuardedBy("receiveLock")
     protected ByteBuffer receiveBuffer;
+
+    @GuardedBy("sendLock")
     protected ByteBuffer writeBuffer;
 
     protected SocketAddress socketAddress;

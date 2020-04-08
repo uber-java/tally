@@ -54,13 +54,11 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
         synchronized (sendLock) {
             // Fix the length of the buffer written so far
             int length = writeBuffer.position();
-
-            // Flip the buffer to write it over the wire in the reversed
-            // ordering
-            writeBuffer.flip();
-
             try {
                 socket.send(
+                    // NOTE: Since flushing is a blocking operation we're deliberately
+                    //       avoiding additional allocations and simply re-use the same buffer for IO
+                    //       directly
                     new DatagramPacket(writeBuffer.array(), length)
                 );
             } catch (IOException e) {

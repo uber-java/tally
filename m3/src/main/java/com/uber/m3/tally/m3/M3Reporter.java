@@ -497,9 +497,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
 
             int size = sizedMetric.getSize();
-
-            if (metricsSize + size > payloadCapacity) {
-                flush();
+            if (metricsSize + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
+                flushBuffered();
             }
 
             Metric metric = sizedMetric.getMetric();
@@ -508,7 +507,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             metricsSize += size;
         }
 
-        private void flushRemainingMetrics() {
+        private boolean elapsedMaxDelaySinceLastFlush() {
+            return lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
+                    .isAfter(Instant.now(clock));
+        }
+
+        private void drainQueue() {
             while (!metricQueue.isEmpty()) {
                 SizedMetric sizedMetric = metricQueue.remove();
                 // Don't care about metrics that came in after close

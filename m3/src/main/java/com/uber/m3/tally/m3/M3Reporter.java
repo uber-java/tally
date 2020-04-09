@@ -65,7 +65,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
-    public static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
+    private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
 
     private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 5_000;
 
@@ -78,7 +78,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int NUM_PROCESSORS = 1;
 
-    private final static ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
+    private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
     private M3.Client client;

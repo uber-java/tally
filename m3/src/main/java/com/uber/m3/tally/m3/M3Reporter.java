@@ -103,7 +103,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private int maxProcessorWaitUntilFlushMillis;
 
-    private int freeBytes;
+    private final int payloadCapacity;
 
     private String bucketIdTagName;
     private String bucketTagName;
@@ -158,7 +158,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private int calculateFreeBytes(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
+    private int calculatePayloadCapacity(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
         MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
         metricBatch.setMetrics(new ArrayList<Metric>());
@@ -175,13 +175,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + size;
 
-        freeBytes = maxPacketSizeBytes - numOverheadBytes;
+        int payloadCapacity = maxPacketSizeBytes - numOverheadBytes;
 
-        if (freeBytes <= 0) {
+        if (payloadCapacity <= 0) {
             throw new IllegalArgumentException("Common tags serialized size exceeds packet size");
         }
 
-        return freeBytes;
+        return payloadCapacity;
     }
 
     private static String getHostName() {
@@ -209,27 +209,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         } catch (InterruptedException e) {
             LOG.warn("Interrupted while trying to queue flush sentinel");
         }
-    }
-
-    private void flush(List<Metric> metrics, Set<MetricTag> commonTags) {
-        if (metrics.isEmpty()) {
-            return;
-        }
-
-        MetricBatch metricBatch = new MetricBatch();
-        metricBatch.setCommonTags(commonTags);
-        metricBatch.setMetrics(metrics);
-
-        try {
-            client.emitMetricBatch(metricBatch);
-
-        } catch (TException tException) {
-            LOG.warn("Failed to flush metrics: " + tException.getMessage());
-        }
-
-        metricBatch.setMetrics(null);
-
-        metrics.clear();
     }
 
     @Override
@@ -480,7 +459,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private class Processor implements Runnable {
         final Set<MetricTag> commonTags;
-        List<Metric> pendingMetrics = new ArrayList<>(freeBytes / 10);
+        List<Metric> pendingMetrics = new ArrayList<>(payloadCapacity / 10);
         int metricsSize = 0;
 
         Processor(Set<MetricTag> commonTags) {
@@ -506,14 +485,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     }
 
                     if (sizedMetric != null) {
-                        flushMetricIteration(sizedMetric);
+                        process(sizedMetric);
                         continue;
                     }
 
                     // If we don't get any new metrics after waiting the specified time,
                     // flush what we have so far.
                     if (!pendingMetrics.isEmpty()) {
-                        flushMetricIteration(SizedMetric.FLUSH);
+                        process(SizedMetric.FLUSH);
                     }
                 }
             } catch (InterruptedException e) {
@@ -525,23 +504,21 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
         }
 
-        private void flushMetricIteration(SizedMetric sizedMetric) {
+        private void process(SizedMetric sizedMetric) {
             Metric metric = sizedMetric.getMetric();
 
             if (sizedMetric == SizedMetric.FLUSH) {
-                flush(pendingMetrics, commonTags);
+                flush();
                 return;
             }
 
             int size = sizedMetric.getSize();
 
-            if (metricsSize + size > freeBytes) {
-                flush(pendingMetrics, commonTags);
-                metricsSize = 0;
+            if (metricsSize + size > payloadCapacity) {
+                flush();
             }
 
             pendingMetrics.add(metric);
-
             metricsSize += size;
         }
 
@@ -554,10 +531,31 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     break;
                 }
 
-                flushMetricIteration(sizedMetric);
+                process(sizedMetric);
             }
 
-            flush(pendingMetrics, commonTags);
+            flush();
+        }
+
+        private void flush() {
+            if (pendingMetrics.isEmpty()) {
+                return;
+            }
+
+            MetricBatch metricBatch = new MetricBatch();
+            metricBatch.setCommonTags(commonTags);
+            metricBatch.setMetrics(pendingMetrics);
+
+            try {
+                client.emitMetricBatch(metricBatch);
+            } catch (TException tException) {
+                LOG.warn("Failed to flush metrics: " + tException.getMessage());
+            }
+
+            metricBatch.setMetrics(null);
+
+            pendingMetrics.clear();
+            metricsSize = 0;
         }
     }
 

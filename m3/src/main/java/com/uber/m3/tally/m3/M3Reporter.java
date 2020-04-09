@@ -77,7 +77,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
-    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
+    public static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
+
+    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 5_000;
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
@@ -575,7 +577,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         protected boolean includeHost = false;
         protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
-        protected int maxProcessorWaitUntilFlushMillis = 10_000;
+        protected int maxProcessorWaitUntilFlushMillis = MAX_DELAY_BEFORE_FLUSHING_MILLIS;
         protected String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         protected String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         protected int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;

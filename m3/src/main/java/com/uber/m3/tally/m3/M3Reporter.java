@@ -46,8 +46,18 @@ import java.net.UnknownHostException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -67,7 +77,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
 
-    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 5_000;
+    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1_000;
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
@@ -507,8 +517,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         private boolean elapsedMaxDelaySinceLastFlush() {
-            return lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
-                    .isBefore(Instant.now(clock));
+            return Instant.now(clock).isAfter(
+                    lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
+            );
         }
 
         private void drainQueue() {
@@ -528,17 +539,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 return;
             }
 
-            MetricBatch metricBatch = new MetricBatch();
-            metricBatch.setCommonTags(commonTags);
-            metricBatch.setMetrics(metricsBuffer);
-
             try {
-                client.emitMetricBatch(metricBatch);
+                client.emitMetricBatch(
+                        new MetricBatch()
+                                .setCommonTags(commonTags)
+                                .setMetrics(metricsBuffer)
+                );
             } catch (TException tException) {
                 LOG.warn("Failed to flush metrics: " + tException.getMessage());
             }
-
-            metricBatch.setMetrics(null);
 
             metricsBuffer.clear();
             metricsSize = 0;

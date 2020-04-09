@@ -41,7 +41,7 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
         super(socketAddress);
     }
 
-    // NOTE: Thi is used in tests ONLY
+    // NOTE: This is used in tests ONLY
     TUdpClient(SocketAddress socketAddress, DatagramSocket socket) {
         super(socketAddress, socket);
     }

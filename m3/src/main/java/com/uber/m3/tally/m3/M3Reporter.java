@@ -87,8 +87,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
     private static final int DEFAULT_MAX_PACKET_SIZE = TUdpTransport.UDP_DATA_PAYLOAD_MAX_SIZE;
 
-    private static final int THREAD_POOL_SIZE = 10;
-
     private static final int EMIT_METRIC_BATCH_OVERHEAD = 19;
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
 
@@ -146,7 +144,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            executor = builder.executor;
+            executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
 
             for (int i = 0; i < NUM_PROCESSORS; ++i) {
                 addAndRunProcessor(builder.metricTagSet);
@@ -565,7 +563,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         protected SocketAddress[] socketAddresses;
         protected String service;
         protected String env;
-        protected ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        protected ExecutorService executor;
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;

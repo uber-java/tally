@@ -431,6 +431,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void queueSizedMetric(SizedMetric sizedMetric) {
+        // Short-circuit if already shutdown
+        if (isShutdown.get()) {
+            return;
+        }
+
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {

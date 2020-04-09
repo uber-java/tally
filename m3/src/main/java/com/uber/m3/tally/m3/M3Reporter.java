@@ -463,7 +463,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay, TimeUnit.MILLISECONDS);
+                    SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
                     // Drop metrics that came in after close
                     if (sizedMetric == SizedMetric.CLOSE) {

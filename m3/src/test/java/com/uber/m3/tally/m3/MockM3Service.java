@@ -27,20 +27,19 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class MockM3Service implements M3.Iface {
-    ReadWriteLock lock = new ReentrantReadWriteLock();
-    List<MetricBatch> batches = new ArrayList<>();
-    List<Metric> metrics = new ArrayList<>();
-    Phaser phaser;
-    boolean countBatches;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final List<MetricBatch> batches = new ArrayList<>();
+    private final List<Metric> metrics = new ArrayList<>();
+    private final CountDownLatch metricsCountLatch;
 
-    public MockM3Service(Phaser phaser, boolean countBatches) {
-        this.phaser = phaser;
-        this.countBatches = countBatches;
+    public MockM3Service(CountDownLatch metricsCountLatch) {
+        this.metricsCountLatch = metricsCountLatch;
     }
 
     public List<MetricBatch> getBatches() {
@@ -69,16 +68,10 @@ public class MockM3Service implements M3.Iface {
 
         batches.add(batch);
 
-        if (countBatches) {
-            phaser.arrive();
-        }
-
         for (Metric metric : batch.getMetrics()) {
             metrics.add(metric);
 
-            if (!countBatches) {
-                phaser.arrive();
-            }
+            metricsCountLatch.countDown();
         }
 
         lock.writeLock().unlock();

@@ -20,24 +20,12 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.tally.BucketPair;
-import com.uber.m3.tally.BucketPairImpl;
-import com.uber.m3.tally.Buckets;
-import com.uber.m3.tally.Capabilities;
-import com.uber.m3.tally.CapableOf;
-import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.tally.*;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.tally.m3.thrift.TMultiUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpTransport;
-import com.uber.m3.thrift.gen.CountValue;
-import com.uber.m3.thrift.gen.GaugeValue;
-import com.uber.m3.thrift.gen.M3;
-import com.uber.m3.thrift.gen.Metric;
-import com.uber.m3.thrift.gen.MetricBatch;
-import com.uber.m3.thrift.gen.MetricTag;
-import com.uber.m3.thrift.gen.MetricValue;
-import com.uber.m3.thrift.gen.TimerValue;
+import com.uber.m3.thrift.gen.*;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.apache.http.annotation.NotThreadSafe;
@@ -47,6 +35,9 @@ import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.SocketAddress;
@@ -55,17 +46,9 @@ import java.net.UnknownHostException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
-
-import org.apache.thrift.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An M3 implementation of a {@link StatsReporter}.
@@ -122,6 +105,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
     private TTransport transport;
+
+    private AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
@@ -203,6 +188,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     @Override
     public void flush() {
+        if (isShutdown.get()) {
+            return;
+        }
+
         try {
             metricQueue.put(SizedMetric.FLUSH);
         } catch (InterruptedException e) {
@@ -212,6 +201,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     @Override
     public void close() {
+        if (!isShutdown.compareAndSet(false, true)) {
+            // Shutdown already
+            return;
+        }
+
         // Put sentinal value in queue so that processors know to disregard anything that comes after it.
         queueSizedMetric(SizedMetric.CLOSE);
 
@@ -509,7 +503,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private boolean elapsedMaxDelaySinceLastFlush() {
             return lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
-                    .isAfter(Instant.now(clock));
+                    .isBefore(Instant.now(clock));
         }
 
         private void drainQueue() {

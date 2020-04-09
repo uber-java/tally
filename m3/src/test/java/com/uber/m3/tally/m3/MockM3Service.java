@@ -63,6 +63,7 @@ public class MockM3Service implements M3.Iface {
         }
     }
 
+    @Override
     public void emitMetricBatch(MetricBatch batch) throws TTransportException {
         lock.writeLock().lock();
 

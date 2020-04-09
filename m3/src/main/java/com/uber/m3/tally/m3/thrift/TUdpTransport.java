@@ -39,7 +39,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     //       which is set at 65,535 = 8 bytes (header) + 65,527 bytes (data)
     public static final int UDP_DATA_PAYLOAD_MAX_SIZE = 65527;
 
-    protected final Object receiveLock = new Object();
+    private final Object receiveLock = new Object();
     protected final Object sendLock = new Object();
 
     protected final DatagramSocket socket;

@@ -11,7 +11,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.mockito.Mockito.*;
 
@@ -23,25 +25,22 @@ public class TUdpClientTest {
 
         TUdpClient client = createUdpClient(mockedSocket);
 
-        byte[] writtenBytes = "0xDEEDDEED".getBytes(Charsets.US_ASCII);
+        byte[][] payloads =
+                Stream.of("0xDEEDDEED", "0xABBAABBA")
+                    .map(p -> p.getBytes(Charsets.US_ASCII))
+                    .toArray(byte[][]::new);
 
-        client.write(writtenBytes);
-        client.flush();
+        for (byte[] writtenBytes : payloads) {
+            client.write(writtenBytes);
+            client.flush();
 
-        // Writes could only be asserted one by one, due to underlying write buffer sharing within the
-        // {@code TUdpClient}
-        assertBytesWritten(mockedSocket, writtenBytes);
+            // Writes could only be asserted one by one, due to underlying write buffer sharing within the
+            // {@code TUdpClient}
+            assertBytesWritten(mockedSocket, writtenBytes);
 
-        // We have to reset mocks between invocations
-        reset(mockedSocket);
-
-        // Validate writes after flush
-        byte[] anotherWrittenBytes = "0xABBAABBA".getBytes(Charsets.US_ASCII);
-
-        client.write(anotherWrittenBytes);
-        client.flush();
-
-        assertBytesWritten(mockedSocket, anotherWrittenBytes);
+            // We have to reset mocks between invocations
+            reset(mockedSocket);
+        }
     }
 
     private static void assertBytesWritten(DatagramSocket mockedSocket, byte[] expectedPayload) throws IOException {

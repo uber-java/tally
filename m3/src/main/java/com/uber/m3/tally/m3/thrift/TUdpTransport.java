@@ -59,6 +59,10 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
 
         this.writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
         this.receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
+
+        // Resets receiving buffer to 0, to make sure it isn't readable
+        // until it would be first written
+        this.receiveBuffer.limit(0);
     }
 
     protected TUdpTransport(SocketAddress socketAddress) throws SocketException {

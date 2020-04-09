@@ -96,8 +96,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // calcLock protects both calc and calcProtocol
     private final Object calcLock = new Object();
-    private TCalcTransport calc;
-    private TProtocol calcProtocol;
+
+    private static final TCalcTransport PHONY_CALCULATING_TRANSPORT = new TCalcTransport();
+    private static final TProtocol PHONY_CALCULATING_PROTOCOL =
+            new TCompactProtocol.Factory().getProtocol(PHONY_CALCULATING_TRANSPORT);
 
     private int maxProcessorWaitUntilFlushMillis;
 
@@ -136,10 +138,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
 
-            calcProtocol = new TCompactProtocol.Factory().getProtocol(new TCalcTransport());
-            calc = (TCalcTransport) calcProtocol.getTransport();
-
-            freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, builder.metricTagSet);
+            payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
 
             maxProcessorWaitUntilFlushMillis = builder.maxProcessorWaitUntilFlushMillis;
 
@@ -167,8 +166,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         int size;
 
         try {
-            metricBatch.write(calcProtocol);
-            size = calc.getSizeAndReset();
+            metricBatch.write(PHONY_CALCULATING_PROTOCOL);
+            size = PHONY_CALCULATING_TRANSPORT.getSizeAndReset();
         } catch (TException e) {
             LOG.warn("Unable to calculate metric batch size. Defaulting to: {}", DEFAULT_METRIC_SIZE);
             size = DEFAULT_METRIC_SIZE;
@@ -285,9 +284,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private int calculateSize(Metric metric) {
         try {
             synchronized (calcLock) {
-                metric.write(calcProtocol);
-
-                return calc.getSizeAndReset();
+                metric.write(PHONY_CALCULATING_PROTOCOL);
+                return PHONY_CALCULATING_TRANSPORT.getSizeAndReset();
             }
         } catch (TException e) {
             LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);

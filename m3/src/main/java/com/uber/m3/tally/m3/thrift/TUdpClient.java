@@ -24,6 +24,7 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 
@@ -40,6 +41,11 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
         super(socketAddress);
     }
 
+    // NOTE: This is used in tests ONLY
+    TUdpClient(SocketAddress socketAddress, DatagramSocket socket) {
+        super(socketAddress, socket);
+    }
+
     @Override
     public void open() throws TTransportException {
         try {
@@ -52,16 +58,12 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
     @Override
     public void flush() throws TTransportException {
         synchronized (sendLock) {
-            // Fix the length of the buffer written so far
-            int length = writeBuffer.position();
-
-            // Flip the buffer to write it over the wire in the reversed
-            // ordering
-            writeBuffer.flip();
-
             try {
                 socket.send(
-                    new DatagramPacket(writeBuffer.array(), length)
+                    // NOTE: Since flushing is a blocking operation we're deliberately
+                    //       avoiding additional allocations and simply re-use the same buffer for IO
+                    //       directly
+                    new DatagramPacket(writeBuffer.array(), writeBuffer.position())
                 );
             } catch (IOException e) {
                 throw new TTransportException(e);

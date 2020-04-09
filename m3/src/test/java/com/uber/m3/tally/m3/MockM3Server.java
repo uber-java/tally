@@ -31,21 +31,22 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.net.SocketAddress;
 import java.net.SocketException;
-import java.util.concurrent.Phaser;
+import java.util.concurrent.CountDownLatch;
 
 public class MockM3Server {
+    private final CountDownLatch expectedMetricsLatch;
+
     private TProcessor processor;
     private TTransport transport;
     private MockM3Service service;
 
     public MockM3Server(
-        Phaser phaser,
-        boolean countBatches,
+        int expectedMetricsCount,
         SocketAddress address
     ) {
-        service = new MockM3Service(phaser, countBatches);
-
-        processor = new M3.Processor<>(service);
+        this.expectedMetricsLatch = new CountDownLatch(expectedMetricsCount);
+        this.service = new MockM3Service(expectedMetricsLatch);
+        this.processor = new M3.Processor<>(service);
 
         try {
             transport = new TUdpServer(address);
@@ -76,7 +77,8 @@ public class MockM3Server {
         }
     }
 
-    public void close() {
+    public void awaitAndClose() throws InterruptedException {
+        expectedMetricsLatch.await();
         transport.close();
     }
 

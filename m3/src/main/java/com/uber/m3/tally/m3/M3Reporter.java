@@ -40,16 +40,24 @@ import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import org.apache.http.annotation.NotThreadSafe;
+import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,16 +65,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import org.apache.thrift.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An M3 implementation of a {@link StatsReporter}.
@@ -83,41 +87,48 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
-    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1000;
+    private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
+
+    private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 1_000;
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
     private static final int DEFAULT_MAX_PACKET_SIZE = TUdpTransport.UDP_DATA_PAYLOAD_MAX_SIZE;
 
-    private static final int THREAD_POOL_SIZE = 10;
-
     private static final int EMIT_METRIC_BATCH_OVERHEAD = 19;
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
 
+    private static final int NUM_PROCESSORS = 1;
+
+    private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
+            ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
+
     private M3.Client client;
 
-    // calcLock protects both calc and calcProtocol
-    private final Object calcLock = new Object();
-    private TCalcTransport calc;
-    private TProtocol calcProtocol;
+    private Duration maxBufferingDelay;
 
-    private int maxProcessorWaitUntilFlushMillis;
-
-    private int freeBytes;
+    private final int payloadCapacity;
 
     private String bucketIdTagName;
     private String bucketTagName;
     private String bucketValFmt;
 
+    private final Set<MetricTag> commonTags;
+
     // Holds metrics to be flushed
     private final BlockingQueue<SizedMetric> metricQueue;
     // The service used to execute metric flushes
-    private ExecutorService executor;
-    // Used to keep track of how many processors are in progress in
-    // order to wait for them to finish before closing
-    private Phaser phaser = new Phaser(1);
+    private final ExecutorService executor;
+
+    private final Clock clock;
+
+    // This is a synchronization barrier to make sure that reporter
+    // is being shutdown only after all of its processor had done so
+    private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
     private TTransport transport;
+
+    private AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
@@ -137,12 +148,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
 
-            calcProtocol = new TCompactProtocol.Factory().getProtocol(new TCalcTransport());
-            calc = (TCalcTransport) calcProtocol.getTransport();
+            payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
 
-            freeBytes = calculateFreeBytes(builder.maxPacketSizeBytes, builder.metricTagSet);
-
-            maxProcessorWaitUntilFlushMillis = builder.maxProcessorWaitUntilFlushMillis;
+            maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
 
             bucketIdTagName = builder.histogramBucketIdName;
             bucketTagName = builder.histogramBucketName;
@@ -150,38 +158,36 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            executor = builder.executor;
+            executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
 
-            addAndRunProcessor(builder.metricTagSet);
+            clock = Clock.systemUTC();
+
+            commonTags = builder.metricTagSet;
+
+            for (int i = 0; i < NUM_PROCESSORS; ++i) {
+                addAndRunProcessor();
+            }
         } catch (TTransportException | SocketException e) {
             throw new RuntimeException("Exception creating M3Reporter", e);
         }
     }
 
-    private int calculateFreeBytes(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
+    private int calculatePayloadCapacity(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
         MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
-        metricBatch.setMetrics(new ArrayList<Metric>());
+        metricBatch.setMetrics(new ArrayList<>());
 
-        int size;
-
-        try {
-            metricBatch.write(calcProtocol);
-            size = calc.getSizeAndReset();
-        } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: {}", DEFAULT_METRIC_SIZE);
-            size = DEFAULT_METRIC_SIZE;
-        }
+        int size = PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metricBatch);
 
         int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + size;
 
-        freeBytes = maxPacketSizeBytes - numOverheadBytes;
+        int payloadCapacity = maxPacketSizeBytes - numOverheadBytes;
 
-        if (freeBytes <= 0) {
+        if (payloadCapacity <= 0) {
             throw new IllegalArgumentException("Common tags serialized size exceeds packet size");
         }
 
-        return freeBytes;
+        return payloadCapacity;
     }
 
     private static String getHostName() {
@@ -193,10 +199,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void addAndRunProcessor(Set<MetricTag> commonTags) {
-        phaser.register();
-
-        executor.execute(new Processor(commonTags));
+    private void addAndRunProcessor() {
+        executor.execute(new Processor());
     }
 
     @Override
@@ -206,6 +210,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     @Override
     public void flush() {
+        if (isShutdown.get()) {
+            return;
+        }
+
         try {
             metricQueue.put(SizedMetric.FLUSH);
         } catch (InterruptedException e) {
@@ -213,29 +221,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void flush(List<Metric> metrics, Set<MetricTag> commonTags) {
-        if (metrics.isEmpty()) {
+    @Override
+    public void close() {
+        if (!isShutdown.compareAndSet(false, true)) {
+            // Shutdown already
             return;
         }
 
-        MetricBatch metricBatch = new MetricBatch();
-        metricBatch.setCommonTags(commonTags);
-        metricBatch.setMetrics(metrics);
-
-        try {
-            client.emitMetricBatch(metricBatch);
-
-        } catch (TException tException) {
-            LOG.warn("Failed to flush metrics: " + tException.getMessage());
-        }
-
-        metricBatch.setMetrics(null);
-
-        metrics.clear();
-    }
-
-    @Override
-    public void close() {
         // Put sentinal value in queue so that processors know to disregard anything that comes after it.
         queueSizedMetric(SizedMetric.CLOSE);
 
@@ -243,19 +235,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         // thread(s) or else they will block forever
         executor.shutdownNow();
 
-        // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
-        // to return from flushing
         try {
-            phaser.awaitAdvanceInterruptibly(
-                phaser.arrive(),
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
-                TimeUnit.MILLISECONDS
-            );
-        } catch (TimeoutException e) {
-            LOG.warn(
-                "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
-            );
+            // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
+            // to complete
+            if (!shutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
+                LOG.warn(
+                        "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
+                        MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+                );
+            }
         } catch (InterruptedException e) {
             LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
@@ -285,19 +273,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         return metricTag;
-    }
-
-    private int calculateSize(Metric metric) {
-        try {
-            synchronized (calcLock) {
-                metric.write(calcProtocol);
-
-                return calc.getSizeAndReset();
-            }
-        } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
-            return DEFAULT_METRIC_SIZE;
-        }
     }
 
     private String valueBucketString(double bucketBound) {
@@ -343,7 +318,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     @Override
@@ -356,7 +331,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     @Override
@@ -465,7 +440,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricValue metricValue) {
@@ -478,6 +453,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void queueSizedMetric(SizedMetric sizedMetric) {
+        // Short-circuit if already shutdown
+        if (isShutdown.get()) {
+            return;
+        }
+
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {
@@ -486,13 +466,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private class Processor implements Runnable {
-        final Set<MetricTag> commonTags;
-        List<Metric> pendingMetrics = new ArrayList<>(freeBytes / 10);
-        int metricsSize = 0;
 
-        Processor(Set<MetricTag> commonTags) {
-            this.commonTags = commonTags;
-        }
+        private final List<Metric> metricsBuffer =
+                new ArrayList<>(payloadCapacity / 10);
+
+        private Instant lastBufferFlushTimestamp = Instant.now(clock);
+
+        private int metricsSize = 0;
 
         @Override
         public void run() {
@@ -504,7 +484,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = metricQueue.poll(maxProcessorWaitUntilFlushMillis, TimeUnit.MILLISECONDS);
+                    SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
                     // Drop metrics that came in after close
                     if (sizedMetric == SizedMetric.CLOSE) {
@@ -512,60 +492,99 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                         break;
                     }
 
-                    if (sizedMetric != null) {
-                        flushMetricIteration(sizedMetric);
-                        continue;
+                    if (sizedMetric == null) {
+                        // If we didn't get any new metrics after waiting the specified time,
+                        // flush what we have so far.
+                        process(SizedMetric.FLUSH);
+                    } else {
+                        process(sizedMetric);
                     }
 
-                    // If we don't get any new metrics after waiting the specified time,
-                    // flush what we have so far.
-                    if (!pendingMetrics.isEmpty()) {
-                        flushMetricIteration(SizedMetric.FLUSH);
-                    }
                 }
             } catch (InterruptedException e) {
                 // Don't care if we get interrupted - the finally block will clean up
             } finally {
-                flushRemainingMetrics();
-
-                // Always arrive at phaser to prevent deadlock
-                phaser.arrive();
+                drainQueue();
+                flushBuffered();
+                // Count down shutdown latch to notify reporter
+                shutdownLatch.countDown();
             }
         }
 
-        private void flushMetricIteration(SizedMetric sizedMetric) {
-            Metric metric = sizedMetric.getMetric();
-
+        private void process(SizedMetric sizedMetric) {
             if (sizedMetric == SizedMetric.FLUSH) {
-                flush(pendingMetrics, commonTags);
+                flushBuffered();
                 return;
             }
 
             int size = sizedMetric.getSize();
-
-            if (metricsSize + size > freeBytes) {
-                flush(pendingMetrics, commonTags);
-                metricsSize = 0;
+            if (metricsSize + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
+                flushBuffered();
             }
 
-            pendingMetrics.add(metric);
+            Metric metric = sizedMetric.getMetric();
 
+            metricsBuffer.add(metric);
             metricsSize += size;
         }
 
-        private void flushRemainingMetrics() {
+        private boolean elapsedMaxDelaySinceLastFlush() {
+            return Instant.now(clock).isAfter(
+                    lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
+            );
+        }
+
+        private void drainQueue() {
             while (!metricQueue.isEmpty()) {
                 SizedMetric sizedMetric = metricQueue.remove();
-
                 // Don't care about metrics that came in after close
                 if (sizedMetric == SizedMetric.CLOSE) {
                     break;
                 }
 
-                flushMetricIteration(sizedMetric);
+                process(sizedMetric);
+            }
+        }
+
+        private void flushBuffered() {
+            if (metricsBuffer.isEmpty()) {
+                return;
             }
 
-            flush(pendingMetrics, commonTags);
+            try {
+                client.emitMetricBatch(
+                        new MetricBatch()
+                                .setCommonTags(commonTags)
+                                .setMetrics(metricsBuffer)
+                );
+            } catch (TException tException) {
+                LOG.warn("Failed to flush metrics: " + tException.getMessage());
+            }
+
+            metricsBuffer.clear();
+            metricsSize = 0;
+            lastBufferFlushTimestamp = Instant.now(clock);
+        }
+    }
+
+    /**
+     * This class provides the facility to calculate the size of the payload serialized through {@link TCompactProtocol},
+     * using phony {@link TCalcTransport} as a measurer
+     */
+    @NotThreadSafe
+    private static class SerializedPayloadSizeEstimator {
+        private final TCalcTransport calculatingPhonyTransport = new TCalcTransport();
+        private final TProtocol calculatingPhonyProtocol =
+                new TCompactProtocol.Factory().getProtocol(calculatingPhonyTransport);
+
+        public int calculateSize(TBase<?, ?> metric) {
+            try {
+                metric.write(calculatingPhonyProtocol);
+                return calculatingPhonyTransport.getSizeAndReset();
+            } catch (TException e) {
+                LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
+                return DEFAULT_METRIC_SIZE;
+            }
         }
     }
 
@@ -576,14 +595,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         protected SocketAddress[] socketAddresses;
         protected String service;
         protected String env;
-        protected ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        protected ExecutorService executor;
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
         protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
         protected boolean includeHost = false;
         protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
-        protected int maxProcessorWaitUntilFlushMillis = 10_000;
+        protected int maxProcessorWaitUntilFlushMillis = MAX_DELAY_BEFORE_FLUSHING_MILLIS;
         protected String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         protected String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         protected int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;

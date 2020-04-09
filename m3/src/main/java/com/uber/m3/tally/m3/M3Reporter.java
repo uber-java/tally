@@ -40,6 +40,8 @@ import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import org.apache.http.annotation.NotThreadSafe;
+import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
@@ -94,12 +96,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private M3.Client client;
 
-    // calcLock protects both calc and calcProtocol
-    private final Object calcLock = new Object();
-
-    private static final TCalcTransport PHONY_CALCULATING_TRANSPORT = new TCalcTransport();
-    private static final TProtocol PHONY_CALCULATING_PROTOCOL =
-            new TCompactProtocol.Factory().getProtocol(PHONY_CALCULATING_TRANSPORT);
+    private final static ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
+            ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
     private int maxProcessorWaitUntilFlushMillis;
 
@@ -163,15 +161,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         metricBatch.setCommonTags(commonTags);
         metricBatch.setMetrics(new ArrayList<Metric>());
 
-        int size;
-
-        try {
-            metricBatch.write(PHONY_CALCULATING_PROTOCOL);
-            size = PHONY_CALCULATING_TRANSPORT.getSizeAndReset();
-        } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: {}", DEFAULT_METRIC_SIZE);
-            size = DEFAULT_METRIC_SIZE;
-        }
+        int size = PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metricBatch);
 
         int numOverheadBytes = EMIT_METRIC_BATCH_OVERHEAD + size;
 
@@ -260,18 +250,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return metricTag;
     }
 
-    private int calculateSize(Metric metric) {
-        try {
-            synchronized (calcLock) {
-                metric.write(PHONY_CALCULATING_PROTOCOL);
-                return PHONY_CALCULATING_TRANSPORT.getSizeAndReset();
-            }
-        } catch (TException e) {
-            LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
-            return DEFAULT_METRIC_SIZE;
-        }
-    }
-
     private String valueBucketString(double bucketBound) {
         if (bucketBound == Double.MAX_VALUE) {
             return "infinity";
@@ -315,7 +293,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     @Override
@@ -328,7 +306,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     @Override
@@ -437,7 +415,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, calculateSize(metric)));
+        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metric)));
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricValue metricValue) {
@@ -556,6 +534,27 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             pendingMetrics.clear();
             metricsSize = 0;
+        }
+    }
+
+    /**
+     * This class provides the facility to calculate the size of the payload serialized through {@link TCompactProtocol},
+     * using phony {@link TCalcTransport} as a measurer
+     */
+    @NotThreadSafe
+    private static class SerializedPayloadSizeEstimator {
+        private final TCalcTransport calculatingPhonyTransport = new TCalcTransport();
+        private final TProtocol calculatingPhonyProtocol =
+                new TCompactProtocol.Factory().getProtocol(calculatingPhonyTransport);
+
+        public int calculateSize(TBase<?, ?> metric) {
+            try {
+                metric.write(calculatingPhonyProtocol);
+                return calculatingPhonyTransport.getSizeAndReset();
+            } catch (TException e) {
+                LOG.warn("Unable to calculate metric batch size. Defaulting to: " + DEFAULT_METRIC_SIZE);
+                return DEFAULT_METRIC_SIZE;
+            }
         }
     }
 

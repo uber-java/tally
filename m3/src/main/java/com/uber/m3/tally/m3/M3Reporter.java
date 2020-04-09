@@ -20,12 +20,24 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.tally.*;
+import com.uber.m3.tally.BucketPair;
+import com.uber.m3.tally.BucketPairImpl;
+import com.uber.m3.tally.Buckets;
+import com.uber.m3.tally.Capabilities;
+import com.uber.m3.tally.CapableOf;
+import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.tally.m3.thrift.TMultiUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpTransport;
-import com.uber.m3.thrift.gen.*;
+import com.uber.m3.thrift.gen.CountValue;
+import com.uber.m3.thrift.gen.GaugeValue;
+import com.uber.m3.thrift.gen.M3;
+import com.uber.m3.thrift.gen.Metric;
+import com.uber.m3.thrift.gen.MetricBatch;
+import com.uber.m3.thrift.gen.MetricTag;
+import com.uber.m3.thrift.gen.MetricValue;
+import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.apache.http.annotation.NotThreadSafe;
@@ -163,7 +175,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private int calculatePayloadCapacity(int maxPacketSizeBytes, Set<MetricTag> commonTags) {
         MetricBatch metricBatch = new MetricBatch();
         metricBatch.setCommonTags(commonTags);
-        metricBatch.setMetrics(new ArrayList<Metric>());
+        metricBatch.setMetrics(new ArrayList<>());
 
         int size = PAYLOAD_SIZE_ESTIMATOR.get().calculateSize(metricBatch);
 

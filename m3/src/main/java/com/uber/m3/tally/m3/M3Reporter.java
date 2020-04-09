@@ -56,13 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
@@ -94,6 +88,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final int EMIT_METRIC_BATCH_OVERHEAD = 19;
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
 
+    private static final int NUM_PROCESSORS = 1;
+
     private M3.Client client;
 
     // calcLock protects both calc and calcProtocol
@@ -113,9 +109,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private final BlockingQueue<SizedMetric> metricQueue;
     // The service used to execute metric flushes
     private ExecutorService executor;
-    // Used to keep track of how many processors are in progress in
-    // order to wait for them to finish before closing
-    private Phaser phaser = new Phaser(1);
+
+    // This is a synchronization barrier to make sure that reporter
+    // is being shutdown only after all of its processor had done so
+    private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
     private TTransport transport;
 
@@ -152,7 +149,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             executor = builder.executor;
 
-            addAndRunProcessor(builder.metricTagSet);
+            for (int i = 0; i < NUM_PROCESSORS; ++i) {
+                addAndRunProcessor(builder.metricTagSet);
+            }
         } catch (TTransportException | SocketException e) {
             throw new RuntimeException("Exception creating M3Reporter", e);
         }
@@ -194,8 +193,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void addAndRunProcessor(Set<MetricTag> commonTags) {
-        phaser.register();
-
         executor.execute(new Processor(commonTags));
     }
 
@@ -243,19 +240,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         // thread(s) or else they will block forever
         executor.shutdownNow();
 
-        // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
-        // to return from flushing
         try {
-            phaser.awaitAdvanceInterruptibly(
-                phaser.arrive(),
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS,
-                TimeUnit.MILLISECONDS
-            );
-        } catch (TimeoutException e) {
-            LOG.warn(
-                "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
-                MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
-            );
+            // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
+            // to complete
+            if (!shutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
+                LOG.warn(
+                        "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
+                        MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+                );
+            }
         } catch (InterruptedException e) {
             LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
@@ -527,9 +520,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 // Don't care if we get interrupted - the finally block will clean up
             } finally {
                 flushRemainingMetrics();
-
-                // Always arrive at phaser to prevent deadlock
-                phaser.arrive();
+                // Count down shutdown latch to notify reporter
+                shutdownLatch.countDown();
             }
         }
 

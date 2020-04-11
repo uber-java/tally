@@ -93,7 +93,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int DEFAULT_METRIC_SIZE = 100;
     private static final int DEFAULT_MAX_QUEUE_SIZE = 4096;
-    private static final int DEFAULT_MAX_PACKET_SIZE = TUdpTransport.UDP_DATA_PAYLOAD_MAX_SIZE;
+    private static final int DEFAULT_MAX_PACKET_SIZE = TUdpTransport.PACKET_DATA_PAYLOAD_MAX_SIZE;
 
     private static final int EMIT_METRIC_BATCH_OVERHEAD = 19;
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;

@@ -51,16 +51,6 @@ public class MockM3Service implements M3.Iface {
         }
     }
 
-    public List<Metric> getMetrics() {
-        lock.readLock().lock();
-
-        try {
-            return metrics;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
     @Override
     public void emitMetricBatch(MetricBatch batch) throws TTransportException {
         lock.writeLock().lock();
@@ -74,7 +64,5 @@ public class MockM3Service implements M3.Iface {
         }
 
         lock.writeLock().unlock();
-
-        throw new TTransportException(TTransportException.END_OF_FILE, "complete");
     }
 }

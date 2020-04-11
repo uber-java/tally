@@ -496,7 +496,10 @@ public class M3ReporterTest {
 
     @Test
     public void testSinglePacketPayloadOverflow() throws InterruptedException {
-        int expectedMetricsCount = 3_000;
+        // NOTE: Every metric emitted in this test is taking about 22 bytes,
+        //       therefore 5000 of those should occupy at least 110_000 bytes of the payload
+        //       which should be split across 2 UDP datagrams with the current configuration
+        int expectedMetricsCount = 5_000;
 
         final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress);
 
@@ -506,19 +509,22 @@ public class M3ReporterTest {
         // NOTE: We're using default max packet size
         M3Reporter reporter = new M3Reporter.Builder(socketAddress)
                 .service("test-service")
-                .includeHost(true)
-                .commonTags(DEFAULT_TAGS)
+                .commonTags(
+                        ImmutableMap.of("env", "test")
+                )
                 // Effectively disable time-based flushing to only keep
                 // size-based one
                 .maxProcessorWaitUntilFlushMillis(1_000_000)
                 .build();
 
-        ImmutableMap<String, String> tags =
-                new ImmutableMap.Builder<String, String>(2)
-                    .build();
+        ImmutableMap<String, String> emptyTags =
+                new ImmutableMap.Builder<String, String>(0).build();
 
         for (int i = 0; i < expectedMetricsCount; ++i) {
-            reporter.reportCounter("my-counter", tags, 10);
+            // NOTE: The goal is to minimize the metric size, to make sure
+            //       they're granular enough to detect any transport/reporter configuration
+            //       inconsistencies
+            reporter.reportCounter("c", emptyTags, 1);
         }
 
         // Make sure reporter is flushed

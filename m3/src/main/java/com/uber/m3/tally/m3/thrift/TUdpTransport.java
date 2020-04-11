@@ -36,10 +36,10 @@ import java.nio.ByteBuffer;
  */
 public abstract class TUdpTransport extends TTransport implements AutoCloseable {
     // NOTE: This is the maximum size of a single UDP packet's payload in IPv4
-    //       which is set at 65,535, we reserve 1024 byte of buffering for various
+    //       which is set at 65,535, we reserve 512 byte of buffering for various
     //       network configurations therefore setting payload size to be no more than:
-    //       65535 - 1024 = 64511 bytes
-    public static final int PACKET_DATA_PAYLOAD_MAX_SIZE = 64511;
+    //       65535 - 512 = 65023 bytes
+    public static final int PACKET_DATA_PAYLOAD_MAX_SIZE = 65023;
 
     protected final Object sendLock = new Object();
 

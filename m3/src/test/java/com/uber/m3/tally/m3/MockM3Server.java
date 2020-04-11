@@ -31,9 +31,13 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MockM3Server {
+    private static final Duration MAX_WAIT_TIMEOUT = Duration.ofSeconds(30);
+
     private final CountDownLatch expectedMetricsLatch;
 
     private TProcessor processor;
@@ -78,7 +82,7 @@ public class MockM3Server {
     }
 
     public void awaitAndClose() throws InterruptedException {
-        expectedMetricsLatch.await();
+        expectedMetricsLatch.await(MAX_WAIT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
         transport.close();
     }
 

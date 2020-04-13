@@ -69,7 +69,7 @@ public class TUdpClientTest {
         DatagramPacket sentPacket = argCaptor.getValue();
 
         // Validate that outgoing buffer is of `TUdpClient.UDP_DATA_PAYLOAD_MAX_SIZE` size
-        Assert.assertEquals(TUdpClient.UDP_DATA_PAYLOAD_MAX_SIZE, sentPacket.getData().length);
+        Assert.assertEquals(TUdpClient.PACKET_DATA_PAYLOAD_MAX_SIZE, sentPacket.getData().length);
 
         // Validate actual data being written to the socket
         Assert.assertEquals(expectedPayload.length, sentPacket.getLength());

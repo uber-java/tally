@@ -36,8 +36,10 @@ import java.nio.ByteBuffer;
  */
 public abstract class TUdpTransport extends TTransport implements AutoCloseable {
     // NOTE: This is the maximum size of a single UDP packet's payload in IPv4
-    //       which is set at 65,535 = 8 bytes (header) + 65,527 bytes (data)
-    public static final int UDP_DATA_PAYLOAD_MAX_SIZE = 65527;
+    //       which is set at 65,535, we reserve 512 byte of buffering for various
+    //       network configurations therefore setting payload size to be no more than:
+    //       65535 - 512 = 65023 bytes
+    public static final int PACKET_DATA_PAYLOAD_MAX_SIZE = 65023;
 
     protected final Object sendLock = new Object();
 
@@ -57,8 +59,8 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         this.socketAddress = socketAddress;
         this.socket = socket;
 
-        this.writeBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
-        this.receiveBuffer = ByteBuffer.allocate(UDP_DATA_PAYLOAD_MAX_SIZE);
+        this.writeBuffer = ByteBuffer.allocate(PACKET_DATA_PAYLOAD_MAX_SIZE);
+        this.receiveBuffer = ByteBuffer.allocate(PACKET_DATA_PAYLOAD_MAX_SIZE);
 
         // Resets receiving buffer to 0, to make sure it isn't readable
         // until it would be first written
@@ -92,7 +94,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
             if (!receiveBuffer.hasRemaining()) {
                 // Use ByteBuffer's backing array and manually set the position and limit to
                 // avoid having to re-copy contents to a new array via `get`
-                DatagramPacket packet = new DatagramPacket(receiveBuffer.array(), UDP_DATA_PAYLOAD_MAX_SIZE);
+                DatagramPacket packet = new DatagramPacket(receiveBuffer.array(), PACKET_DATA_PAYLOAD_MAX_SIZE);
 
                 try {
                     socket.receive(packet);
@@ -119,11 +121,11 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         }
 
         synchronized (sendLock) {
-            if (writeBuffer.position() + length > UDP_DATA_PAYLOAD_MAX_SIZE) {
+            if (writeBuffer.position() + length > PACKET_DATA_PAYLOAD_MAX_SIZE) {
                 throw new TTransportException(
                     String.format("Message size too large: %d is greater than available size %d",
                         length,
-                        UDP_DATA_PAYLOAD_MAX_SIZE - writeBuffer.position()
+                        PACKET_DATA_PAYLOAD_MAX_SIZE - writeBuffer.position()
                     )
                 );
             }

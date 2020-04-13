@@ -24,7 +24,13 @@ import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.DurationBuckets;
 import com.uber.m3.tally.ValueBuckets;
-import com.uber.m3.thrift.gen.*;
+import com.uber.m3.thrift.gen.CountValue;
+import com.uber.m3.thrift.gen.GaugeValue;
+import com.uber.m3.thrift.gen.Metric;
+import com.uber.m3.thrift.gen.MetricBatch;
+import com.uber.m3.thrift.gen.MetricTag;
+import com.uber.m3.thrift.gen.MetricValue;
+import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.junit.BeforeClass;
@@ -38,15 +44,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class M3ReporterTest {
     private static double EPSILON = 1e-9;
 
     private static SocketAddress socketAddress;
-
-    private static final int MAX_QUEUE_SIZE = 1000;
-    private static final int MAX_PACKET_SIZE_BYTES = 1440;
 
     private static final ImmutableMap<String, String> DEFAULT_TAGS =
         ImmutableMap.of(
@@ -90,8 +96,6 @@ public class M3ReporterTest {
                 .service("test-service")
                 .commonTags(commonTags)
                 .includeHost(true)
-                .maxQueueSize(MAX_QUEUE_SIZE)
-                .maxPacketSizeBytes(MAX_PACKET_SIZE_BYTES)
                 .build();
 
             ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>(2)
@@ -239,8 +243,6 @@ public class M3ReporterTest {
         M3Reporter reporter = new M3Reporter.Builder(socketAddress)
             .service("test-service")
             .commonTags(DEFAULT_TAGS)
-            .maxQueueSize(MAX_QUEUE_SIZE)
-            .maxPacketSizeBytes(MAX_PACKET_SIZE_BYTES)
             .build();
 
         reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
@@ -271,8 +273,6 @@ public class M3ReporterTest {
             M3Reporter reporter = new M3Reporter.Builder(socketAddress)
                 .service("test-service")
                 .commonTags(DEFAULT_TAGS)
-                .maxQueueSize(MAX_QUEUE_SIZE)
-                .maxPacketSizeBytes(MAX_PACKET_SIZE_BYTES)
                 .build();
 
             reporter.close();
@@ -300,8 +300,6 @@ public class M3ReporterTest {
         M3Reporter reporter = new M3Reporter.Builder(socketAddress)
             .service("test-service")
             .commonTags(DEFAULT_TAGS)
-            .maxQueueSize(MAX_QUEUE_SIZE)
-            .maxPacketSizeBytes(MAX_PACKET_SIZE_BYTES)
             .build();
 
         Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(25), 5);
@@ -401,8 +399,6 @@ public class M3ReporterTest {
             M3Reporter reporter = new M3Reporter.Builder(socketAddress)
                 .service("test-service")
                 .commonTags(DEFAULT_TAGS)
-                .maxQueueSize(MAX_QUEUE_SIZE)
-                .maxPacketSizeBytes(MAX_PACKET_SIZE_BYTES)
                 .build();
 
             Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
@@ -496,5 +492,59 @@ public class M3ReporterTest {
             .build();
 
         assertEquals(CapableOf.REPORTING_TAGGING, reporter.capabilities());
+    }
+
+    @Test
+    public void testSinglePacketPayloadOverflow() throws InterruptedException {
+        // NOTE: Every metric emitted in this test is taking about 22 bytes,
+        //       therefore 5000 of those should occupy at least 110_000 bytes of the payload
+        //       which should be split across 2 UDP datagrams with the current configuration
+        int expectedMetricsCount = 5_000;
+
+        final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress);
+
+        Thread serverThread = new Thread(server::serve);
+        serverThread.start();
+
+        // NOTE: We're using default max packet size
+        M3Reporter reporter = new M3Reporter.Builder(socketAddress)
+                .service("test-service")
+                .commonTags(
+                        ImmutableMap.of("env", "test")
+                )
+                // Effectively disable time-based flushing to only keep
+                // size-based one
+                .maxProcessorWaitUntilFlushMillis(1_000_000)
+                .build();
+
+        ImmutableMap<String, String> emptyTags =
+                new ImmutableMap.Builder<String, String>(0).build();
+
+        for (int i = 0; i < expectedMetricsCount; ++i) {
+            // NOTE: The goal is to minimize the metric size, to make sure
+            //       they're granular enough to detect any transport/reporter configuration
+            //       inconsistencies
+            reporter.reportCounter("c", emptyTags, 1);
+        }
+
+        // Make sure reporter is flushed
+        reporter.flush();
+
+        // Shutdown both reporter and server
+        reporter.close();
+        server.awaitAndClose();
+
+        List<MetricBatch> batches = server.getService().getBatches();
+
+        int totalMetrics = 0;
+
+        // Validate that all metrics had been received
+        for (MetricBatch batch : batches) {
+            assertNotNull(batch);
+
+            totalMetrics += batch.metrics.size();
+        }
+
+        assertEquals(totalMetrics, expectedMetricsCount);
     }
 }

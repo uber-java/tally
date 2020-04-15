@@ -169,6 +169,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 addAndRunProcessor();
             }
         } catch (TTransportException | SocketException e) {
+            if (transport != null) {
+                transport.close();
+            }
             throw new RuntimeException("Exception creating M3Reporter", e);
         }
     }

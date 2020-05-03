@@ -36,9 +36,9 @@ public class StatsdReporter implements StatsReporter {
     private static final int DEFAULT_SAMPLE_RATE = 1;
     private static final int DEFAULT_HISTOGRAM_BUCKET_NAME_PRECISION = 6;
 
-    private StatsDClient statsdClient;
-    private double sampleRate;
-    private String bucketFmt;
+    private final StatsDClient statsdClient;
+    private final double sampleRate;
+    private final String bucketFmt;
 
     /**
      * Create a StatsD reporter

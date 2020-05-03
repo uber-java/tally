@@ -29,10 +29,10 @@ import java.util.Map;
  * Default implementation of a {@link HistogramSnapshot}.
  */
 class HistogramSnapshotImpl implements HistogramSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private Map<Double, Long> values;
-    private Map<Duration, Long> durations;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final Map<Double, Long> values;
+    private final Map<Duration, Long> durations;
 
     HistogramSnapshotImpl(
         String name,

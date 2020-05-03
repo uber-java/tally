@@ -32,7 +32,10 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.stream.Stream;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class TUdpClientTest {
 
@@ -43,9 +46,9 @@ public class TUdpClientTest {
         TUdpClient client = createUdpClient(mockedSocket);
 
         byte[][] payloads =
-                Stream.of("0xDEEDDEED", "0xABBAABBA")
-                    .map(p -> p.getBytes(Charsets.US_ASCII))
-                    .toArray(byte[][]::new);
+            Stream.of("0xDEEDDEED", "0xABBAABBA")
+                .map(p -> p.getBytes(Charsets.US_ASCII))
+                .toArray(byte[][]::new);
 
         for (byte[] writtenBytes : payloads) {
             client.write(writtenBytes);
@@ -64,7 +67,7 @@ public class TUdpClientTest {
         ArgumentCaptor<DatagramPacket> argCaptor = ArgumentCaptor.forClass(DatagramPacket.class);
 
         verify(mockedSocket, times(1))
-                .send(argCaptor.capture());
+            .send(argCaptor.capture());
 
         DatagramPacket sentPacket = argCaptor.getValue();
 
@@ -75,8 +78,8 @@ public class TUdpClientTest {
         Assert.assertEquals(expectedPayload.length, sentPacket.getLength());
         Assert.assertEquals(0, sentPacket.getOffset());
         Assert.assertEquals(
-                new String(expectedPayload, Charsets.US_ASCII),
-                new String(sentPacket.getData(), sentPacket.getOffset(), sentPacket.getLength(), Charsets.US_ASCII)
+            new String(expectedPayload, Charsets.US_ASCII),
+            new String(sentPacket.getData(), sentPacket.getOffset(), sentPacket.getLength(), Charsets.US_ASCII)
         );
     }
 

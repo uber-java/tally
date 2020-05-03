@@ -34,10 +34,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Default implementation of a {@link Timer}.
  */
 class TimerImpl implements Timer, StopwatchRecorder {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private StatsReporter reporter;
-    private Values unreported = new Values();
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final StatsReporter reporter;
+    private final Values unreported = new Values();
 
     TimerImpl(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
         this.name = name;
@@ -89,7 +89,7 @@ class TimerImpl implements Timer, StopwatchRecorder {
         // instead as this separation is not needed e.g. we only lock a
         // ConcurrentHashMap when doing writes and not for reads.
         private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
-        private List<Duration> values = new ArrayList<>();
+        private final List<Duration> values = new ArrayList<>();
 
         Lock readLock() {
             return rwlock.readLock();

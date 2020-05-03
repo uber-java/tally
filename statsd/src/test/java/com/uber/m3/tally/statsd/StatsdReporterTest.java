@@ -34,7 +34,7 @@ import java.util.HashSet;
 import static org.junit.Assert.assertEquals;
 
 public class StatsdReporterTest {
-    private final int PORT = 4434;
+    private static final int PORT = 4434;
 
     private StatsDClient statsd;
     private StatsdReporter reporter;

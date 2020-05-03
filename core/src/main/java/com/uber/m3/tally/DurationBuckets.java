@@ -47,7 +47,7 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
 
     @Override
     public Duration[] asDurations() {
-        return buckets.toArray(new Duration[buckets.size()]);
+        return buckets.toArray(new Duration[0]);
     }
 
     /**
@@ -106,7 +106,6 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
 
     /**
      * Allows to create bucket with finer bucket creation control
-     *
      * @param sortedDurations sorted values (ascending) of upper bound of the buckets
      * @return {@link DurationBuckets} of the specified parameters
      */

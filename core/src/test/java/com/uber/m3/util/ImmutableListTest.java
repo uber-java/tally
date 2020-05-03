@@ -48,7 +48,7 @@ public class ImmutableListTest {
     public void size() {
         assertEquals(2, list.size());
 
-        list = new ImmutableList<>(new ArrayList<String>(0));
+        list = new ImmutableList<>(new ArrayList<>(0));
 
         assertEquals(0, list.size());
     }
@@ -57,7 +57,7 @@ public class ImmutableListTest {
     public void isEmpty() {
         assertFalse(list.isEmpty());
 
-        list = new ImmutableList<>(new ArrayList<String>(0));
+        list = new ImmutableList<>(new ArrayList<>(0));
 
         assertTrue(list.isEmpty());
     }
@@ -202,13 +202,13 @@ public class ImmutableListTest {
         helperList.add("zz");
         ImmutableList<String> differentList = new ImmutableList<>(helperList);
 
-        assertTrue(list.equals(sameList));
+        assertEquals(list, sameList);
         assertEquals(list.hashCode(), sameList.hashCode());
-        assertFalse(list.equals(differentList));
+        assertNotEquals(list, differentList);
         assertNotEquals(list.hashCode(), differentList.hashCode());
 
-        assertFalse(list.equals(null));
-        assertTrue(list.equals(list));
-        assertFalse(list.equals(1));
+        assertNotEquals(null, list);
+        assertEquals(list, list);
+        assertNotEquals(1, list);
     }
 }

@@ -40,9 +40,9 @@ public class MockM3Server {
 
     private final CountDownLatch expectedMetricsLatch;
 
-    private TProcessor processor;
-    private TTransport transport;
-    private MockM3Service service;
+    private final TProcessor processor;
+    private final TTransport transport;
+    private final MockM3Service service;
 
     public MockM3Server(
         int expectedMetricsCount,

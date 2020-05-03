@@ -21,13 +21,13 @@
 package com.uber.m3.tally.example;
 
 import com.uber.m3.tally.Counter;
-import com.uber.m3.tally.ScopeCloseException;
-import com.uber.m3.util.Duration;
 import com.uber.m3.tally.Gauge;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.ScopeCloseException;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Timer;
+import com.uber.m3.util.Duration;
 
 /**
  * PrintStatsReporterExample usage with a PrintStatsReporter reporting synthetically emitted metrics

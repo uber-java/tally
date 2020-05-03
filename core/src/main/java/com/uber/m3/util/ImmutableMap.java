@@ -29,7 +29,7 @@ import java.util.Map;
  * @param <V> the value type
  */
 public class ImmutableMap<K, V> implements Map<K, V> {
-    public static final ImmutableMap EMPTY = new ImmutableMap();
+    public static final ImmutableMap<?, ?> EMPTY = new ImmutableMap<>();
 
     private final HashMap<K, V> map;
 
@@ -183,7 +183,7 @@ public class ImmutableMap<K, V> implements Map<K, V> {
             return false;
         }
 
-        return map.equals(((ImmutableMap) other).map);
+        return map.equals(((ImmutableMap<?, ?>) other).map);
     }
 
     @Override
@@ -202,7 +202,7 @@ public class ImmutableMap<K, V> implements Map<K, V> {
      * @param <V> the value type
      */
     public static class Builder<K, V> {
-        private HashMap<K, V> map;
+        private final HashMap<K, V> map;
 
         public Builder() {
             this(16, 0.75f);

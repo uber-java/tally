@@ -20,12 +20,12 @@
 
 package com.uber.m3.tally;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class NoopScopeTest {
 
@@ -35,14 +35,14 @@ public class NoopScopeTest {
         Counter noopCounter1 = noopScope.counter("test1");
         Counter noopCounter2 = noopScope.counter("test2");
         Assert.assertThat(
-                "same noop counter returned",
-                noopCounter1 == noopCounter2,
-                CoreMatchers.equalTo(true)
+            "same noop counter returned",
+            noopCounter1 == noopCounter2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop counter",
-                noopCounter1 == NoopScope.NOOP_COUNTER,
-                CoreMatchers.equalTo(true)
+            "noop counter",
+            noopCounter1 == NoopScope.NOOP_COUNTER,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -52,14 +52,14 @@ public class NoopScopeTest {
         Gauge noopGauge1 = noopScope.gauge("test1");
         Gauge noopGauge2 = noopScope.gauge("test2");
         Assert.assertThat(
-                "same noop gauge returned",
-                noopGauge1 == noopGauge2,
-                CoreMatchers.equalTo(true)
+            "same noop gauge returned",
+            noopGauge1 == noopGauge2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop gauge",
-                noopGauge1 == NoopScope.NOOP_GAUGE,
-                CoreMatchers.equalTo(true)
+            "noop gauge",
+            noopGauge1 == NoopScope.NOOP_GAUGE,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -69,19 +69,19 @@ public class NoopScopeTest {
         Timer noopTimer1 = noopScope.timer("test1");
         Timer noopTimer2 = noopScope.timer("test2");
         Assert.assertThat(
-                "same noop timer returned",
-                noopTimer1 == noopTimer2,
-                CoreMatchers.equalTo(true)
+            "same noop timer returned",
+            noopTimer1 == noopTimer2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop timer",
-                noopTimer1 == NoopScope.NOOP_TIMER,
-                CoreMatchers.equalTo(true)
+            "noop timer",
+            noopTimer1 == NoopScope.NOOP_TIMER,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop stopwatch",
-                noopTimer1.start() == NoopScope.NOOP_STOPWATCH,
-                CoreMatchers.equalTo(true)
+            "noop stopwatch",
+            noopTimer1.start() == NoopScope.NOOP_STOPWATCH,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -92,14 +92,14 @@ public class NoopScopeTest {
         Histogram noopHistogram2 = noopScope.histogram("test2", ValueBuckets.custom(4, 5, 6));
 
         Assert.assertThat(
-                "same noop histogram returned",
-                noopHistogram1 == noopHistogram2,
-                CoreMatchers.equalTo(true)
+            "same noop histogram returned",
+            noopHistogram1 == noopHistogram2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop histogram",
-                noopHistogram1 == NoopScope.NOOP_HISTOGRAM,
-                CoreMatchers.equalTo(true)
+            "noop histogram",
+            noopHistogram1 == NoopScope.NOOP_HISTOGRAM,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -109,14 +109,14 @@ public class NoopScopeTest {
         Capabilities noopCapabilities1 = noopScope.capabilities();
         Capabilities noopCapabilities2 = noopScope.capabilities();
         Assert.assertThat(
-                "same noop capabilities returned",
-                noopCapabilities1 == noopCapabilities2,
-                CoreMatchers.equalTo(true)
+            "same noop capabilities returned",
+            noopCapabilities1 == noopCapabilities2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat(
-                "noop capabilities",
-                noopCapabilities1 == NoopScope.NOOP_CAPABILITIES,
-                CoreMatchers.equalTo(true)
+            "noop capabilities",
+            noopCapabilities1 == NoopScope.NOOP_CAPABILITIES,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -126,12 +126,12 @@ public class NoopScopeTest {
         Scope noopScope1 = noopScope.subScope("test1");
         Scope noopScope2 = noopScope.subScope("test2");
         Assert.assertThat("same noop scope returned",
-                noopScope1 == noopScope2,
-                CoreMatchers.equalTo(true)
+            noopScope1 == noopScope2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat("noop scope returned",
-                noopScope1 == noopScope,
-                CoreMatchers.equalTo(true)
+            noopScope1 == noopScope,
+            CoreMatchers.equalTo(true)
         );
     }
 
@@ -149,12 +149,12 @@ public class NoopScopeTest {
         Scope noopScope1 = noopScope.tagged(tagMap1);
         Scope noopScope2 = noopScope.tagged(tagMap2);
         Assert.assertThat("same noop scope returned",
-                noopScope1 == noopScope2,
-                CoreMatchers.equalTo(true)
+            noopScope1 == noopScope2,
+            CoreMatchers.equalTo(true)
         );
         Assert.assertThat("noop scope returned",
-                noopScope1 == noopScope,
-                CoreMatchers.equalTo(true)
+            noopScope1 == noopScope,
+            CoreMatchers.equalTo(true)
         );
     }
 }

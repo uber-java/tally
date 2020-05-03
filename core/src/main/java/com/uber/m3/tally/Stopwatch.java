@@ -27,8 +27,8 @@ package com.uber.m3.tally;
  * of the stopwatch are comparable with one another.
  */
 public class Stopwatch {
-    private long startNanos;
-    private StopwatchRecorder recorder;
+    private final long startNanos;
+    private final StopwatchRecorder recorder;
 
     /**
      * Creates a stopwatch.

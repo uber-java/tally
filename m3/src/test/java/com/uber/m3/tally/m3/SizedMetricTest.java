@@ -24,6 +24,7 @@ import com.uber.m3.thrift.gen.Metric;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class SizedMetricTest {
     @Test
@@ -40,7 +41,7 @@ public class SizedMetricTest {
     public void nullSizedMetric() {
         SizedMetric sizedMetric = new SizedMetric(null, 9);
 
-        assertEquals(sizedMetric.getMetric(), null);
+        assertNull(sizedMetric.getMetric());
         assertEquals(sizedMetric.getSize(), 9);
     }
 

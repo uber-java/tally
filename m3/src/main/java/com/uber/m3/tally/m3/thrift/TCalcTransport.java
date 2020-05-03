@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Dummy transport used for calculating size of metrics only.
  */
 public class TCalcTransport extends TTransport {
-    private AtomicInteger size = new AtomicInteger(0);
+    private final AtomicInteger size = new AtomicInteger(0);
 
     /**
      * Dummy override to satisfy interface. Not used for our purposes.

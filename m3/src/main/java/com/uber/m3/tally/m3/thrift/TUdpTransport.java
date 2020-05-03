@@ -52,7 +52,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     private final Object receiveLock = new Object();
 
     @GuardedBy("receiveLock")
-    private ByteBuffer receiveBuffer;
+    private final ByteBuffer receiveBuffer;
 
     // NOTE: This is used in tests
     TUdpTransport(SocketAddress socketAddress, DatagramSocket socket) {

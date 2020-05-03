@@ -20,21 +20,21 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+import org.hamcrest.CoreMatchers;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
-
-import com.uber.m3.util.Duration;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class DurationBucketsTest {
     @Test
@@ -44,7 +44,7 @@ public class DurationBucketsTest {
         assertFalse(buckets.isEmpty());
         assertTrue(buckets.contains(Duration.ofMillis(120)));
 
-        for (Iterator iter : new Iterator[]{buckets.iterator(), buckets.listIterator()}) {
+        for (Iterator<?> iter : new Iterator[]{buckets.iterator(), buckets.listIterator()}) {
             for (int i = 0; i < buckets.size(); i++) {
                 assertEquals(Duration.ofMillis(100 + 10 * i), iter.next());
             }
@@ -135,7 +135,7 @@ public class DurationBucketsTest {
             Duration.ofNanos(1000)
         });
 
-        Double[] expectedBuckets = new Double[] {
+        Double[] expectedBuckets = new Double[]{
             10d / Duration.NANOS_PER_SECOND,
             30d / Duration.NANOS_PER_SECOND,
             55d / Duration.NANOS_PER_SECOND,
@@ -209,26 +209,26 @@ public class DurationBucketsTest {
     @Test
     public void custom() {
         DurationBuckets expectedBuckets = new DurationBuckets(
-                new Duration[] {
-                        Duration.ofMillis(1),
-                        Duration.ofMillis(2),
-                        Duration.ofMillis(3),
-                        Duration.ofMillis(5),
-                        Duration.ofMillis(7),
-                        Duration.ofMillis(10),
-                }
+            new Duration[]{
+                Duration.ofMillis(1),
+                Duration.ofMillis(2),
+                Duration.ofMillis(3),
+                Duration.ofMillis(5),
+                Duration.ofMillis(7),
+                Duration.ofMillis(10),
+            }
         );
 
         assertThat("custom buckets are created as per our expectations",
-                DurationBuckets.custom(
-                        Duration.ofMillis(1),
-                        Duration.ofMillis(2),
-                        Duration.ofMillis(3),
-                        Duration.ofMillis(5),
-                        Duration.ofMillis(7),
-                        Duration.ofMillis(10)
-                ),
-                CoreMatchers.equalTo(expectedBuckets));
+            DurationBuckets.custom(
+                Duration.ofMillis(1),
+                Duration.ofMillis(2),
+                Duration.ofMillis(3),
+                Duration.ofMillis(5),
+                Duration.ofMillis(7),
+                Duration.ofMillis(10)
+            ),
+            CoreMatchers.equalTo(expectedBuckets));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -239,9 +239,9 @@ public class DurationBucketsTest {
     @Test(expected = IllegalArgumentException.class)
     public void customFailWithUnsortedBuckets() {
         DurationBuckets.custom(
-                Duration.ofMillis(1),
-                Duration.ofMillis(3),
-                Duration.ofMillis(2)
+            Duration.ofMillis(1),
+            Duration.ofMillis(3),
+            Duration.ofMillis(2)
         );
     }
 
@@ -262,10 +262,10 @@ public class DurationBucketsTest {
         DurationBuckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofSeconds(10), 3);
         DurationBuckets sameBuckets = DurationBuckets.linear(Duration.ZERO, Duration.ofSeconds(10), 3);
 
-        assertTrue(buckets.equals(sameBuckets));
+        assertEquals(buckets, sameBuckets);
         assertEquals(buckets.hashCode(), sameBuckets.hashCode());
 
-        assertFalse(buckets.equals(null));
-        assertFalse(buckets.equals(9));
+        assertNotEquals(null, buckets);
+        assertNotEquals(9, buckets);
     }
 }

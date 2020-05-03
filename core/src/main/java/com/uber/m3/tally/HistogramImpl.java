@@ -33,13 +33,13 @@ import java.util.Map;
  * Default implementation of a {@link Histogram}.
  */
 class HistogramImpl implements Histogram, StopwatchRecorder {
-    private Type type;
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private Buckets specification;
-    private List<HistogramBucket> buckets;
-    private List<Double> lookupByValue;
-    private List<Duration> lookupByDuration;
+    private final Type type;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets specification;
+    private final List<HistogramBucket> buckets;
+    private final List<Double> lookupByValue;
+    private final List<Duration> lookupByDuration;
 
     HistogramImpl(
         String name,
@@ -186,7 +186,7 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
     }
 
-    class HistogramBucket {
+    static class HistogramBucket {
         CounterImpl samples;
         double valueLowerBound;
         double valueUpperBound;

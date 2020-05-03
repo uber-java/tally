@@ -50,15 +50,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class M3ReporterTest {
-    private static double EPSILON = 1e-9;
-
-    private static SocketAddress socketAddress;
+    private static final double EPSILON = 1e-9;
 
     private static final ImmutableMap<String, String> DEFAULT_TAGS =
         ImmutableMap.of(
             "env", "test",
             "host", "test-host"
         );
+
+    private static SocketAddress socketAddress;
 
     @BeforeClass
     public static void setup() {
@@ -74,12 +74,7 @@ public class M3ReporterTest {
         final MockM3Server server = new MockM3Server(3, socketAddress);
         M3Reporter reporter = null;
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -231,12 +226,7 @@ public class M3ReporterTest {
     public void reporterFinalFlush() throws InterruptedException {
         final MockM3Server server = new MockM3Server(1, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         serverThread.start();
 
@@ -260,12 +250,7 @@ public class M3ReporterTest {
     public void reporterAfterCloseNoThrow() throws InterruptedException {
         final MockM3Server server = new MockM3Server(0, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -288,12 +273,7 @@ public class M3ReporterTest {
     public void reporterHistogramDurations() throws InterruptedException {
         final MockM3Server server = new MockM3Server(2, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         serverThread.start();
 
@@ -386,12 +366,7 @@ public class M3ReporterTest {
     public void reporterHistogramValues() throws InterruptedException {
         final MockM3Server server = new MockM3Server(2, socketAddress);
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
+        Thread serverThread = new Thread(server::serve);
 
         try {
             serverThread.start();
@@ -508,17 +483,17 @@ public class M3ReporterTest {
 
         // NOTE: We're using default max packet size
         M3Reporter reporter = new M3Reporter.Builder(socketAddress)
-                .service("test-service")
-                .commonTags(
-                        ImmutableMap.of("env", "test")
-                )
-                // Effectively disable time-based flushing to only keep
-                // size-based one
-                .maxProcessorWaitUntilFlushMillis(1_000_000)
-                .build();
+            .service("test-service")
+            .commonTags(
+                ImmutableMap.of("env", "test")
+            )
+            // Effectively disable time-based flushing to only keep
+            // size-based one
+            .maxProcessorWaitUntilFlushMillis(1_000_000)
+            .build();
 
         ImmutableMap<String, String> emptyTags =
-                new ImmutableMap.Builder<String, String>(0).build();
+            new ImmutableMap.Builder<String, String>(0).build();
 
         for (int i = 0; i < expectedMetricsCount; ++i) {
             // NOTE: The goal is to minimize the metric size, to make sure

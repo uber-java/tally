@@ -28,10 +28,10 @@ import java.util.Collections;
  * Default implementation of a {@link BucketPair}
  */
 public class BucketPairImpl implements BucketPair {
-    private double lowerBoundValue;
-    private double upperBoundValue;
-    private Duration lowerBoundDuration;
-    private Duration upperBoundDuration;
+    private final double lowerBoundValue;
+    private final double upperBoundValue;
+    private final Duration lowerBoundDuration;
+    private final Duration upperBoundDuration;
 
     public BucketPairImpl(
         double lowerBoundValue,

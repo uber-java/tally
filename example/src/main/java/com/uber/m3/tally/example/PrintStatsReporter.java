@@ -23,8 +23,8 @@ package com.uber.m3.tally.example;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
-import com.uber.m3.util.Duration;
 import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.util.Duration;
 
 import java.util.Map;
 

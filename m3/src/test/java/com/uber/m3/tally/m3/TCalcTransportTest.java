@@ -27,9 +27,10 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class TCalcTransportTest {
-    TCalcTransport transport;
+    private TCalcTransport transport;
 
     @Before
     public void setUp() {
@@ -50,7 +51,7 @@ public class TCalcTransportTest {
             transport.open();
         } catch (TTransportException e) {
             // Should not reach here
-            assertTrue(false);
+            fail();
         }
     }
 
@@ -66,7 +67,7 @@ public class TCalcTransportTest {
             assertEquals(0, transport.read(null, 0, 0));
         } catch (TTransportException e) {
             // Should not reach here
-            assertTrue(false);
+            fail();
         }
     }
 
@@ -99,7 +100,7 @@ public class TCalcTransportTest {
             assertEquals(0, transport.getSize());
         } catch (TTransportException e) {
             // Should not reach here
-            assertTrue(false);
+            fail();
         }
     }
 }

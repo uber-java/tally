@@ -22,36 +22,62 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.Map;
 
 /**
- * Noop implementation of Scope.
+ * NullStatsReporter is a noop implementation of StatsReporter.
  */
-public class NoopScope extends ScopeImpl {
-
-    private NoopScope(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
-        super(scheduler, registry, builder);
+public class NullStatsReporter implements StatsReporter {
+    @Override
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+        // noop
     }
 
-    /**
-     * Creates a new NoopScope.
-     */
-    public static NoopScope create() {
-        return (NoopScope) new NoopScopeBuilder()
-            .reporter(new NullStatsReporter())
-            .reportEvery(Duration.ZERO);
+    @Override
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+        // noop
     }
 
-    private static class NoopScopeBuilder extends ScopeBuilder {
+    @Override
+    public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+        // noop
+    }
 
-        public NoopScopeBuilder() {
-            super(Executors.newSingleThreadScheduledExecutor(), new ScopeImpl.Registry());
-        }
+    @Override
+    public void reportHistogramValueSamples(
+        String name, Map<String,
+        String> tags,
+        Buckets buckets,
+        double bucketLowerBound,
+        double bucketUpperBound,
+        long samples
+    ) {
+        // noop
+    }
 
-        @Override
-        ScopeImpl build() {
-            return new NoopScope(scheduler, registry, this);
-        }
+    @Override
+    public void reportHistogramDurationSamples(
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        Duration bucketLowerBound,
+        Duration bucketUpperBound, long samples
+    ) {
+        // noop
+    }
+
+    @Override
+    public Capabilities capabilities() {
+        return CapableOf.NONE;
+    }
+
+    @Override
+    public void flush() {
+        // noop
+    }
+
+    @Override
+    public void close() {
+        // noop
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Uber Technologies, Inc.
+// Copyright (c) 2017 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,38 +20,18 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.Duration;
+import org.junit.Test;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
-/**
- * Noop implementation of Scope.
- */
-public class NoopScope extends ScopeImpl {
+public class NullStatsReporterTest {
 
-    private NoopScope(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
-        super(scheduler, registry, builder);
-    }
-
-    /**
-     * Creates a new NoopScope.
-     */
-    public static NoopScope create() {
-        return (NoopScope) new NoopScopeBuilder()
-            .reporter(new NullStatsReporter())
-            .reportEvery(Duration.ZERO);
-    }
-
-    private static class NoopScopeBuilder extends ScopeBuilder {
-
-        public NoopScopeBuilder() {
-            super(Executors.newSingleThreadScheduledExecutor(), new ScopeImpl.Registry());
-        }
-
-        @Override
-        ScopeImpl build() {
-            return new NoopScope(scheduler, registry, this);
-        }
+    @Test
+    public void capabilities() {
+        NullStatsReporter reporter = new NullStatsReporter();
+        assertNotNull(reporter.capabilities());
+        assertFalse(reporter.capabilities().reporting());
+        assertFalse(reporter.capabilities().tagging());
     }
 }

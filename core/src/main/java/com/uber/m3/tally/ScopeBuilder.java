@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ScopeBuilder {
     private static final String DEFAULT_SEPARATOR = ".";
-    private static final Buckets DEFAULT_SCOPE_BUCKETS = new DurationBuckets(new Duration[] {
+    private static final Buckets DEFAULT_SCOPE_BUCKETS = new DurationBuckets(new Duration[]{
         Duration.ZERO,
         Duration.ofMillis(10),
         Duration.ofMillis(15),
@@ -56,8 +56,8 @@ public class ScopeBuilder {
     protected ImmutableMap<String, String> tags;
     protected Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
 
-    private ScheduledExecutorService scheduler;
-    private ScopeImpl.Registry registry;
+    protected final ScheduledExecutorService scheduler;
+    protected final ScopeImpl.Registry registry;
 
     // Protected constructor. Clients should use `RootScopeBuilder` and rely on `reportEvery`
     // to create root scopes, and a root scope's `tagged` and `subScope` functions to create subscopes.
@@ -144,22 +144,29 @@ public class ScopeBuilder {
     }
 
     /**
-     * Creates a root scope and starts reporting with the specified interval
+     * Creates a root scope and starts reporting with the specified interval.
+     * No reporting is done for the {@link NullStatsReporter}.
      * @param interval duration between each report
      * @param uncaughtExceptionHandler an  {@link java.lang.Thread.UncaughtExceptionHandler} that's
      *                                 called when there's an uncaught exception in the report loop
      * @return the root scope created
      */
-    public Scope reportEvery(Duration interval,
-                             Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-        if (interval.compareTo(Duration.ZERO) <= 0) {
-            throw new IllegalArgumentException("Reporting interval must be a positive Duration");
+    public Scope reportEvery(
+        Duration interval,
+        Thread.UncaughtExceptionHandler uncaughtExceptionHandler
+    ) {
+        if (reporter instanceof NullStatsReporter) {
+            interval = Duration.ZERO;
+        } else if (interval.compareTo(Duration.ZERO) <= 0) {
+            throw new IllegalArgumentException("Reporting interval must be a non-negative Duration");
         }
 
         ScopeImpl scope = build();
         registry.subscopes.put(ScopeImpl.keyForPrefixedStringMap(prefix, tags), scope);
 
-        scheduler.scheduleWithFixedDelay(scope.new ReportLoop(uncaughtExceptionHandler), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        if (interval.compareTo(Duration.ZERO) > 0) {
+            scheduler.scheduleWithFixedDelay(scope.new ReportLoop(uncaughtExceptionHandler), 0, interval.toMillis(), TimeUnit.MILLISECONDS);
+        }
 
         return scope;
     }

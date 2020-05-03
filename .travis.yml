@@ -3,9 +3,7 @@ sudo: required
 
 language: java
 
-# This project is aimed to be JRE7-compatible. However, there
-# are issues testing against oraclejdk7 in Travis:
-# https://github.com/travis-ci/travis-ci/issues/7884
+# This project is JRE8-compatible.
 jdk:
   - openjdk8
   - oraclejdk8

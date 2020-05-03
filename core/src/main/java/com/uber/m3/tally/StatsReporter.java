@@ -35,9 +35,9 @@ public interface StatsReporter extends BaseStatsReporter {
      * @param value value to report
      */
     void reportCounter(
-            String name,
-            Map<String, String> tags,
-            long value
+        String name,
+        Map<String, String> tags,
+        long value
     );
 
     /**
@@ -47,9 +47,9 @@ public interface StatsReporter extends BaseStatsReporter {
      * @param value value to report
      */
     void reportGauge(
-            String name,
-            Map<String, String> tags,
-            double value
+        String name,
+        Map<String, String> tags,
+        double value
     );
 
     /**
@@ -59,9 +59,9 @@ public interface StatsReporter extends BaseStatsReporter {
      * @param interval interval to report
      */
     void reportTimer(
-            String name,
-            Map<String, String> tags,
-            Duration interval
+        String name,
+        Map<String, String> tags,
+        Duration interval
     );
 
     /**
@@ -74,12 +74,12 @@ public interface StatsReporter extends BaseStatsReporter {
      * @param samples          samples to report
      */
     void reportHistogramValueSamples(
-            String name,
-            Map<String, String> tags,
-            Buckets buckets,
-            double bucketLowerBound,
-            double bucketUpperBound,
-            long samples
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        double bucketLowerBound,
+        double bucketUpperBound,
+        long samples
     );
 
     /**
@@ -92,11 +92,11 @@ public interface StatsReporter extends BaseStatsReporter {
      * @param samples          samples to report
      */
     void reportHistogramDurationSamples(
-            String name,
-            Map<String, String> tags,
-            Buckets buckets,
-            Duration bucketLowerBound,
-            Duration bucketUpperBound,
-            long samples
+        String name,
+        Map<String, String> tags,
+        Buckets buckets,
+        Duration bucketLowerBound,
+        Duration bucketUpperBound,
+        long samples
     );
 }

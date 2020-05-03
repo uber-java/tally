@@ -25,8 +25,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 
 public class BucketPairImplTest {
     @Test
@@ -97,11 +96,11 @@ public class BucketPairImplTest {
         BucketPair bucketPair = BucketPairImpl.bucketPairs(null)[0];
         BucketPair sameBucketPair = BucketPairImpl.bucketPairs(null)[0];
 
-        assertTrue(bucketPair.equals(sameBucketPair));
-        assertTrue(bucketPair.equals(bucketPair));
+        assertEquals(bucketPair, sameBucketPair);
+        assertEquals(bucketPair, bucketPair);
         assertEquals(bucketPair.hashCode(), sameBucketPair.hashCode());
 
-        assertFalse(bucketPair.equals(null));
-        assertFalse(bucketPair.equals(9));
+        assertNotEquals(null, bucketPair);
+        assertNotEquals(9, bucketPair);
     }
 }

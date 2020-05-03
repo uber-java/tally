@@ -28,9 +28,9 @@ import java.util.Map;
  * Default implementation of a {@link GaugeSnapshot}.
  */
 class GaugeSnapshotImpl implements GaugeSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private double value;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final double value;
 
     GaugeSnapshotImpl(String name, ImmutableMap<String, String> tags, double value) {
         this.name = name;

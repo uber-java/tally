@@ -29,9 +29,9 @@ import java.util.Map;
  * Default implementation of a {@link TimerSnapshot}.
  */
 class TimerSnapshotImpl implements TimerSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private Duration[] values;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final Duration[] values;
 
     TimerSnapshotImpl(String name, ImmutableMap<String, String> tags, Duration[] values) {
         this.name = name;

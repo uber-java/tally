@@ -36,7 +36,7 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
     @Override
     public Double[] asValues() {
-        return buckets.toArray(new Double[buckets.size()]);
+        return buckets.toArray(new Double[0]);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
         Double[] buckets = new Double[numBuckets];
 
-        Double curDuration = start;
+        double curDuration = start;
 
         for (int i = 0; i < numBuckets; i++) {
             buckets[i] = curDuration;
@@ -106,7 +106,6 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
     /**
      * Helper function to create {@link ValueBuckets} with custom buckets.
-     *
      * @param sortedBucketUpperValues sorted (ascending order) values of bucket's upper bound
      * @return {@link ValueBuckets} of the specified paramters
      */

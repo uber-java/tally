@@ -30,7 +30,7 @@ import java.net.SocketException;
  * A Thrift transport that sends to multiple connections
  */
 public class TMultiUdpClient extends TTransport implements AutoCloseable {
-    private TTransport[] transports;
+    private final TTransport[] transports;
 
     public TMultiUdpClient(SocketAddress[] socketAddresses) throws SocketException {
         if (socketAddresses == null || socketAddresses.length == 0) {

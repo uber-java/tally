@@ -32,7 +32,7 @@ public class ImmutableList<E> implements List<E> {
     private final ArrayList<E> collection;
 
     public ImmutableList(Collection<E> collection) {
-        this.collection = new ArrayList(collection);
+        this.collection = new ArrayList<>(collection);
     }
 
     @Override
@@ -162,7 +162,7 @@ public class ImmutableList<E> implements List<E> {
             return false;
         }
 
-        return collection.equals(((ImmutableList) other).collection);
+        return collection.equals(((ImmutableList<?>) other).collection);
     }
 
     @Override

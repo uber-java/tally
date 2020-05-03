@@ -29,8 +29,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of a {@link Gauge}.
  */
 class GaugeImpl implements Gauge {
-    private AtomicBoolean updated = new AtomicBoolean(false);
-    private AtomicLong curr = new AtomicLong(0);
+    private final AtomicBoolean updated = new AtomicBoolean(false);
+    private final AtomicLong curr = new AtomicLong(0);
 
     @Override
     public void update(double value) {

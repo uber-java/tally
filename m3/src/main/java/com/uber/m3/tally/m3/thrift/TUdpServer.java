@@ -29,7 +29,7 @@ import java.net.SocketException;
  * A server for receiving data via Thrift UDP.
  */
 public class TUdpServer extends TUdpTransport implements AutoCloseable {
-    private int timeoutMillis;
+    private final int timeoutMillis;
 
     /**
      * Constructs a UDP server with the given host and port. Defaults to zero timeout.

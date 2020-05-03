@@ -20,15 +20,13 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
-import com.uber.m3.util.Duration;
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
 public class ValueBucketsTest {
@@ -42,7 +40,7 @@ public class ValueBucketsTest {
             1000d
         });
 
-        Double[] expectedBuckets = new Double[] {
+        Double[] expectedBuckets = new Double[]{
             10d,
             30d,
             55d,
@@ -115,7 +113,7 @@ public class ValueBucketsTest {
 
     @Test
     public void custom() {
-        ValueBuckets expectedBuckets = new ValueBuckets(new Double[] {
+        ValueBuckets expectedBuckets = new ValueBuckets(new Double[]{
             1d,
             2d,
             3d,
@@ -123,8 +121,8 @@ public class ValueBucketsTest {
             7d
         });
         assertThat("Buckets are created as per our expectations",
-                ValueBuckets.custom(1D, 2D, 3D, 5D, 7D),
-                CoreMatchers.equalTo(expectedBuckets));
+            ValueBuckets.custom(1D, 2D, 3D, 5D, 7D),
+            CoreMatchers.equalTo(expectedBuckets));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -154,10 +152,10 @@ public class ValueBucketsTest {
         ValueBuckets buckets = ValueBuckets.linear(0, 10, 3);
         ValueBuckets sameBuckets = ValueBuckets.linear(0, 10, 3);
 
-        assertTrue(buckets.equals(sameBuckets));
+        assertEquals(buckets, sameBuckets);
         assertEquals(buckets.hashCode(), sameBuckets.hashCode());
 
-        assertFalse(buckets.equals(null));
-        assertFalse(buckets.equals(9));
+        assertNotEquals(null, buckets);
+        assertNotEquals(9, buckets);
     }
 }

@@ -33,14 +33,14 @@ import java.util.concurrent.ScheduledExecutorService;
  * Default {@link Scope} implementation.
  */
 class ScopeImpl implements Scope {
-    private StatsReporter reporter;
-    private String prefix;
-    private String separator;
-    private ImmutableMap<String, String> tags;
-    private Buckets defaultBuckets;
+    private final StatsReporter reporter;
+    private final String prefix;
+    private final String separator;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets defaultBuckets;
 
-    private ScheduledExecutorService scheduler;
-    private Registry registry;
+    private final ScheduledExecutorService scheduler;
+    private final Registry registry;
 
     // ConcurrentHashMap nearly always allowing read operations seems like a good
     // performance upside to the consequence of reporting a newly-made metric in
@@ -71,15 +71,8 @@ class ScopeImpl implements Scope {
             return counter;
         }
 
-        synchronized (counters) {
-            if (!counters.containsKey(name)) {
-                counters.put(name, new CounterImpl());
-            }
-
-            counter = counters.get(name);
-        }
-
-        return counter;
+        counters.putIfAbsent(name, new CounterImpl());
+        return counters.get(name);
     }
 
     @Override
@@ -90,15 +83,8 @@ class ScopeImpl implements Scope {
             return gauge;
         }
 
-        synchronized (gauges) {
-            if (!gauges.containsKey(name)) {
-                gauges.put(name, new GaugeImpl());
-            }
-
-            gauge = gauges.get(name);
-        }
-
-        return gauge;
+        gauges.putIfAbsent(name, new GaugeImpl());
+        return gauges.get(name);
     }
 
     @Override
@@ -109,15 +95,8 @@ class ScopeImpl implements Scope {
             return timer;
         }
 
-        synchronized (timers) {
-            if (!timers.containsKey(name)) {
-                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
-            }
-
-            timer = timers.get(name);
-        }
-
-        return timer;
+        timers.putIfAbsent(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.get(name);
     }
 
     @Override
@@ -132,15 +111,8 @@ class ScopeImpl implements Scope {
             return histogram;
         }
 
-        synchronized (histograms) {
-            if (!histograms.containsKey(name)) {
-                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
-            }
-
-            histogram = histograms.get(name);
-        }
-
-        return histogram;
+        histograms.putIfAbsent(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
+        return histograms.get(name);
     }
 
     @Override
@@ -208,11 +180,11 @@ class ScopeImpl implements Scope {
         }
 
         if (stringMap == null) {
-            stringMap = ImmutableMap.EMPTY;
+            stringMap = (ImmutableMap<String, String>) ImmutableMap.EMPTY;
         }
 
         Set<String> keySet = stringMap.keySet();
-        String[] sortedKeys = keySet.toArray(new String[keySet.size()]);
+        String[] sortedKeys = keySet.toArray(new String[0]);
         Arrays.sort(sortedKeys);
 
         StringBuilder keyBuffer = new StringBuilder(prefix.length() + sortedKeys.length * 20);

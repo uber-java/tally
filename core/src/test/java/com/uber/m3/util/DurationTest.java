@@ -23,8 +23,7 @@ package com.uber.m3.util;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 
 public class DurationTest {
     private static final double EPSILON = 1e-10;
@@ -102,15 +101,15 @@ public class DurationTest {
 
     @Test
     public void equals() {
-        assertTrue(Duration.ZERO.equals(Duration.ZERO));
-        assertTrue(Duration.ZERO.equals(Duration.ofNanos(0)));
-        assertTrue(Duration.ofMillis(6000).equals(Duration.ofSeconds(6)));
-        assertTrue(Duration.ofHours(1).equals(Duration.ofNanos(3_600_000_000_000L)));
+        assertEquals(Duration.ZERO, Duration.ZERO);
+        assertEquals(Duration.ZERO, Duration.ofNanos(0));
+        assertEquals(Duration.ofMillis(6000), Duration.ofSeconds(6));
+        assertEquals(Duration.ofHours(1), Duration.ofNanos(3_600_000_000_000L));
         assertEquals(Duration.ofHours(1).hashCode(), Duration.ofNanos(3_600_000_000_000L).hashCode());
 
-        assertFalse(Duration.ofMillis(6001).equals(Duration.ofSeconds(6)));
-        assertFalse(Duration.ZERO.equals(null));
-        assertFalse(Duration.ZERO.equals(1));
+        assertNotEquals(Duration.ofMillis(6001), Duration.ofSeconds(6));
+        assertNotEquals(null, Duration.ZERO);
+        assertNotEquals(1, Duration.ZERO);
     }
 
     @Test

@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of a {@link Counter}.
  */
 class CounterImpl implements Counter {
-    private AtomicLong prev = new AtomicLong(0);
-    private AtomicLong curr = new AtomicLong(0);
+    private final AtomicLong prev = new AtomicLong(0);
+    private final AtomicLong curr = new AtomicLong(0);
 
     @Override
     public void inc(long delta) {

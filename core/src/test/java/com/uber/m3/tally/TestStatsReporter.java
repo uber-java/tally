@@ -28,12 +28,12 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class TestStatsReporter implements StatsReporter {
-    private Queue<MetricStruct<Long>> counters = new LinkedBlockingDeque<>();
-    private Queue<MetricStruct<Double>> gauges = new LinkedBlockingDeque<>();
-    private Queue<MetricStruct<Duration>> timers = new LinkedBlockingDeque<>();
+    private final Queue<MetricStruct<Long>> counters = new LinkedBlockingDeque<>();
+    private final Queue<MetricStruct<Double>> gauges = new LinkedBlockingDeque<>();
+    private final Queue<MetricStruct<Duration>> timers = new LinkedBlockingDeque<>();
     private Buckets buckets;
-    private Map<Double, Long> valueSamples = new HashMap<>();
-    private Map<Duration, Long> durationSamples = new HashMap<>();
+    private final Map<Double, Long> valueSamples = new HashMap<>();
+    private final Map<Duration, Long> durationSamples = new HashMap<>();
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
@@ -127,9 +127,9 @@ public class TestStatsReporter implements StatsReporter {
     }
 
     static class MetricStruct<T> {
-        private String name;
-        private Map<String, String> tags;
-        private T value;
+        private final String name;
+        private final Map<String, String> tags;
+        private final T value;
 
         MetricStruct(String name, Map<String, String> tags, T value) {
             this.name = name;

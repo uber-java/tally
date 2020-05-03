@@ -112,7 +112,7 @@ public class ImmutableSet<E> implements Set<E> {
             return false;
         }
 
-        return set.equals(((ImmutableSet) other).set);
+        return set.equals(((ImmutableSet<?>) other).set);
     }
 
     @Override
@@ -125,7 +125,7 @@ public class ImmutableSet<E> implements Set<E> {
      * @param <E> the type of elements in this set
      */
     public static class Builder<E> {
-        private HashSet<E> set;
+        private final HashSet<E> set;
 
         public Builder() {
             this(16, 0.75f);

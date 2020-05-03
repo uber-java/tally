@@ -26,11 +26,11 @@ import java.util.Iterator;
  * A thin wrapper around an {@code Iterator} to disallow modifications to this
  * iterator.
  * <p>
- *     <strong>Note:</strong> Take care in using this class. If the user has a
- *     reference to constructing iterator, this iterator can still be modified
- *     from under the hood. This class mainly serves as an iterator over
- *     {@code Immutable*} classes, where users will not have a reference to the underlying
- *     iterator.
+ * <strong>Note:</strong> Take care in using this class. If the user has a
+ * reference to constructing iterator, this iterator can still be modified
+ * from under the hood. This class mainly serves as an iterator over
+ * {@code Immutable*} classes, where users will not have a reference to the underlying
+ * iterator.
  * </p>
  * @param <E> the type of element this iterator iterates over
  */

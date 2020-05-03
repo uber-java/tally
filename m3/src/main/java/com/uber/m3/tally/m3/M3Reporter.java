@@ -102,17 +102,17 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final int NUM_PROCESSORS = 1;
 
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
-            ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
+        ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
-    private M3.Client client;
+    private final M3.Client client;
 
-    private Duration maxBufferingDelay;
+    private final Duration maxBufferingDelay;
 
     private final int payloadCapacity;
 
-    private String bucketIdTagName;
-    private String bucketTagName;
-    private String bucketValFmt;
+    private final String bucketIdTagName;
+    private final String bucketTagName;
+    private final String bucketValFmt;
 
     private final Set<MetricTag> commonTags;
 
@@ -125,11 +125,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+    private final CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
-    private TTransport transport;
+    private final TTransport transport;
 
-    private AtomicBoolean isShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
@@ -238,8 +238,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             // to complete
             if (!shutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
                 LOG.warn(
-                        "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
-                        MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
+                    "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
+                    MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
                 );
             }
         } catch (InterruptedException e) {
@@ -459,14 +459,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             metricQueue.put(sizedMetric);
         } catch (InterruptedException e) {
-            LOG.warn(String.format("Interrupted queueing metric: {}", sizedMetric.getMetric().getName()));
+            LOG.warn("Interrupted queueing metric: {}", sizedMetric.getMetric().getName());
         }
     }
 
     private class Processor implements Runnable {
 
         private final List<Metric> metricsBuffer =
-                new ArrayList<>(payloadCapacity / 10);
+            new ArrayList<>(payloadCapacity / 10);
 
         private Instant lastBufferFlushTimestamp = Instant.now(clock);
 
@@ -528,7 +528,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private boolean elapsedMaxDelaySinceLastFlush() {
             return Instant.now(clock).isAfter(
-                    lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
+                lastBufferFlushTimestamp.plus(maxBufferingDelay.toMillis(), ChronoUnit.MILLIS)
             );
         }
 
@@ -551,9 +551,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             try {
                 client.emitMetricBatch(
-                        new MetricBatch()
-                                .setCommonTags(commonTags)
-                                .setMetrics(metricsBuffer)
+                    new MetricBatch()
+                        .setCommonTags(commonTags)
+                        .setMetrics(metricsBuffer)
                 );
             } catch (TException tException) {
                 LOG.warn("Failed to flush metrics: " + tException.getMessage());
@@ -573,7 +573,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static class SerializedPayloadSizeEstimator {
         private final TCalcTransport calculatingPhonyTransport = new TCalcTransport();
         private final TProtocol calculatingPhonyProtocol =
-                new TCompactProtocol.Factory().getProtocol(calculatingPhonyTransport);
+            new TCompactProtocol.Factory().getProtocol(calculatingPhonyTransport);
 
         private final M3.Client phonyClient = new M3.Client(calculatingPhonyProtocol);
 
@@ -608,7 +608,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         protected ExecutorService executor;
         // Non-generic EMPTY ImmutableMap will never contain any elements
         @SuppressWarnings("unchecked")
-        protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
+        protected ImmutableMap<String, String> commonTags = (ImmutableMap<String, String>) ImmutableMap.EMPTY;
         protected boolean includeHost = false;
         protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;

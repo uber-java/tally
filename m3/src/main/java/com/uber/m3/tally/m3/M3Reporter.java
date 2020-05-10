@@ -214,9 +214,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        // Put sentinal value in queue so that processors know to disregard anything that comes after it.
-        queueSizedMetric(SizedMetric.CLOSE);
-
         // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
         // thread(s) or else they will block forever
         executor.shutdownNow();
@@ -488,12 +485,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // catch block.
                     SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
-                    // Drop metrics that came in after close
-                    if (sizedMetric == SizedMetric.CLOSE) {
-                        metricQueue.clear();
-                        break;
-                    }
-
                     if (sizedMetric == null) {
                         // If we didn't get any new metrics after waiting the specified time,
                         // flush what we have so far.
@@ -542,14 +533,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         private void drainQueue() {
-            while (!metricQueue.isEmpty()) {
-                SizedMetric sizedMetric = metricQueue.remove();
-                // Don't care about metrics that came in after close
-                if (sizedMetric == SizedMetric.CLOSE) {
-                    break;
-                }
+            SizedMetric metrics;
 
-                process(sizedMetric);
+            while ((metrics = metricQueue.poll()) != null) {
+                process(metrics);
             }
         }
 

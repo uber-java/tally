@@ -462,8 +462,8 @@ public class M3ReporterTest {
 
         List<Metric> metrics;
 
-        try (final M3Reporter reporter = reporterBuilder.build()) {
-            try (final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress)) {
+        try (final MockM3Server server =bootM3Collector(expectedMetricsCount)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
 
                 ImmutableMap<String, String> emptyTags =
                         new ImmutableMap.Builder<String, String>(0).build();
@@ -475,14 +475,15 @@ public class M3ReporterTest {
                     reporter.reportCounter("c", emptyTags, 1);
                 }
 
-                // Shutdown both reporter and server
+                // Shutdown reporter
                 reporter.close();
+
                 server.await();
 
                 metrics = server.getService().getMetrics();
             }
         }
 
-        assertEquals(metrics.size(), expectedMetricsCount);
+        assertEquals(expectedMetricsCount, metrics.size());
     }
 }

@@ -104,8 +104,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
-    private M3.Client client;
-
     private Duration maxBufferingDelay;
 
     private final int payloadCapacity;
@@ -127,49 +125,28 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     // is being shutdown only after all of its processor had done so
     private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
-    private TTransport transport;
-
     private AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
-        try {
-            // Builder verifies non-null, non-empty socketAddresses
-            SocketAddress[] socketAddresses = builder.socketAddresses;
+        payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
 
-            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
+        maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
 
-            if (socketAddresses.length > 1) {
-                transport = new TMultiUdpClient(socketAddresses);
-            } else {
-                transport = new TUdpClient(socketAddresses[0]);
-            }
+        bucketIdTagName = builder.histogramBucketIdName;
+        bucketTagName = builder.histogramBucketName;
+        bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
-            transport.open();
+        metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            client = new M3.Client(protocolFactory.getProtocol(transport));
+        executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
 
-            payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
+        clock = Clock.systemUTC();
 
-            maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
+        commonTags = builder.metricTagSet;
 
-            bucketIdTagName = builder.histogramBucketIdName;
-            bucketTagName = builder.histogramBucketName;
-            bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
-
-            metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
-
-            executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
-
-            clock = Clock.systemUTC();
-
-            commonTags = builder.metricTagSet;
-
-            for (int i = 0; i < NUM_PROCESSORS; ++i) {
-                addAndRunProcessor();
-            }
-        } catch (TTransportException | SocketException e) {
-            throw new RuntimeException("Exception creating M3Reporter", e);
+        for (int i = 0; i < NUM_PROCESSORS; ++i) {
+            bootProcessors(builder.endpointSocketAddresses);
         }
     }
 
@@ -197,8 +174,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void addAndRunProcessor() {
-        executor.execute(new Processor());
+    private void bootProcessors(SocketAddress[] endpointSocketAddresses) {
+        try {
+            executor.execute(new Processor(endpointSocketAddresses));
+        } catch (TTransportException | SocketException e) {
+            LOG.error("Failed to boot processor", e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -245,8 +227,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         } catch (InterruptedException e) {
             LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
-
-        transport.close();
     }
 
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
@@ -472,6 +452,24 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private int metricsSize = 0;
 
+        private final M3.Client client;
+        private final TTransport transport;
+
+        Processor(SocketAddress[] socketAddresses) throws TTransportException, SocketException {
+            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
+
+            if (socketAddresses.length > 1) {
+                transport = new TMultiUdpClient(socketAddresses);
+            } else {
+                transport = new TUdpClient(socketAddresses[0]);
+            }
+
+            // Open the socket
+            transport.open();
+
+            client = new M3.Client(protocolFactory.getProtocol(transport));
+        }
+
         @Override
         public void run() {
             try {
@@ -504,6 +502,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             } finally {
                 drainQueue();
                 flushBuffered();
+
+                // Close transport
+                transport.close();
+
                 // Count down shutdown latch to notify reporter
                 shutdownLatch.countDown();
             }
@@ -602,7 +604,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
      * Builder pattern to construct an {@link M3Reporter}.
      */
     public static class Builder {
-        protected SocketAddress[] socketAddresses;
+        protected SocketAddress[] endpointSocketAddresses;
         protected String service;
         protected String env;
         protected ExecutorService executor;
@@ -621,14 +623,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
-         * @param socketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
+         * @param endpointSocketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
          */
-        public Builder(SocketAddress[] socketAddresses) {
-            if (socketAddresses == null || socketAddresses.length == 0) {
+        public Builder(SocketAddress[] endpointSocketAddresses) {
+            if (endpointSocketAddresses == null || endpointSocketAddresses.length == 0) {
                 throw new IllegalArgumentException("Must specify at least one SocketAddress");
             }
 
-            this.socketAddresses = socketAddresses;
+            this.endpointSocketAddresses = endpointSocketAddresses;
         }
 
         /**

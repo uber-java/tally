@@ -99,6 +99,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
 
+    /**
+     * NOTE: DO NOT CHANGE THIS NUMBER!
+     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
+     *       to how metrics are processed and eventually submitted to M3 collectors;
+     */
     private static final int NUM_PROCESSORS = 1;
 
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =

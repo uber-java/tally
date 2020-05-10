@@ -104,13 +104,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
-    private Duration maxBufferingDelay;
+    private final Duration maxBufferingDelay;
 
     private final int payloadCapacity;
 
-    private String bucketIdTagName;
-    private String bucketTagName;
-    private String bucketValFmt;
+    private final String bucketIdTagName;
+    private final String bucketTagName;
+    private final String bucketValFmt;
 
     private final Set<MetricTag> commonTags;
 
@@ -123,9 +123,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+    private final CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
-    private AtomicBoolean isShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {

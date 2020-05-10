@@ -156,7 +156,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         processors = new ArrayList<>();
         for (int i = 0; i < NUM_PROCESSORS; ++i) {
-            processors.add(bootProcessors(builder.endpointSocketAddresses));
+            processors.add(bootProcessor(builder.endpointSocketAddresses));
         }
     }
 
@@ -184,7 +184,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private Processor bootProcessors(SocketAddress[] endpointSocketAddresses) {
+    private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
         try {
             Processor processor = new Processor(endpointSocketAddresses);
             executor.execute(processor);
@@ -508,7 +508,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 }
             }
 
+            LOG.warn("Processor shutting down");
+
+            // Drain queue of any remaining metrics submitted prior to shutdown;
             drainQueue();
+            // Flush remaining buffers at last
             flushBuffered();
 
             // Close transport
@@ -516,6 +520,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             // Count down shutdown latch to notify reporter
             processorsShutdownLatch.countDown();
+
+            LOG.warn("Processor shut down");
         }
 
         private void process(SizedMetric sizedMetric) {

@@ -128,7 +128,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private final CountDownLatch shutdownLatch;
+    private final CountDownLatch processorsShutdownLatch;
+
+    private final List<Processor> processors;
 
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
@@ -150,9 +152,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         commonTags = builder.metricTagSet;
 
-        shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+        processorsShutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+
+        processors = new ArrayList<>();
         for (int i = 0; i < NUM_PROCESSORS; ++i) {
-            bootProcessors(builder.endpointSocketAddresses);
+            processors.add(bootProcessors(builder.endpointSocketAddresses));
         }
     }
 
@@ -180,9 +184,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void bootProcessors(SocketAddress[] endpointSocketAddresses) {
+    private Processor bootProcessors(SocketAddress[] endpointSocketAddresses) {
         try {
-            executor.execute(new Processor(endpointSocketAddresses));
+            Processor processor = new Processor(endpointSocketAddresses);
+            executor.execute(processor);
+            return processor;
         } catch (TTransportException | SocketException e) {
             LOG.error("Failed to boot processor", e);
             throw new RuntimeException(e);
@@ -200,11 +206,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        try {
-            metricQueue.put(SizedMetric.FLUSH);
-        } catch (InterruptedException e) {
-            LOG.warn("Interrupted while trying to queue flush sentinel");
-        }
+        processors.forEach(Processor::scheduleFlush);
     }
 
     @Override
@@ -221,7 +223,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
             // to complete
-            if (!shutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
+            if (!processorsShutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
                 LOG.warn(
                         "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
                         MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
@@ -458,6 +460,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private final M3.Client client;
         private final TTransport transport;
 
+        private final AtomicBoolean shouldFlush = new AtomicBoolean(false);
+
         Processor(SocketAddress[] socketAddresses) throws TTransportException, SocketException {
             TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
 
@@ -477,6 +481,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         public void run() {
             while (!isShutdown.get()) {
                 try {
+                    // Check whether flush has been requested by the reporter
+                    if (shouldFlush.compareAndSet(true, false)) {
+                        flushBuffered();
+                    }
+
                     // This `poll` call will block for at most the specified duration to take an item
                     // off the queue. If we get an item, we append it to the queue to be flushed,
                     // otherwise we flush what we have so far.
@@ -488,7 +497,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     if (sizedMetric == null) {
                         // If we didn't get any new metrics after waiting the specified time,
                         // flush what we have so far.
-                        process(SizedMetric.FLUSH);
+                        flushBuffered();
                     } else {
                         process(sizedMetric);
                     }
@@ -506,15 +515,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             transport.close();
 
             // Count down shutdown latch to notify reporter
-            shutdownLatch.countDown();
+            processorsShutdownLatch.countDown();
         }
 
         private void process(SizedMetric sizedMetric) {
-            if (sizedMetric == SizedMetric.FLUSH) {
-                flushBuffered();
-                return;
-            }
-
             int size = sizedMetric.getSize();
             if (bufferedBytes + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
                 flushBuffered();
@@ -558,6 +562,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             metricsBuffer.clear();
             bufferedBytes = 0;
             lastBufferFlushTimestamp = Instant.now(clock);
+        }
+
+        public void scheduleFlush() {
+            shouldFlush.set(true);
         }
     }
 

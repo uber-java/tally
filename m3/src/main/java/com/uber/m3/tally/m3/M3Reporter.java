@@ -128,7 +128,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private final CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+    private final CountDownLatch shutdownLatch;
 
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
@@ -150,6 +150,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         commonTags = builder.metricTagSet;
 
+        shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
         for (int i = 0; i < NUM_PROCESSORS; ++i) {
             bootProcessors(builder.endpointSocketAddresses);
         }
@@ -477,8 +478,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         @Override
         public void run() {
-            try {
-                while (!isShutdown.get()) {
+            while (!isShutdown.get()) {
+                try {
                     // This `poll` call will block for at most the specified duration to take an item
                     // off the queue. If we get an item, we append it to the queue to be flushed,
                     // otherwise we flush what we have so far.
@@ -500,20 +501,21 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     } else {
                         process(sizedMetric);
                     }
-
+                } catch (Throwable t) {
+                    // This is fly-away guard making sure that uncaught exception
+                    // will not crash the processor
+                    LOG.error("Unhandled exception in processor", t);
                 }
-            } catch (InterruptedException e) {
-                // Don't care if we get interrupted - the finally block will clean up
-            } finally {
-                drainQueue();
-                flushBuffered();
-
-                // Close transport
-                transport.close();
-
-                // Count down shutdown latch to notify reporter
-                shutdownLatch.countDown();
             }
+
+            drainQueue();
+            flushBuffered();
+
+            // Close transport
+            transport.close();
+
+            // Count down shutdown latch to notify reporter
+            shutdownLatch.countDown();
         }
 
         private void process(SizedMetric sizedMetric) {
@@ -562,8 +564,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                                 .setCommonTags(commonTags)
                                 .setMetrics(metricsBuffer)
                 );
-            } catch (TException tException) {
-                LOG.warn("Failed to flush metrics: " + tException.getMessage());
+            } catch (Throwable t) {
+                LOG.error("Failed to flush metrics", t);
             }
 
             metricsBuffer.clear();

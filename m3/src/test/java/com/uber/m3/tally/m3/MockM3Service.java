@@ -59,7 +59,6 @@ public class MockM3Service implements M3.Iface {
 
         for (Metric metric : batch.getMetrics()) {
             metrics.add(metric);
-
             metricsCountLatch.countDown();
         }
 

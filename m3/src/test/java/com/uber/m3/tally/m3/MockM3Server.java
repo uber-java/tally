@@ -35,14 +35,13 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class MockM3Server {
+public class MockM3Server implements AutoCloseable {
     private static final Duration MAX_WAIT_TIMEOUT = Duration.ofSeconds(30);
-
     private final CountDownLatch expectedMetricsLatch;
 
-    private TProcessor processor;
-    private TTransport transport;
-    private MockM3Service service;
+    private final TProcessor processor;
+    private final TTransport transport;
+    private final MockM3Service service;
 
     public MockM3Server(
         int expectedMetricsCount,
@@ -81,12 +80,22 @@ public class MockM3Server {
         }
     }
 
-    public void awaitAndClose() throws InterruptedException {
-        expectedMetricsLatch.await(MAX_WAIT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
-        transport.close();
-    }
-
     public MockM3Service getService() {
         return service;
+    }
+
+    /**
+     * Awaits receiving of all the expected metrics
+     *
+     * @throws InterruptedException
+     */
+    public void await() throws InterruptedException {
+        expectedMetricsLatch.await(MAX_WAIT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void close() {
+        // Close immediately without waiting
+        transport.close();
     }
 }

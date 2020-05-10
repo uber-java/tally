@@ -114,6 +114,7 @@ public class M3ReporterTest {
                     .includeHost(true)
 
         List<MetricBatch> receivedBatches;
+        List<Metric> receivedMetrics;
 
         try (final M3Reporter reporter = reporterBuilder.build()) {
             try (final MockM3Server server = bootM3Collector(3)) {
@@ -131,10 +132,9 @@ public class M3ReporterTest {
                 server.await();
 
                 receivedBatches = server.getService().getBatches();
+                receivedMetrics = server.getService().getMetrics();
             }
         }
-
-        assertEquals(3, receivedBatches.size());
 
         // Validate common tags
         for (MetricBatch batch : receivedBatches) {
@@ -152,18 +152,11 @@ public class M3ReporterTest {
         }
 
         // Validate metrics
-        List<Metric> emittedCounters = receivedBatches.get(0).getMetrics();
-        assertEquals(1, emittedCounters.size());
+        assertEquals(3, receivedMetrics.size());
 
-        List<Metric> emittedTimers = receivedBatches.get(1).getMetrics();
-        assertEquals(1, emittedTimers.size());
-
-        List<Metric> emittedGauges = receivedBatches.get(2).getMetrics();
-        assertEquals(1, emittedGauges.size());
-
-        Metric emittedCounter = emittedCounters.get(0);
-        Metric emittedTimer = emittedTimers.get(0);
-        Metric emittedGauge = emittedGauges.get(0);
+        Metric emittedCounter = receivedMetrics.get(0);
+        Metric emittedTimer = receivedMetrics.get(1);
+        Metric emittedGauge = receivedMetrics.get(2);
 
         assertEquals("my-counter", emittedCounter.getName());
         assertTrue(emittedCounter.isSetTags());

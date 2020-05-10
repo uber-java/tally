@@ -455,7 +455,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private Instant lastBufferFlushTimestamp = Instant.now(clock);
 
-        private int metricsSize = 0;
+        private int bufferedBytes = 0;
 
         private final M3.Client client;
         private final TTransport transport;
@@ -478,7 +478,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         @Override
         public void run() {
             try {
-                while (!executor.isShutdown()) {
+                while (!isShutdown.get()) {
                     // This `poll` call will block for at most the specified duration to take an item
                     // off the queue. If we get an item, we append it to the queue to be flushed,
                     // otherwise we flush what we have so far.
@@ -523,14 +523,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
 
             int size = sizedMetric.getSize();
-            if (metricsSize + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
+            if (bufferedBytes + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
                 flushBuffered();
             }
 
             Metric metric = sizedMetric.getMetric();
 
             metricsBuffer.add(metric);
-            metricsSize += size;
+            bufferedBytes += size;
         }
 
         private boolean elapsedMaxDelaySinceLastFlush() {
@@ -567,7 +567,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
 
             metricsBuffer.clear();
-            metricsSize = 0;
+            bufferedBytes = 0;
             lastBufferFlushTimestamp = Instant.now(clock);
         }
     }

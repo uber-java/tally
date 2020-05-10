@@ -23,7 +23,6 @@ package com.uber.m3.tally.m3;
 import com.uber.m3.thrift.gen.M3;
 import com.uber.m3.thrift.gen.Metric;
 import com.uber.m3.thrift.gen.MetricBatch;
-import org.apache.thrift.transport.TTransportException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,16 +42,23 @@ public class MockM3Service implements M3.Iface {
 
     public List<MetricBatch> getBatches() {
         lock.readLock().lock();
-
         try {
             return batches;
         } finally {
             lock.readLock().unlock();
         }
     }
+    public List<Metric> getMetrics() {
+        lock.readLock().lock();
+        try {
+            return metrics;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
 
     @Override
-    public void emitMetricBatch(MetricBatch batch) throws TTransportException {
+    public void emitMetricBatch(MetricBatch batch) {
         lock.writeLock().lock();
 
         batches.add(batch);

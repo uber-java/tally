@@ -51,6 +51,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+// TODO add tests to validate proper shutdown
+// TODO add tests to validate uncaughts don't crash processor
+// TODO add tests for multi-processor setup
 public class M3ReporterTest {
     private static double EPSILON = 1e-9;
 

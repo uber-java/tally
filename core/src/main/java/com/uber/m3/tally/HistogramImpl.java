@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Default implementation of a {@link Histogram}.
@@ -43,7 +44,6 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     HistogramImpl(
         String fqn,
         ImmutableMap<String, String> tags,
-        StatsReporter reporter,
         Buckets buckets
     ) {
         super(fqn);
@@ -58,10 +58,11 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         int pairsLen = pairs.length;
 
         this.tags = tags;
-        specification = buckets;
+        this.specification = buckets;
+
         this.buckets = new ArrayList<>(pairsLen);
-        lookupByValue = new ArrayList<>(pairsLen);
-        lookupByDuration = new ArrayList<>(pairsLen);
+        this.lookupByValue = new ArrayList<>(pairsLen);
+        this.lookupByDuration = new ArrayList<>(pairsLen);
 
         for (BucketPair pair : pairs) {
             addBucket(new HistogramBucket(
@@ -81,40 +82,30 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
     @Override
     public void recordValue(double value) {
-        int index = Collections.binarySearch(lookupByValue, value);
-
-        if (index < 0) {
-            // binarySearch returns the index of the search key if it is contained in the list;
-            // otherwise, (-(insertion point) - 1).
-            index = -(index + 1);
-        }
-
-        // binarySearch can return collections.size(), guarding against that.
-        // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (index >= buckets.size()) {
-            index = buckets.size() - 1;
-        }
-
+        int index = toBucketIndex(Collections.binarySearch(lookupByValue, value));
         buckets.get(index).samples.inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = Collections.binarySearch(lookupByDuration, duration);
+        int index = toBucketIndex(Collections.binarySearch(lookupByDuration, duration));
+        buckets.get(index).samples.inc(1);
+    }
 
-        if (index < 0) {
+    private int toBucketIndex(int binarySearchResult) {
+        if (binarySearchResult < 0) {
             // binarySearch returns the index of the search key if it is contained in the list;
             // otherwise, (-(insertion point) - 1).
-            index = -(index + 1);
+            binarySearchResult = -(binarySearchResult + 1);
         }
 
         // binarySearch can return collections.size(), guarding against that.
         // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (index >= buckets.size()) {
-            index = buckets.size() - 1;
+        if (binarySearchResult >= buckets.size()) {
+            binarySearchResult = buckets.size() - 1;
         }
 
-        buckets.get(index).samples.inc(1);
+        return binarySearchResult;
     }
 
     @Override
@@ -196,7 +187,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             Duration durationLowerBound,
             Duration durationUpperBound
         ) {
-            samples = new CounterImpl(getQualifiedName());
+            this.samples = new CounterImpl(getQualifiedName());
             this.valueLowerBound = valueLowerBound;
             this.valueUpperBound = valueUpperBound;
             this.durationLowerBound = durationLowerBound;

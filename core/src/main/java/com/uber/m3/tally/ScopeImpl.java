@@ -90,7 +90,7 @@ class ScopeImpl implements Scope {
     public Histogram histogram(String name, Buckets buckets) {
         return histograms.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
-                addToReportingQueue(new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets)));
+                addToReportingQueue(new HistogramImpl(fullyQualifiedName(name), tags, buckets)));
     }
 
     @Override

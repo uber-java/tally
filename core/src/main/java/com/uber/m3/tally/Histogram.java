@@ -25,7 +25,7 @@ import com.uber.m3.util.Duration;
 /**
  * A histogram metric.
  */
-public interface Histogram extends Metric {
+public interface Histogram {
     /**
      * Record using a {@code double}.
      * @param value value to record

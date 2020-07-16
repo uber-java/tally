@@ -126,6 +126,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         return tags;
     }
 
+    @Override
     void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
         for (HistogramBucket bucket : buckets) {
             long samples = bucket.samples.value();
@@ -180,11 +181,6 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     @Override
     public void recordStopwatch(long stopwatchStart) {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
-    }
-
-    @Override
-    public String getQualifiedName() {
-        return super.getQualifiedName();
     }
 
     class HistogramBucket {

@@ -34,7 +34,7 @@ public class GaugeImplTest {
     @Before
     public void setUp() {
         reporter = new TestStatsReporter();
-        gauge = new GaugeImpl();
+        gauge = new GaugeImpl("gauge");
     }
 
     @Test

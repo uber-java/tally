@@ -25,12 +25,12 @@ import com.uber.m3.util.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TestStatsReporter implements StatsReporter {
-    private Queue<MetricStruct<Long>> counters = new LinkedBlockingDeque<>();
-    private Queue<MetricStruct<Double>> gauges = new LinkedBlockingDeque<>();
-    private Queue<MetricStruct<Duration>> timers = new LinkedBlockingDeque<>();
+    private Queue<MetricStruct<Long>> counters = new ConcurrentLinkedQueue<>();
+    private Queue<MetricStruct<Double>> gauges = new ConcurrentLinkedQueue<>();
+    private Queue<MetricStruct<Duration>> timers = new ConcurrentLinkedQueue<>();
     private Buckets buckets;
     private Map<Double, Long> valueSamples = new HashMap<>();
     private Map<Duration, Long> durationSamples = new HashMap<>();

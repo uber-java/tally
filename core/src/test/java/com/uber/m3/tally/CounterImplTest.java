@@ -32,7 +32,7 @@ public class CounterImplTest {
     @Before
     public void setUp() {
         reporter = new TestStatsReporter();
-        counter = new CounterImpl();
+        counter = new CounterImpl("counter");
     }
 
     @Test

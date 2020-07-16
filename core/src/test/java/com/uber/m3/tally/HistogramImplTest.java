@@ -45,7 +45,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -71,7 +70,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -97,7 +95,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -117,7 +114,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -152,7 +148,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 

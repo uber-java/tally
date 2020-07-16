@@ -20,7 +20,6 @@
 
 plugins {
     id "org.jruyi.thrift" version "0.4.0"
-    id "me.champeau.gradle.jmh" version "0.4.3"
 }
 
 description = 'tally M3 reporter'
@@ -41,17 +40,4 @@ compileThrift {
     onlyIf {
         project.hasProperty('genThrift')
     }
-}
-
-jmh {
-    benchmarkMode = ['Throughput']
-
-    warmupIterations = 0
-
-    iterations = 5
-    batchSize = 1
-
-    fork = 1
-    forceGC = true
-    includeTests = true
 }

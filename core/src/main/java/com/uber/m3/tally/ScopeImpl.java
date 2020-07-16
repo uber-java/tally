@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -44,8 +45,12 @@ class ScopeImpl implements Scope {
 
     private final ConcurrentHashMap<String, CounterImpl> counters = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
+
+    // TODO validate if needs to be concurrent at all
+    private final ConcurrentLinkedQueue<MetricBase> reportingQueue = new ConcurrentLinkedQueue<>();
+
+    private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -61,22 +66,31 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        return counters.computeIfAbsent(name, ignored -> new CounterImpl(fullyQualifiedName(name)));
+        return counters.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new CounterImpl(fullyQualifiedName(name)))
+        );
     }
 
     @Override
     public Gauge gauge(String name) {
-        return gauges.computeIfAbsent(name, ignored -> new GaugeImpl(fullyQualifiedName(name)));
+        return gauges.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new GaugeImpl(fullyQualifiedName(name))));
     }
 
     @Override
     public Timer timer(String name) {
+        // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
+        // i.e. they are not buffered
         return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, Buckets buckets) {
-        return histograms.computeIfAbsent(name, ignored -> new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
+        return histograms.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets)));
     }
 
     @Override
@@ -114,24 +128,18 @@ class ScopeImpl implements Scope {
         }
     }
 
+    private <T extends MetricBase> T addToReportingQueue(T metric) {
+        reportingQueue.add(metric);
+        return metric;
+    }
+
     /**
      * Reports using the specified reporter.
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
-        for (CounterImpl counter : counters.values()) {
-            counter.report(counter.getQualifiedName(), tags, reporter);
-        }
-
-        for (GaugeImpl gauge : gauges.values()) {
-            gauge.report(gauge.getQualifiedName(), tags, reporter);
-        }
-
-        // No operations on timers required here; they report directly to the StatsReporter
-        // i.e. they are not buffered
-
-        for (HistogramImpl histogram : histograms.values()) {
-            histogram.report(histogram.getQualifiedName(), tags, reporter);
+        for (MetricBase metric : reportingQueue) {
+            metric.report(metric.getQualifiedName(), tags, reporter);
         }
     }
 

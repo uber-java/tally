@@ -26,7 +26,10 @@ import java.util.Collections;
 
 /**
  * Default implementation of a {@link BucketPair}
+ *
+ * @deprecated will be removed
  */
+@Deprecated
 public class BucketPairImpl implements BucketPair {
     private double lowerBoundValue;
     private double upperBoundValue;

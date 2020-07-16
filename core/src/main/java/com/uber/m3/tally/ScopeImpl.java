@@ -65,82 +65,22 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        CounterImpl counter = counters.get(name);
-
-        if (counter != null) {
-            return counter;
-        }
-
-        synchronized (counters) {
-            if (!counters.containsKey(name)) {
-                counters.put(name, new CounterImpl());
-            }
-
-            counter = counters.get(name);
-        }
-
-        return counter;
+        return counters.computeIfAbsent(name, ignored -> new CounterImpl());
     }
 
     @Override
     public Gauge gauge(String name) {
-        GaugeImpl gauge = gauges.get(name);
-
-        if (gauge != null) {
-            return gauge;
-        }
-
-        synchronized (gauges) {
-            if (!gauges.containsKey(name)) {
-                gauges.put(name, new GaugeImpl());
-            }
-
-            gauge = gauges.get(name);
-        }
-
-        return gauge;
+        return gauges.computeIfAbsent(name, ignored -> new GaugeImpl());
     }
 
     @Override
     public Timer timer(String name) {
-        TimerImpl timer = timers.get(name);
-
-        if (timer != null) {
-            return timer;
-        }
-
-        synchronized (timers) {
-            if (!timers.containsKey(name)) {
-                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
-            }
-
-            timer = timers.get(name);
-        }
-
-        return timer;
+        return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, Buckets buckets) {
-        if (buckets == null) {
-            buckets = defaultBuckets;
-        }
-
-        HistogramImpl histogram = histograms.get(name);
-
-        if (histogram != null) {
-            return histogram;
-        }
-
-        synchronized (histograms) {
-            if (!histograms.containsKey(name)) {
-                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
-            }
-
-            histogram = histograms.get(name);
-        }
-
-        return histogram;
+        return histograms.computeIfAbsent(name, ignored -> new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
     }
 
     @Override

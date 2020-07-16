@@ -26,7 +26,6 @@ import com.uber.m3.util.ImmutableMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * Default implementation of a {@link Histogram}.
@@ -43,19 +42,18 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     private final double[] lookupByValue;
     private final Duration[] lookupByDuration;
 
+    private final ScopeImpl scope;
+
     HistogramImpl(
+        ScopeImpl scope,
         String fqn,
         ImmutableMap<String, String> tags,
         Buckets buckets
     ) {
         super(fqn);
 
-        if (buckets instanceof DurationBuckets) {
-            type = Type.DURATION;
-        } else {
-            type = Type.VALUE;
-        }
-
+        this.scope = scope;
+        this.type = buckets instanceof DurationBuckets ? Type.DURATION : Type.VALUE;
         this.tags = tags;
         this.specification = buckets;
 
@@ -98,7 +96,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
                 return bucketCounters[index];
             }
 
-            return (bucketCounters[index] = new CounterImpl(getQualifiedName()));
+            return (bucketCounters[index] = new HistogramBucketCounterImpl(scope, getQualifiedName(), index));
         }
     }
 
@@ -131,29 +129,6 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
     ImmutableMap<String, String> getTags() {
         return tags;
-    }
-
-    @Override
-    void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
-        for (int i = 0; i < bucketCounters.length; ++i) {
-            long samples = getCounterValue(i);
-            if (samples == 0) {
-                continue;
-            }
-
-            switch (type) {
-                case VALUE:
-                    reporter.reportHistogramValueSamples(
-                        name, tags, specification, getLowerBoundValueForBucket(i), getUpperBoundValueForBucket(i), samples
-                    );
-                    break;
-                case DURATION:
-                    reporter.reportHistogramDurationSamples(
-                        name, tags, specification, getLowerBoundDurationForBucket(i), getUpperBoundDurationForBucket(i), samples
-                    );
-                    break;
-            }
-        }
     }
 
     private Duration getUpperBoundDurationForBucket(int bucketIndex) {
@@ -214,5 +189,52 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     enum Type {
         VALUE,
         DURATION
+    }
+
+    /**
+     * Extension of the {@link CounterImpl} adjusting it's reporting procedure
+     * to adhere to histogram format
+     */
+    class HistogramBucketCounterImpl extends CounterImpl {
+
+        private final int bucketIndex;
+
+        protected HistogramBucketCounterImpl(ScopeImpl scope, String fqn, int bucketIndex) {
+            super(scope, fqn);
+
+            this.bucketIndex = bucketIndex;
+        }
+
+        @Override
+        public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
+            long inc = value();
+            if (inc == 0) {
+                // Nothing to report
+                return;
+            }
+
+            switch (type) {
+                case VALUE:
+                    reporter.reportHistogramValueSamples(
+                        getQualifiedName(),
+                        tags,
+                        specification,
+                        getLowerBoundValueForBucket(bucketIndex),
+                        getUpperBoundValueForBucket(bucketIndex),
+                        inc
+                    );
+                    break;
+                case DURATION:
+                    reporter.reportHistogramDurationSamples(
+                        getQualifiedName(),
+                        tags,
+                        specification,
+                        getLowerBoundDurationForBucket(bucketIndex),
+                        getUpperBoundDurationForBucket(bucketIndex),
+                        inc
+                    );
+                    break;
+            }
+        }
     }
 }

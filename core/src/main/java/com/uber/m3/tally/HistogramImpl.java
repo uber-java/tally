@@ -32,9 +32,8 @@ import java.util.Map;
 /**
  * Default implementation of a {@link Histogram}.
  */
-class HistogramImpl implements Histogram, StopwatchRecorder {
+class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     private Type type;
-    private String name;
     private ImmutableMap<String, String> tags;
     private Buckets specification;
     private List<HistogramBucket> buckets;
@@ -42,11 +41,13 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
     private List<Duration> lookupByDuration;
 
     HistogramImpl(
-        String name,
+        String fqn,
         ImmutableMap<String, String> tags,
         StatsReporter reporter,
         Buckets buckets
     ) {
+        super(fqn);
+
         if (buckets instanceof DurationBuckets) {
             type = Type.DURATION;
         } else {
@@ -56,7 +57,6 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
         int pairsLen = pairs.length;
 
-        this.name = name;
         this.tags = tags;
         specification = buckets;
         this.buckets = new ArrayList<>(pairsLen);
@@ -122,10 +122,6 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         return new Stopwatch(System.nanoTime(), this);
     }
 
-    String getName() {
-        return name;
-    }
-
     ImmutableMap<String, String> getTags() {
         return tags;
     }
@@ -186,6 +182,11 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
     }
 
+    @Override
+    public String getQualifiedName() {
+        return super.getQualifiedName();
+    }
+
     class HistogramBucket {
         CounterImpl samples;
         double valueLowerBound;
@@ -199,7 +200,7 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
             Duration durationLowerBound,
             Duration durationUpperBound
         ) {
-            samples = new CounterImpl();
+            samples = new CounterImpl(getQualifiedName());
             this.valueLowerBound = valueLowerBound;
             this.valueUpperBound = valueUpperBound;
             this.durationLowerBound = durationLowerBound;

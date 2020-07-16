@@ -23,7 +23,7 @@ package com.uber.m3.tally;
 /**
  * A counter metric.
  */
-public interface Counter {
+public interface Counter extends Metric {
     /**
      * Increment this {@link Counter} by delta.
      * @param delta amount to increment this {@link Counter} by

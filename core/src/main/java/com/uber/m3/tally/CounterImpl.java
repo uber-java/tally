@@ -27,13 +27,22 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Default implementation of a {@link Counter}.
  */
-class CounterImpl implements Counter {
+class CounterImpl extends MetricBase implements Counter {
     private AtomicLong prev = new AtomicLong(0);
     private AtomicLong curr = new AtomicLong(0);
+
+    protected CounterImpl(String fqn) {
+        super(fqn);
+    }
 
     @Override
     public void inc(long delta) {
         curr.getAndAdd(delta);
+    }
+
+    @Override
+    public String getQualifiedName() {
+        return super.getQualifiedName();
     }
 
     long value() {

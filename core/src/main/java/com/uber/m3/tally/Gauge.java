@@ -23,7 +23,7 @@ package com.uber.m3.tally;
 /**
  * A gauge metric.
  */
-public interface Gauge {
+public interface Gauge extends Metric {
     /**
      * Update this {@link Gauge} to a value.
      * @param value value to update this {@link Gauge} to

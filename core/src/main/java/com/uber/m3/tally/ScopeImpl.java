@@ -47,8 +47,7 @@ class ScopeImpl implements Scope {
     private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
-    // TODO validate if needs to be concurrent at all
-    private final ConcurrentLinkedQueue<MetricBase> reportingQueue = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<Reportable> reportingQueue = new ConcurrentLinkedQueue<>();
 
     private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
 
@@ -68,7 +67,7 @@ class ScopeImpl implements Scope {
     public Counter counter(String name) {
         return counters.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
-                addToReportingQueue(new CounterImpl(fullyQualifiedName(name)))
+                new CounterImpl(this, fullyQualifiedName(name))
         );
     }
 
@@ -76,7 +75,7 @@ class ScopeImpl implements Scope {
     public Gauge gauge(String name) {
         return gauges.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
-                addToReportingQueue(new GaugeImpl(fullyQualifiedName(name))));
+                new GaugeImpl(this, fullyQualifiedName(name)));
     }
 
     @Override
@@ -128,9 +127,8 @@ class ScopeImpl implements Scope {
         }
     }
 
-    private <T extends MetricBase> T addToReportingQueue(T metric) {
+    <T extends Reportable> void addToReportingQueue(T metric) {
         reportingQueue.add(metric);
-        return metric;
     }
 
     /**
@@ -138,8 +136,8 @@ class ScopeImpl implements Scope {
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
-        for (MetricBase metric : reportingQueue) {
-            metric.report(metric.getQualifiedName(), tags, reporter);
+        for (Reportable metric : reportingQueue) {
+            metric.report(tags, reporter);
         }
     }
 

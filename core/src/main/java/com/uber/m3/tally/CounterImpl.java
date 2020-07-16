@@ -27,22 +27,19 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Default implementation of a {@link Counter}.
  */
-class CounterImpl extends MetricBase implements Counter {
-    private AtomicLong prev = new AtomicLong(0);
-    private AtomicLong curr = new AtomicLong(0);
+class CounterImpl extends MetricBase implements Counter, Reportable {
+    private final AtomicLong prev = new AtomicLong(0);
+    private final AtomicLong curr = new AtomicLong(0);
 
-    protected CounterImpl(String fqn) {
+    protected CounterImpl(ScopeImpl scope, String fqn) {
         super(fqn);
+
+        scope.addToReportingQueue(this);
     }
 
     @Override
     public void inc(long delta) {
         curr.getAndAdd(delta);
-    }
-
-    @Override
-    public String getQualifiedName() {
-        return super.getQualifiedName();
     }
 
     long value() {
@@ -58,14 +55,15 @@ class CounterImpl extends MetricBase implements Counter {
         return current - previous;
     }
 
-    void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
+    @Override
+    public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
         long delta = value();
 
         if (delta == 0) {
             return;
         }
 
-        reporter.reportCounter(name, tags, delta);
+        reporter.reportCounter(getQualifiedName(), tags, delta);
     }
 
     long snapshot() {

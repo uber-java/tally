@@ -28,12 +28,14 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Default implementation of a {@link Gauge}.
  */
-class GaugeImpl extends MetricBase implements Gauge {
+class GaugeImpl extends MetricBase implements Gauge, Reportable {
     private AtomicBoolean updated = new AtomicBoolean(false);
     private AtomicLong curr = new AtomicLong(0);
 
-    protected GaugeImpl(String fqn) {
+    protected GaugeImpl(ScopeImpl scope, String fqn) {
         super(fqn);
+
+        scope.addToReportingQueue(this);
     }
 
     @Override
@@ -42,18 +44,14 @@ class GaugeImpl extends MetricBase implements Gauge {
         updated.set(true);
     }
 
-    @Override
-    public String getQualifiedName() {
-        return super.getQualifiedName();
-    }
-
     double value() {
         return Double.longBitsToDouble(curr.get());
     }
 
-    void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
+    @Override
+    public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
         if (updated.getAndSet(false)) {
-            reporter.reportGauge(name, tags, value());
+            reporter.reportGauge(getQualifiedName(), tags, value());
         }
     }
 

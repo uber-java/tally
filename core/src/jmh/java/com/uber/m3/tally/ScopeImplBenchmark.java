@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(jvmArgsAppend = "-server")
+@Fork(value = 2, jvmArgsAppend = { "-server", "-XX:+UseG1GC" })
 public class ScopeImplBenchmark {
 
     private static final DurationBuckets EXPONENTIAL_BUCKETS = DurationBuckets.linear(Duration.ofMillis(1), Duration.ofMillis(10), 128);
@@ -79,7 +79,7 @@ public class ScopeImplBenchmark {
 
                 // Populate at least 20% of the buckets
                 int bucketsCount = EXPONENTIAL_BUCKETS.buckets.size();
-                for (int i = 0; i < bucketsCount / 10; ++i) {
+                for (int i = 0; i < bucketsCount / 5; ++i) {
                     h.recordDuration(EXPONENTIAL_BUCKETS.buckets.get(r.nextInt(bucketsCount)));
                 }
             }

@@ -90,9 +90,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         }
 
         // To maintain lock granularity we synchronize only on a
-        // particular bucket leveraging bucket's bound object
-        // TODO remove
-        synchronized (this) {
+        // particular bucket leveraging bucket's boundary as a sync target
+        synchronized (lookupByDuration[Math.min(index, lookupByDuration.length - 1)]) {
             // Check whether bucket has been already set,
             // while we were waiting for lock
             if (bucketCounters[index] != null) {

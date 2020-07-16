@@ -113,7 +113,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         // that the binary search is performed over upper bounds, if binary
         // search found the exact match we need to shift it by 1 to index appropriate bucket in the
         // array of (bucket's) counters
-        if (binarySearchResult > 0) {
+        if (binarySearchResult >= 0) {
             return binarySearchResult + 1;
         }
 

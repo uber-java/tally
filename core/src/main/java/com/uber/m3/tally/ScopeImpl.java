@@ -42,14 +42,10 @@ class ScopeImpl implements Scope {
     private ScheduledExecutorService scheduler;
     private Registry registry;
 
-    // ConcurrentHashMap nearly always allowing read operations seems like a good
-    // performance upside to the consequence of reporting a newly-made metric in
-    // the middle of looping and reporting through all metrics. Therefore, we only
-    // synchronize on these maps when having to allocate new metrics.
-    private final Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
-    private final Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
-    private final Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
-    private final Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CounterImpl> counters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -65,12 +61,12 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        return counters.computeIfAbsent(name, ignored -> new CounterImpl());
+        return counters.computeIfAbsent(name, ignored -> new CounterImpl(fullyQualifiedName(name)));
     }
 
     @Override
     public Gauge gauge(String name) {
-        return gauges.computeIfAbsent(name, ignored -> new GaugeImpl());
+        return gauges.computeIfAbsent(name, ignored -> new GaugeImpl(fullyQualifiedName(name)));
     }
 
     @Override
@@ -123,19 +119,19 @@ class ScopeImpl implements Scope {
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
-        for (Map.Entry<String, CounterImpl> counter : counters.entrySet()) {
-            counter.getValue().report(fullyQualifiedName(counter.getKey()), tags, reporter);
+        for (CounterImpl counter : counters.values()) {
+            counter.report(counter.getQualifiedName(), tags, reporter);
         }
 
-        for (Map.Entry<String, GaugeImpl> gauge : gauges.entrySet()) {
-            gauge.getValue().report(fullyQualifiedName(gauge.getKey()), tags, reporter);
+        for (GaugeImpl gauge : gauges.values()) {
+            gauge.report(gauge.getQualifiedName(), tags, reporter);
         }
 
         // No operations on timers required here; they report directly to the StatsReporter
         // i.e. they are not buffered
 
-        for (Map.Entry<String, HistogramImpl> histogram : histograms.entrySet()) {
-            histogram.getValue().report(fullyQualifiedName(histogram.getKey()), tags, reporter);
+        for (HistogramImpl histogram : histograms.values()) {
+            histogram.report(histogram.getQualifiedName(), tags, reporter);
         }
     }
 
@@ -282,7 +278,7 @@ class ScopeImpl implements Scope {
     }
 
     // One iteration of reporting this scope and all its subscopes
-    private void reportLoopIteration() {
+    void reportLoopIteration() {
         Collection<ScopeImpl> subscopes = registry.subscopes.values();
 
         if (reporter != null) {

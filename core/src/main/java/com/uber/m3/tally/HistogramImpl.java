@@ -23,72 +23,84 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Default implementation of a {@link Histogram}.
  */
 class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
-    private Type type;
-    private ImmutableMap<String, String> tags;
-    private Buckets specification;
-    private List<HistogramBucket> buckets;
-    private List<Double> lookupByValue;
-    private List<Duration> lookupByDuration;
+    private final Type type;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets specification;
+
+    // NOTE: Bucket counters are lazily initialized. Since ref updates are atomic in JMM,
+    // no dedicated synchronization is used on the read path, only on the write path
+    private final CounterImpl[] bucketCounters;
+
+    private final double[] lookupByValue;
+    private final Duration[] lookupByDuration;
+
+    private final BucketPair[] bucketBounds;
 
     HistogramImpl(
         String fqn,
         ImmutableMap<String, String> tags,
-        Buckets buckets
+        Buckets bucketCounters
     ) {
         super(fqn);
 
-        if (buckets instanceof DurationBuckets) {
+        if (bucketCounters instanceof DurationBuckets) {
             type = Type.DURATION;
         } else {
             type = Type.VALUE;
         }
 
-        BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
-        int pairsLen = pairs.length;
-
         this.tags = tags;
-        this.specification = buckets;
+        this.specification = bucketCounters;
 
-        this.buckets = new ArrayList<>(pairsLen);
-        this.lookupByValue = new ArrayList<>(pairsLen);
-        this.lookupByDuration = new ArrayList<>(pairsLen);
+        this.bucketBounds = BucketPairImpl.bucketPairs(bucketCounters);
 
-        for (BucketPair pair : pairs) {
-            addBucket(new HistogramBucket(
-                pair.lowerBoundValue(),
-                pair.upperBoundValue(),
-                pair.lowerBoundDuration(),
-                pair.upperBoundDuration()
-            ));
+        this.bucketCounters = new CounterImpl[bucketBounds.length];
+
+        this.lookupByValue = new double[bucketBounds.length];
+        this.lookupByDuration = new Duration[bucketBounds.length];
+
+        for (int i = 0; i < bucketBounds.length; ++i) {
+            this.lookupByValue[i] = bucketBounds[i].upperBoundValue();
+            this.lookupByDuration[i] = bucketBounds[i].upperBoundDuration();
         }
-    }
-
-    private void addBucket(HistogramBucket bucket) {
-        buckets.add(bucket);
-        lookupByValue.add(bucket.valueUpperBound);
-        lookupByDuration.add(bucket.durationUpperBound);
     }
 
     @Override
     public void recordValue(double value) {
-        int index = toBucketIndex(Collections.binarySearch(lookupByValue, value));
-        buckets.get(index).samples.inc(1);
+        int index = toBucketIndex(Arrays.binarySearch(lookupByValue, value));
+        getOrCreateCounter(index).inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = toBucketIndex(Collections.binarySearch(lookupByDuration, duration));
-        buckets.get(index).samples.inc(1);
+        int index = toBucketIndex(Arrays.binarySearch(lookupByDuration, duration));
+        getOrCreateCounter(index).inc(1);
+    }
+
+    private CounterImpl getOrCreateCounter(int index) {
+        if (bucketCounters[index] != null) {
+            return bucketCounters[index];
+        }
+
+        // To maintain lock granularity we synchronize only on a
+        // particular bucket leveraging bucket's bound object
+        synchronized (bucketBounds[index]) {
+            // Check whether bucket has been already set,
+            // while we were waiting for lock
+            if (bucketCounters[index] != null) {
+                return bucketCounters[index];
+            }
+
+            return (bucketCounters[index] = new CounterImpl(getQualifiedName()));
+        }
     }
 
     private int toBucketIndex(int binarySearchResult) {
@@ -100,8 +112,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
         // binarySearch can return collections.size(), guarding against that.
         // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (binarySearchResult >= buckets.size()) {
-            binarySearchResult = buckets.size() - 1;
+        if (binarySearchResult >= bucketCounters.length) {
+            binarySearchResult = bucketCounters.length - 1;
         }
 
         return binarySearchResult;
@@ -118,9 +130,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
     @Override
     void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
-        for (HistogramBucket bucket : buckets) {
-            long samples = bucket.samples.value();
-
+        for (int i = 0; i < bucketCounters.length; ++i) {
+            long samples = getCounterValue(i);
             if (samples == 0) {
                 continue;
             }
@@ -128,27 +139,32 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             switch (type) {
                 case VALUE:
                     reporter.reportHistogramValueSamples(
-                        name, tags, specification, bucket.valueLowerBound, bucket.valueUpperBound, samples
+                        name, tags, specification, bucketBounds[i].lowerBoundValue(), bucketBounds[i].upperBoundValue(), samples
                     );
                     break;
                 case DURATION:
                     reporter.reportHistogramDurationSamples(
-                        name, tags, specification, bucket.durationLowerBound, bucket.durationUpperBound, samples
+                        name, tags, specification, bucketBounds[i].lowerBoundDuration(), bucketBounds[i].upperBoundDuration(), samples
                     );
                     break;
             }
         }
     }
 
+    private long getCounterValue(int index) {
+        return bucketCounters[index] != null ? bucketCounters[index].value() : 0;
+    }
+
+    // NOTE: Only used in testing
     Map<Double, Long> snapshotValues() {
         if (type == Type.DURATION) {
             return null;
         }
 
-        Map<Double, Long> values = new HashMap<>(buckets.size(), 1);
+        Map<Double, Long> values = new HashMap<>(bucketCounters.length, 1);
 
-        for (HistogramBucket bucket : buckets) {
-            values.put(bucket.valueUpperBound, bucket.samples.value());
+        for (int i = 0; i < bucketBounds.length; ++i) {
+            values.put(bucketBounds[i].upperBoundValue(), getCounterValue(i));
         }
 
         return values;
@@ -159,10 +175,11 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return null;
         }
 
-        Map<Duration, Long> durations = new HashMap<>(buckets.size(), 1);
+        Map<Duration, Long> durations = new HashMap<>(bucketCounters.length, 1);
 
-        for (HistogramBucket bucket : buckets) {
-            durations.put(bucket.durationUpperBound, bucket.samples.value());
+
+        for (int i = 0; i < bucketBounds.length; ++i) {
+            durations.put(bucketBounds[i].upperBoundDuration(), getCounterValue(i));
         }
 
         return durations;
@@ -171,27 +188,6 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     @Override
     public void recordStopwatch(long stopwatchStart) {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
-    }
-
-    class HistogramBucket {
-        CounterImpl samples;
-        double valueLowerBound;
-        double valueUpperBound;
-        Duration durationLowerBound;
-        Duration durationUpperBound;
-
-        HistogramBucket(
-            double valueLowerBound,
-            double valueUpperBound,
-            Duration durationLowerBound,
-            Duration durationUpperBound
-        ) {
-            this.samples = new CounterImpl(getQualifiedName());
-            this.valueLowerBound = valueLowerBound;
-            this.valueUpperBound = valueUpperBound;
-            this.durationLowerBound = durationLowerBound;
-            this.durationUpperBound = durationUpperBound;
-        }
     }
 
     enum Type {

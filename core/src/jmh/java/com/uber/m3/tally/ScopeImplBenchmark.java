@@ -22,28 +22,33 @@ public class ScopeImplBenchmark {
     private static final DurationBuckets EXPONENTIAL_BUCKETS = DurationBuckets.linear(Duration.ofMillis(1), Duration.ofMillis(10), 128);
 
     private static final String[] COUNTER_NAMES = {
-            "first-counter",
-            "second-counter",
-            "third-counter",
-            "fourth-counter",
-            "fifth-counter",
+        "first-counter",
+        "second-counter",
+        "third-counter",
+        "fourth-counter",
+        "fifth-counter",
     };
 
     private static final String[] GAUGE_NAMES = {
-            "first-gauge",
-            "second-gauge",
-            "third-gauge",
-            "fourth-gauge",
-            "fifth-gauge",
+        "first-gauge",
+        "second-gauge",
+        "third-gauge",
+        "fourth-gauge",
+        "fifth-gauge",
     };
 
     private static final String[] HISTOGRAM_NAMES = {
-            "first-histogram",
-            "second-histogram",
-            "third-histogram",
-            "fourth-histogram",
-            "fifth-histogram",
+        "first-histogram",
+        "second-histogram",
+        "third-histogram",
+        "fourth-histogram",
+        "fifth-histogram",
     };
+
+    @Benchmark
+    public void scopeReportingBenchmark(BenchmarkState state) {
+        state.scope.reportLoopIteration();
+    }
 
     @State(org.openjdk.jmh.annotations.Scope.Benchmark)
     public static class BenchmarkState {
@@ -90,10 +95,5 @@ public class ScopeImplBenchmark {
             scope.close();
         }
 
-    }
-
-    @Benchmark
-    public void scopeReportingBenchmark(BenchmarkState state) {
-        state.scope.reportLoopIteration();
     }
 }

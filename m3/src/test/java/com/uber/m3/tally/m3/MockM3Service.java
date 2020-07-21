@@ -48,10 +48,10 @@ public class MockM3Service implements M3.Iface {
             lock.readLock().unlock();
         }
     }
-    public List<Metric> getMetrics() {
+    public List<Metric> snapshotMetrics() {
         lock.readLock().lock();
         try {
-            return metrics;
+            return new ArrayList<>(metrics);
         } finally {
             lock.readLock().unlock();
         }

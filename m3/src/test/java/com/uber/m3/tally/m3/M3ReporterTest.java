@@ -130,7 +130,7 @@ public class M3ReporterTest {
                 server.await();
 
                 receivedBatches = server.getService().getBatches();
-                receivedMetrics = server.getService().getMetrics();
+                receivedMetrics = server.getService().snapshotMetrics();
             }
         }
 
@@ -480,7 +480,7 @@ public class M3ReporterTest {
 
                 server.await();
 
-                metrics = server.getService().getMetrics();
+                metrics = server.getService().snapshotMetrics();
             }
         }
 

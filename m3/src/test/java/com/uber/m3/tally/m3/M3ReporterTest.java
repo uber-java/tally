@@ -33,8 +33,7 @@ import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -67,22 +66,16 @@ public class M3ReporterTest {
             "host", "test-host"
         );
 
-    private M3Reporter reporter;
+    private M3Reporter.Builder reporterBuilder =
+            new M3Reporter.Builder(socketAddress)
+                .service("test-service")
+                .commonTags(DEFAULT_TAGS);
 
-    @Before
-    public void setupTest() throws UnknownHostException {
+    @BeforeClass
+    public static void setup() throws UnknownHostException {
         socketAddress = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 12345);
-        reporter =
-                new M3Reporter.Builder(socketAddress)
-                    .service("test-service")
-                    .commonTags(DEFAULT_TAGS)
-                    .build();
     }
 
-    @After
-    public void teardownTest() {
-        reporter.close();
-    }
 
     @Test
     public void reporter() throws InterruptedException {
@@ -225,25 +218,29 @@ public class M3ReporterTest {
     @Test
     public void reporterFinalFlush() throws InterruptedException {
         try (final MockM3Server server = bootM3Collector(1)) {
-            reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
-            reporter.close();
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
+                reporter.close();
 
-            server.await(MAX_WAIT_TIMEOUT);
+                server.await(MAX_WAIT_TIMEOUT);
 
-            List<MetricBatch> batches = server.getService().snapshotBatches();
-            assertEquals(1, batches.size());
-            assertNotNull(batches.get(0));
-            assertEquals(1, batches.get(0).getMetrics().size());
+                List<MetricBatch> batches = server.getService().snapshotBatches();
+                assertEquals(1, batches.size());
+                assertNotNull(batches.get(0));
+                assertEquals(1, batches.get(0).getMetrics().size());
+            }
         }
     }
 
     @Test
     public void reporterAfterCloseNoThrow() throws InterruptedException {
         try (final MockM3Server server = bootM3Collector(0);) {
-            reporter.close();
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                reporter.close();
 
-            reporter.reportGauge("my-gauge", null, 4.2);
-            reporter.flush();
+                reporter.reportGauge("my-gauge", null, 4.2);
+                reporter.flush();
+            }
         }
     }
 
@@ -252,33 +249,35 @@ public class M3ReporterTest {
         List<MetricBatch> receivedBatches;
 
         try (final MockM3Server server = bootM3Collector(2)) {
-            Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(25), 5);
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(25), 5);
 
-            Map<String, String> histogramTags = new HashMap<>();
-            histogramTags.put("foo", "bar");
+                Map<String, String> histogramTags = new HashMap<>();
+                histogramTags.put("foo", "bar");
 
-            reporter.reportHistogramDurationSamples(
-                    "my-histogram",
-                    histogramTags,
-                    buckets,
-                    Duration.ZERO,
-                    Duration.ofMillis(25),
-                    7
-            );
+                reporter.reportHistogramDurationSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        Duration.ZERO,
+                        Duration.ofMillis(25),
+                        7
+                );
 
-            reporter.reportHistogramDurationSamples(
-                    "my-histogram",
-                    histogramTags,
-                    buckets,
-                    Duration.ofMillis(50),
-                    Duration.ofMillis(75),
-                    3
-            );
+                reporter.reportHistogramDurationSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        Duration.ofMillis(50),
+                        Duration.ofMillis(75),
+                        3
+                );
 
-            reporter.close();
-            server.await(MAX_WAIT_TIMEOUT);
+                reporter.close();
+                server.await(MAX_WAIT_TIMEOUT);
 
-            receivedBatches = server.getService().snapshotBatches();
+                receivedBatches = server.getService().snapshotBatches();
+            }
         }
 
         assertEquals(1, receivedBatches.size());
@@ -338,34 +337,37 @@ public class M3ReporterTest {
     public void reporterHistogramValues() throws InterruptedException {
         List<MetricBatch> receivedBatches;
 
-        try (final MockM3Server server = bootM3Collector(2);) {
-            Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
+        try (final MockM3Server server = bootM3Collector(2)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
 
-            Map<String, String> histogramTags = new HashMap<>();
-            histogramTags.put("foo", "bar");
+                Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
 
-            reporter.reportHistogramValueSamples(
-                    "my-histogram",
-                    histogramTags,
-                    buckets,
-                    0,
-                    25_000_000,
-                    7
-            );
+                Map<String, String> histogramTags = new HashMap<>();
+                histogramTags.put("foo", "bar");
 
-            reporter.reportHistogramValueSamples(
-                    "my-histogram",
-                    histogramTags,
-                    buckets,
-                    50_000_000,
-                    75_000_000,
-                    3
-            );
+                reporter.reportHistogramValueSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        0,
+                        25_000_000,
+                        7
+                );
 
-            reporter.close();
-            server.await(MAX_WAIT_TIMEOUT);
+                reporter.reportHistogramValueSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        50_000_000,
+                        75_000_000,
+                        3
+                );
 
-            receivedBatches = server.getService().snapshotBatches();
+                reporter.close();
+                server.await(MAX_WAIT_TIMEOUT);
+
+                receivedBatches = server.getService().snapshotBatches();
+            }
         }
 
         assertEquals(1, receivedBatches.size());

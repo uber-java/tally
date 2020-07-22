@@ -71,7 +71,7 @@ public class M3ReporterTest {
 
     @Before
     public void setupTest() throws UnknownHostException {
-        socketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 12345);
+        socketAddress = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 12345);
         reporter =
                 new M3Reporter.Builder(socketAddress)
                     .service("test-service")

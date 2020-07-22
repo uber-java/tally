@@ -55,7 +55,7 @@ import static org.junit.Assert.assertTrue;
 // TODO add tests for multi-processor setup
 public class M3ReporterTest {
 
-    private static final java.time.Duration MAX_WAIT_TIMEOUT = java.time.Duration.ofSeconds(10);
+    private static final java.time.Duration MAX_WAIT_TIMEOUT = java.time.Duration.ofSeconds(30);
 
     private static double EPSILON = 1e-9;
 

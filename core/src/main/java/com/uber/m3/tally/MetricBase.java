@@ -20,6 +20,9 @@
 
 package com.uber.m3.tally;
 
+/**
+ * Abstract common logic among every metric ({@link Counter}, {@link Gauge}, {@link Histogram})
+ */
 abstract class MetricBase {
 
     private final String fullyQualifiedName;

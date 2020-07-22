@@ -36,9 +36,6 @@ import java.net.SocketException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.AbstractQueuedSynchronizer;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class MockM3Server implements AutoCloseable {
 
@@ -46,7 +43,7 @@ public class MockM3Server implements AutoCloseable {
 
     private final CountDownLatch expectedMetricsLatch;
 
-    private final Condition started = new ReentrantLock().newCondition();
+    private final Object startupMonitor = new Object();
 
     private final TProcessor processor;
     private final TTransport transport;
@@ -78,7 +75,9 @@ public class MockM3Server implements AutoCloseable {
 
         TProtocol protocol = new TCompactProtocol.Factory().getProtocol(transport);
 
-        started.notifyAll();
+        synchronized (startupMonitor) {
+            startupMonitor.notifyAll();
+        }
 
         while (transport.isOpen()) {
             try {
@@ -108,7 +107,9 @@ public class MockM3Server implements AutoCloseable {
      * Awaits for the server to be fully booted up
      */
     public void awaitStarting() throws InterruptedException {
-        started.await();
+        synchronized (startupMonitor) {
+            startupMonitor.wait();
+        }
     }
 
     @Override

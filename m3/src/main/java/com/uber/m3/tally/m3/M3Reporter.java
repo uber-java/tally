@@ -475,6 +475,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             transport.open();
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
+
+            LOG.info("Booted reporting processor");
         }
 
         @Override

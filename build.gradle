@@ -61,8 +61,15 @@ allprojects {
     }
 
     dependencies {
-        testCompile('junit:junit:4.12')
-        testCompile "org.mockito:mockito-core:[1.0, 2.0)"
+        testCompile 'junit:junit:4.12'
+        testCompile 'org.mockito:mockito-core:[1.0, 2.0)'
+        testCompile 'ch.qos.logback:logback-classic:1.2.3'
+        testCompile 'ch.qos.logback:logback-core:1.2.3'
+    }
+
+    test {
+        testLogging.showStandardStreams = true
+        testLogging.exceptionFormat = 'full'
     }
 
     ext.ossrhUsername = System.getenv('OSSRH_JIRA_USERNAME')

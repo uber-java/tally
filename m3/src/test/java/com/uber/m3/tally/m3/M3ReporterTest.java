@@ -76,7 +76,6 @@ public class M3ReporterTest {
         socketAddress = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 12345);
     }
 
-
     @Test
     public void reporter() throws InterruptedException {
         ImmutableMap<String, String> commonTags = new ImmutableMap.Builder<String, String>(5)

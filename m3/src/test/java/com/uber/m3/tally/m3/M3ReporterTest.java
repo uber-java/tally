@@ -35,7 +35,6 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -55,6 +54,9 @@ import static org.junit.Assert.assertTrue;
 // TODO add tests to validate uncaughts don't crash processor
 // TODO add tests for multi-processor setup
 public class M3ReporterTest {
+
+    private static final java.time.Duration MAX_WAIT_TIMEOUT = java.time.Duration.ofSeconds(10);
+
     private static double EPSILON = 1e-9;
 
     private static SocketAddress socketAddress;
@@ -67,17 +69,9 @@ public class M3ReporterTest {
 
     private M3Reporter reporter;
 
-    @BeforeClass
-    public static void setup() {
-        try {
-            socketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 4448);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException("Unable to get localhost");
-        }
-    }
-
     @Before
-    public void setupTest() {
+    public void setupTest() throws UnknownHostException {
+        socketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 12345);
         reporter =
                 new M3Reporter.Builder(socketAddress)
                     .service("test-service")
@@ -127,7 +121,7 @@ public class M3ReporterTest {
 
                 // Shutdown both reporter and server
                 reporter.close();
-                server.await();
+                server.await(MAX_WAIT_TIMEOUT);
 
                 receivedBatches = server.getService().snapshotBatches();
                 receivedMetrics = server.getService().snapshotMetrics();
@@ -234,7 +228,7 @@ public class M3ReporterTest {
             reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
             reporter.close();
 
-            server.await();
+            server.await(MAX_WAIT_TIMEOUT);
 
             List<MetricBatch> batches = server.getService().snapshotBatches();
             assertEquals(1, batches.size());
@@ -282,7 +276,7 @@ public class M3ReporterTest {
             );
 
             reporter.close();
-            server.await();
+            server.await(MAX_WAIT_TIMEOUT);
 
             receivedBatches = server.getService().snapshotBatches();
         }
@@ -369,7 +363,7 @@ public class M3ReporterTest {
             );
 
             reporter.close();
-            server.await();
+            server.await(MAX_WAIT_TIMEOUT);
 
             receivedBatches = server.getService().snapshotBatches();
         }
@@ -478,7 +472,7 @@ public class M3ReporterTest {
                 // Shutdown reporter
                 reporter.close();
 
-                server.await();
+                server.await(MAX_WAIT_TIMEOUT);
 
                 metrics = server.getService().snapshotMetrics();
             }

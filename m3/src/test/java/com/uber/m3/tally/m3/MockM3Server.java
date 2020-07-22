@@ -36,7 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class MockM3Server implements AutoCloseable {
-    private static final Duration MAX_WAIT_TIMEOUT = Duration.ofMinutes(1);
     private final CountDownLatch expectedMetricsLatch;
 
     private final TProcessor processor;
@@ -89,8 +88,8 @@ public class MockM3Server implements AutoCloseable {
      *
      * @throws InterruptedException
      */
-    public void await() throws InterruptedException {
-        expectedMetricsLatch.await(MAX_WAIT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    public void await(Duration waitTimeout) throws InterruptedException {
+        expectedMetricsLatch.await(waitTimeout.getSeconds(), TimeUnit.SECONDS);
     }
 
     @Override

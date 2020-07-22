@@ -344,7 +344,7 @@ public class M3ReporterTest {
     public void reporterHistogramValues() throws InterruptedException {
         List<MetricBatch> receivedBatches;
 
-        try(final MockM3Server server = bootM3Collector(2);) {
+        try (final MockM3Server server = bootM3Collector(2);) {
             Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
 
             Map<String, String> histogramTags = new HashMap<>();
@@ -462,7 +462,7 @@ public class M3ReporterTest {
 
         List<Metric> metrics;
 
-        try (final MockM3Server server =bootM3Collector(expectedMetricsCount)) {
+        try (final MockM3Server server = bootM3Collector(expectedMetricsCount)) {
             try (final M3Reporter reporter = reporterBuilder.build()) {
 
                 ImmutableMap<String, String> emptyTags =

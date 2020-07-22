@@ -40,10 +40,10 @@ public class MockM3Service implements M3.Iface {
         this.metricsCountLatch = metricsCountLatch;
     }
 
-    public List<MetricBatch> getBatches() {
+    public List<MetricBatch> snapshotBatches() {
         lock.readLock().lock();
         try {
-            return batches;
+            return new ArrayList<>(batches);
         } finally {
             lock.readLock().unlock();
         }

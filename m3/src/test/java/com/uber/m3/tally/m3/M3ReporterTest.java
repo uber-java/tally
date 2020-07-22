@@ -129,7 +129,7 @@ public class M3ReporterTest {
                 reporter.close();
                 server.await();
 
-                receivedBatches = server.getService().getBatches();
+                receivedBatches = server.getService().snapshotBatches();
                 receivedMetrics = server.getService().snapshotMetrics();
             }
         }
@@ -236,7 +236,7 @@ public class M3ReporterTest {
 
             server.await();
 
-            List<MetricBatch> batches = server.getService().getBatches();
+            List<MetricBatch> batches = server.getService().snapshotBatches();
             assertEquals(1, batches.size());
             assertNotNull(batches.get(0));
             assertEquals(1, batches.get(0).getMetrics().size());
@@ -284,7 +284,7 @@ public class M3ReporterTest {
             reporter.close();
             server.await();
 
-            receivedBatches = server.getService().getBatches();
+            receivedBatches = server.getService().snapshotBatches();
         }
 
         assertEquals(1, receivedBatches.size());
@@ -371,7 +371,7 @@ public class M3ReporterTest {
             reporter.close();
             server.await();
 
-            receivedBatches = server.getService().getBatches();
+            receivedBatches = server.getService().snapshotBatches();
         }
 
         assertEquals(1, receivedBatches.size());

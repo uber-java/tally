@@ -28,6 +28,8 @@ import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -36,6 +38,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class MockM3Server implements AutoCloseable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MockM3Server.class);
+
     private final CountDownLatch expectedMetricsLatch;
 
     private final TProcessor processor;
@@ -60,6 +65,8 @@ public class MockM3Server implements AutoCloseable {
     public void serve() {
         try {
             transport.open();
+
+            LOG.info("Opened receiving server socket");
         } catch (TTransportException e) {
             throw new RuntimeException("Failed to open socket", e);
         }
@@ -96,5 +103,7 @@ public class MockM3Server implements AutoCloseable {
     public void close() {
         // Close immediately without waiting
         transport.close();
+
+        LOG.info("Closing receiving server socket");
     }
 }

@@ -113,7 +113,7 @@ public class M3ReporterTest {
 
                 // Shutdown both reporter and server
                 reporter.close();
-                server.await(MAX_WAIT_TIMEOUT);
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
                 receivedBatches = server.getService().snapshotBatches();
                 receivedMetrics = server.getService().snapshotMetrics();
@@ -221,7 +221,7 @@ public class M3ReporterTest {
                 reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
                 reporter.close();
 
-                server.await(MAX_WAIT_TIMEOUT);
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
                 List<MetricBatch> batches = server.getService().snapshotBatches();
                 assertEquals(1, batches.size());
@@ -273,7 +273,7 @@ public class M3ReporterTest {
                 );
 
                 reporter.close();
-                server.await(MAX_WAIT_TIMEOUT);
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
                 receivedBatches = server.getService().snapshotBatches();
             }
@@ -363,7 +363,7 @@ public class M3ReporterTest {
                 );
 
                 reporter.close();
-                server.await(MAX_WAIT_TIMEOUT);
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
                 receivedBatches = server.getService().snapshotBatches();
             }
@@ -432,9 +432,10 @@ public class M3ReporterTest {
         assertEquals(CapableOf.REPORTING_TAGGING, reporter.capabilities());
     }
 
-    private static MockM3Server bootM3Collector(int expectedMetricsCount) {
+    private static MockM3Server bootM3Collector(int expectedMetricsCount) throws InterruptedException {
         final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress);
         new Thread(server::serve).start();
+        server.awaitStarting();
         return server;
     }
 
@@ -473,7 +474,7 @@ public class M3ReporterTest {
                 // Shutdown reporter
                 reporter.close();
 
-                server.await(MAX_WAIT_TIMEOUT);
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
                 metrics = server.getService().snapshotMetrics();
             }

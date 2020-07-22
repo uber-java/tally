@@ -57,6 +57,8 @@ public class TUdpServer extends TUdpTransport implements AutoCloseable {
         try {
             socket.bind(socketAddress);
             socket.setSoTimeout(timeoutMillis);
+
+            logger.info("UDP socket has been bound to");
         } catch (SocketException e) {
             throw new TTransportException("Error opening transport", e);
         }

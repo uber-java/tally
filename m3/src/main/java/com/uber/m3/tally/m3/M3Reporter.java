@@ -503,19 +503,22 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     } else {
                         process(sizedMetric);
                     }
+                } catch (InterruptedException t) {
+                    // no-op
                 } catch (Throwable t) {
                     // This is fly-away guard making sure that uncaught exception
-                    // will not crash the processor
+                    // will be logged
                     LOG.error("Unhandled exception in processor", t);
+                    throw new RuntimeException(t);
                 }
             }
 
             LOG.warn("Processor shutting down");
 
             // Drain queue of any remaining metrics submitted prior to shutdown;
-            drainQueue();
-            // Flush remaining buffers at last
-            flushBuffered();
+            runNoThrow(this::drainQueue);
+            // Flush remaining buffers at last (best effort)
+            runNoThrow(this::flushBuffered);
 
             // Close transport
             transport.close();
@@ -526,7 +529,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             LOG.warn("Processor shut down");
         }
 
-        private void process(SizedMetric sizedMetric) {
+        private void process(SizedMetric sizedMetric) throws TException {
             int size = sizedMetric.getSize();
             if (bufferedBytes + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
                 flushBuffered();
@@ -544,7 +547,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             );
         }
 
-        private void drainQueue() {
+        private void drainQueue() throws TException {
             SizedMetric metrics;
 
             while ((metrics = metricQueue.poll()) != null) {
@@ -552,7 +555,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             }
         }
 
-        private void flushBuffered() {
+        private void flushBuffered() throws TException {
             if (metricsBuffer.isEmpty()) {
                 return;
             }
@@ -563,8 +566,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                                 .setCommonTags(commonTags)
                                 .setMetrics(metricsBuffer)
                 );
-            } catch (Throwable t) {
+            } catch (TException t) {
                 LOG.error("Failed to flush metrics", t);
+                throw t;
             }
 
             metricsBuffer.clear();
@@ -575,6 +579,19 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         public void scheduleFlush() {
             shouldFlush.set(true);
         }
+    }
+
+    private static void runNoThrow(ThrowingRunnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            // no-op
+        }
+    }
+
+    @FunctionalInterface
+    interface ThrowingRunnable {
+        void run() throws Exception;
     }
 
     /**

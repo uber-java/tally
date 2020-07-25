@@ -448,6 +448,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
+    private static void runNoThrow(ThrowingRunnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            // no-op
+        }
+    }
+
     private class Processor implements Runnable {
 
         private final List<Metric> metricsBuffer =
@@ -578,14 +586,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         public void scheduleFlush() {
             shouldFlush.set(true);
-        }
-    }
-
-    private static void runNoThrow(ThrowingRunnable r) {
-        try {
-            r.run();
-        } catch (Throwable t) {
-            // no-op
         }
     }
 

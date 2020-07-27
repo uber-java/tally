@@ -49,7 +49,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+// TODO add tests to validate proper shutdown
+// TODO add tests to validate uncaughts don't crash processor
+// TODO add tests for multi-processor setup
 public class M3ReporterTest {
+
+    private static final java.time.Duration MAX_WAIT_TIMEOUT = java.time.Duration.ofSeconds(30);
+
     private static double EPSILON = 1e-9;
 
     private static SocketAddress socketAddress;
@@ -60,31 +66,19 @@ public class M3ReporterTest {
             "host", "test-host"
         );
 
+    private M3Reporter.Builder reporterBuilder =
+            new M3Reporter.Builder(socketAddress)
+                .service("test-service")
+                .commonTags(DEFAULT_TAGS);
+
     @BeforeClass
-    public static void setup() {
-        try {
-            socketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 4448);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException("Unable to get localhost");
-        }
+    public static void setup() throws UnknownHostException {
+        socketAddress = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 12345);
     }
 
     @Test
     public void reporter() throws InterruptedException {
-        final MockM3Server server = new MockM3Server(3, socketAddress);
-        M3Reporter reporter = null;
-
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
-            }
-        });
-
-        try {
-            serverThread.start();
-
-            ImmutableMap<String, String> commonTags = new ImmutableMap.Builder<String, String>(5)
+        ImmutableMap<String, String> commonTags = new ImmutableMap.Builder<String, String>(5)
                 .put("env", "development")
                 .put("host", "default")
                 .put("commonTag1", "val1")
@@ -92,112 +86,105 @@ public class M3ReporterTest {
                 .put("commonTag3", "val3")
                 .build();
 
-            reporter = new M3Reporter.Builder(socketAddress)
-                .service("test-service")
-                .commonTags(commonTags)
-                .includeHost(true)
-                .build();
-
-            ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>(2)
+        ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>(2)
                 .put("testTag1", "testVal1")
                 .put("testTag2", "testVal2")
                 .build();
 
-            reporter.reportCounter("my-counter", tags, 10);
-            reporter.flush();
+        M3Reporter.Builder reporterBuilder =
+                new M3Reporter.Builder(socketAddress)
+                    .service("test-service")
+                    .commonTags(commonTags)
+                    .includeHost(true);
 
-            reporter.reportTimer("my-timer", tags, Duration.ofMillis(5));
-            reporter.flush();
+        List<MetricBatch> receivedBatches;
+        List<Metric> receivedMetrics;
 
-            reporter.reportGauge("my-gauge", tags, 42.42);
-            reporter.flush();
+        try (final M3Reporter reporter = reporterBuilder.build()) {
+            try (final MockM3Server server = bootM3Collector(3)) {
+                reporter.reportCounter("my-counter", tags, 10);
+                reporter.flush();
 
-            // Shutdown both reporter and server
-            reporter.close();
-            server.awaitAndClose();
+                reporter.reportTimer("my-timer", tags, Duration.ofMillis(5));
+                reporter.flush();
 
-            List<MetricBatch> batches = server.getService().getBatches();
-            assertEquals(3, batches.size());
+                reporter.reportGauge("my-gauge", tags, 42.42);
+                reporter.flush();
 
-            // Validate common tags
-            for (MetricBatch batch : batches) {
-                assertNotNull(batch);
-                assertTrue(batch.isSetCommonTags());
-                assertEquals(commonTags.size() + 1, batch.getCommonTags().size());
+                // Shutdown both reporter and server
+                reporter.close();
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
 
-                for (MetricTag tag : batch.getCommonTags()) {
-                    if (tag.getTagName().equals(M3Reporter.SERVICE_TAG)) {
-                        assertEquals("test-service", tag.getTagValue());
-                    } else {
-                        assertEquals(commonTags.get(tag.getTagName()), tag.getTagValue());
-                    }
+                receivedBatches = server.getService().snapshotBatches();
+                receivedMetrics = server.getService().snapshotMetrics();
+            }
+        }
+
+        // Validate common tags
+        for (MetricBatch batch : receivedBatches) {
+            assertNotNull(batch);
+            assertTrue(batch.isSetCommonTags());
+            assertEquals(commonTags.size() + 1, batch.getCommonTags().size());
+
+            for (MetricTag tag : batch.getCommonTags()) {
+                if (tag.getTagName().equals(M3Reporter.SERVICE_TAG)) {
+                    assertEquals("test-service", tag.getTagValue());
+                } else {
+                    assertEquals(commonTags.get(tag.getTagName()), tag.getTagValue());
                 }
             }
-
-            // Validate metrics
-            List<Metric> emittedCounters = batches.get(0).getMetrics();
-            assertEquals(1, emittedCounters.size());
-
-            List<Metric> emittedTimers = batches.get(1).getMetrics();
-            assertEquals(1, emittedTimers.size());
-
-            List<Metric> emittedGauges = batches.get(2).getMetrics();
-            assertEquals(1, emittedGauges.size());
-
-            Metric emittedCounter = emittedCounters.get(0);
-            Metric emittedTimer = emittedTimers.get(0);
-            Metric emittedGauge = emittedGauges.get(0);
-
-            assertEquals("my-counter", emittedCounter.getName());
-            assertTrue(emittedCounter.isSetTags());
-            assertEquals(tags.size(), emittedCounter.getTagsSize());
-
-            for (MetricTag tag : emittedCounter.getTags()) {
-                assertEquals(tags.get(tag.getTagName()), tag.getTagValue());
-            }
-
-            // Validate counter
-            assertTrue(emittedCounter.isSetMetricValue());
-
-            MetricValue emittedValue = emittedCounter.getMetricValue();
-            assertTrue(emittedValue.isSetCount());
-            assertFalse(emittedValue.isSetGauge());
-            assertFalse(emittedValue.isSetTimer());
-
-            CountValue emittedCount = emittedValue.getCount();
-            assertTrue(emittedCount.isSetI64Value());
-            assertEquals(10, emittedCount.getI64Value());
-
-            // Validate timer
-            assertTrue(emittedTimer.isSetMetricValue());
-
-            emittedValue = emittedTimer.getMetricValue();
-            assertFalse(emittedValue.isSetCount());
-            assertFalse(emittedValue.isSetGauge());
-            assertTrue(emittedValue.isSetTimer());
-
-            TimerValue emittedTimerValue = emittedValue.getTimer();
-            assertTrue(emittedTimerValue.isSetI64Value());
-            assertEquals(5_000_000, emittedTimerValue.getI64Value());
-
-            // Validate gauge
-            assertTrue(emittedGauge.isSetMetricValue());
-
-            emittedValue = emittedGauge.getMetricValue();
-            assertFalse(emittedValue.isSetCount());
-            assertTrue(emittedValue.isSetGauge());
-            assertFalse(emittedValue.isSetTimer());
-
-            GaugeValue emittedGaugeValue = emittedValue.getGauge();
-            assertTrue(emittedGaugeValue.isSetDValue());
-            assertEquals(42.42, emittedGaugeValue.getDValue(), EPSILON);
-        } finally {
-            if (reporter != null) {
-                reporter.close();
-            }
-
-            server.awaitAndClose();
         }
+
+        // Validate metrics
+        assertEquals(3, receivedMetrics.size());
+
+        Metric emittedCounter = receivedMetrics.get(0);
+        Metric emittedTimer = receivedMetrics.get(1);
+        Metric emittedGauge = receivedMetrics.get(2);
+
+        assertEquals("my-counter", emittedCounter.getName());
+        assertTrue(emittedCounter.isSetTags());
+        assertEquals(tags.size(), emittedCounter.getTagsSize());
+
+        for (MetricTag tag : emittedCounter.getTags()) {
+            assertEquals(tags.get(tag.getTagName()), tag.getTagValue());
+        }
+
+        // Validate counter
+        assertTrue(emittedCounter.isSetMetricValue());
+
+        MetricValue emittedValue = emittedCounter.getMetricValue();
+        assertTrue(emittedValue.isSetCount());
+        assertFalse(emittedValue.isSetGauge());
+        assertFalse(emittedValue.isSetTimer());
+
+        CountValue emittedCount = emittedValue.getCount();
+        assertTrue(emittedCount.isSetI64Value());
+        assertEquals(10, emittedCount.getI64Value());
+
+        // Validate timer
+        assertTrue(emittedTimer.isSetMetricValue());
+
+        emittedValue = emittedTimer.getMetricValue();
+        assertFalse(emittedValue.isSetCount());
+        assertFalse(emittedValue.isSetGauge());
+        assertTrue(emittedValue.isSetTimer());
+
+        TimerValue emittedTimerValue = emittedValue.getTimer();
+        assertTrue(emittedTimerValue.isSetI64Value());
+        assertEquals(5_000_000, emittedTimerValue.getI64Value());
+
+        // Validate gauge
+        assertTrue(emittedGauge.isSetMetricValue());
+
+        emittedValue = emittedGauge.getMetricValue();
+        assertFalse(emittedValue.isSetCount());
+        assertTrue(emittedValue.isSetGauge());
+        assertFalse(emittedValue.isSetTimer());
+
+        GaugeValue emittedGaugeValue = emittedValue.getGauge();
+        assertTrue(emittedGaugeValue.isSetDValue());
+        assertEquals(42.42, emittedGaugeValue.getDValue(), EPSILON);
     }
 
     @Test
@@ -229,112 +216,75 @@ public class M3ReporterTest {
 
     @Test
     public void reporterFinalFlush() throws InterruptedException {
-        final MockM3Server server = new MockM3Server(1, socketAddress);
+        try (final MockM3Server server = bootM3Collector(1)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
+                reporter.close();
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
+
+                List<MetricBatch> batches = server.getService().snapshotBatches();
+                assertEquals(1, batches.size());
+                assertNotNull(batches.get(0));
+                assertEquals(1, batches.get(0).getMetrics().size());
             }
-        });
-
-        serverThread.start();
-
-        M3Reporter reporter = new M3Reporter.Builder(socketAddress)
-            .service("test-service")
-            .commonTags(DEFAULT_TAGS)
-            .build();
-
-        reporter.reportTimer("final-flush-timer", null, Duration.ofMillis(10));
-
-        reporter.close();
-        server.awaitAndClose();
-
-        List<MetricBatch> batches = server.getService().getBatches();
-        assertEquals(1, batches.size());
-        assertNotNull(batches.get(0));
-        assertEquals(1, batches.get(0).getMetrics().size());
+        }
     }
 
     @Test
     public void reporterAfterCloseNoThrow() throws InterruptedException {
-        final MockM3Server server = new MockM3Server(0, socketAddress);
+        try (final MockM3Server server = bootM3Collector(0);) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                reporter.close();
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
+                reporter.reportGauge("my-gauge", null, 4.2);
+                reporter.flush();
             }
-        });
-
-        try {
-            serverThread.start();
-
-            M3Reporter reporter = new M3Reporter.Builder(socketAddress)
-                .service("test-service")
-                .commonTags(DEFAULT_TAGS)
-                .build();
-
-            reporter.close();
-
-            reporter.reportGauge("my-gauge", null, 4.2);
-            reporter.flush();
-        } finally {
-            server.awaitAndClose();
         }
     }
 
     @Test
     public void reporterHistogramDurations() throws InterruptedException {
-        final MockM3Server server = new MockM3Server(2, socketAddress);
+        List<MetricBatch> receivedBatches;
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
+        try (final MockM3Server server = bootM3Collector(2)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+                Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(25), 5);
+
+                Map<String, String> histogramTags = new HashMap<>();
+                histogramTags.put("foo", "bar");
+
+                reporter.reportHistogramDurationSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        Duration.ZERO,
+                        Duration.ofMillis(25),
+                        7
+                );
+
+                reporter.reportHistogramDurationSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        Duration.ofMillis(50),
+                        Duration.ofMillis(75),
+                        3
+                );
+
+                reporter.close();
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
+
+                receivedBatches = server.getService().snapshotBatches();
             }
-        });
+        }
 
-        serverThread.start();
-
-        M3Reporter reporter = new M3Reporter.Builder(socketAddress)
-            .service("test-service")
-            .commonTags(DEFAULT_TAGS)
-            .build();
-
-        Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(25), 5);
-
-        Map<String, String> histogramTags = new HashMap<>();
-        histogramTags.put("foo", "bar");
-
-        reporter.reportHistogramDurationSamples(
-            "my-histogram",
-            histogramTags,
-            buckets,
-            Duration.ZERO,
-            Duration.ofMillis(25),
-            7
-        );
-
-        reporter.reportHistogramDurationSamples(
-            "my-histogram",
-            histogramTags,
-            buckets,
-            Duration.ofMillis(50),
-            Duration.ofMillis(75),
-            3
-        );
-
-        reporter.close();
-        server.awaitAndClose();
-
-        List<MetricBatch> batches = server.getService().getBatches();
-        assertEquals(1, batches.size());
-        assertNotNull(batches.get(0));
-        assertEquals(2, batches.get(0).getMetrics().size());
+        assertEquals(1, receivedBatches.size());
+        assertNotNull(receivedBatches.get(0));
+        assertEquals(2, receivedBatches.get(0).getMetrics().size());
 
         // Verify first bucket
-        Metric metric = batches.get(0).getMetrics().get(0);
+        Metric metric = receivedBatches.get(0).getMetrics().get(0);
         assertEquals("my-histogram", metric.getName());
         assertTrue(metric.isSetTags());
         assertEquals(3, metric.getTagsSize());
@@ -359,7 +309,7 @@ public class M3ReporterTest {
         assertEquals(7, count.getI64Value());
 
         // Verify second bucket
-        metric = server.getService().getBatches().get(0).getMetrics().get(1);
+        metric = receivedBatches.get(0).getMetrics().get(1);
         assertEquals("my-histogram", metric.getName());
         assertTrue(metric.isSetTags());
         assertEquals(3, metric.getTagsSize());
@@ -384,104 +334,92 @@ public class M3ReporterTest {
 
     @Test
     public void reporterHistogramValues() throws InterruptedException {
-        final MockM3Server server = new MockM3Server(2, socketAddress);
+        List<MetricBatch> receivedBatches;
 
-        Thread serverThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.serve();
+        try (final MockM3Server server = bootM3Collector(2)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+
+                Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
+
+                Map<String, String> histogramTags = new HashMap<>();
+                histogramTags.put("foo", "bar");
+
+                reporter.reportHistogramValueSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        0,
+                        25_000_000,
+                        7
+                );
+
+                reporter.reportHistogramValueSamples(
+                        "my-histogram",
+                        histogramTags,
+                        buckets,
+                        50_000_000,
+                        75_000_000,
+                        3
+                );
+
+                reporter.close();
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
+
+                receivedBatches = server.getService().snapshotBatches();
             }
-        });
-
-        try {
-            serverThread.start();
-
-            M3Reporter reporter = new M3Reporter.Builder(socketAddress)
-                .service("test-service")
-                .commonTags(DEFAULT_TAGS)
-                .build();
-
-            Buckets buckets = ValueBuckets.linear(0, 25_000_000, 5);
-
-            Map<String, String> histogramTags = new HashMap<>();
-            histogramTags.put("foo", "bar");
-
-            reporter.reportHistogramValueSamples(
-                "my-histogram",
-                histogramTags,
-                buckets,
-                0,
-                25_000_000,
-                7
-            );
-
-            reporter.reportHistogramValueSamples(
-                "my-histogram",
-                histogramTags,
-                buckets,
-                50_000_000,
-                75_000_000,
-                3
-            );
-
-            reporter.close();
-            server.awaitAndClose();
-
-            List<MetricBatch> batches = server.getService().getBatches();
-            assertEquals(1, batches.size());
-            assertNotNull(batches.get(0));
-            assertEquals(2, batches.get(0).getMetrics().size());
-
-            // Verify first bucket
-            Metric metric = batches.get(0).getMetrics().get(0);
-            assertEquals("my-histogram", metric.getName());
-            assertTrue(metric.isSetTags());
-            assertEquals(3, metric.getTagsSize());
-
-            Map<String, String> expectedTags = new HashMap<>(3, 1);
-            expectedTags.put("foo", "bar");
-            expectedTags.put("bucketid", "0001");
-            expectedTags.put("bucket", "0.000000-25000000.000000");
-            for (MetricTag tag : metric.getTags()) {
-                assertEquals(expectedTags.get(tag.getTagName()), tag.getTagValue());
-            }
-
-            assertTrue(metric.isSetMetricValue());
-
-            MetricValue value = metric.getMetricValue();
-            assertTrue(value.isSetCount());
-            assertFalse(value.isSetGauge());
-            assertFalse(value.isSetTimer());
-
-            CountValue count = value.getCount();
-            assertTrue(count.isSetI64Value());
-            assertEquals(7, count.getI64Value());
-
-            // Verify second bucket
-            metric = server.getService().getBatches().get(0).getMetrics().get(1);
-            assertEquals("my-histogram", metric.getName());
-            assertTrue(metric.isSetTags());
-            assertEquals(3, metric.getTagsSize());
-
-            expectedTags.put("bucketid", "0003");
-            expectedTags.put("bucket", "50000000.000000-75000000.000000");
-            for (MetricTag tag : metric.getTags()) {
-                assertEquals(expectedTags.get(tag.getTagName()), tag.getTagValue());
-            }
-
-            assertTrue(metric.isSetMetricValue());
-
-            value = metric.getMetricValue();
-            assertTrue(value.isSetCount());
-            assertFalse(value.isSetGauge());
-            assertFalse(value.isSetTimer());
-
-            count = value.getCount();
-            assertTrue(count.isSetI64Value());
-            assertEquals(3, count.getI64Value());
-        } finally {
-            server.awaitAndClose();
         }
+
+        assertEquals(1, receivedBatches.size());
+        assertNotNull(receivedBatches.get(0));
+        assertEquals(2, receivedBatches.get(0).getMetrics().size());
+
+        // Verify first bucket
+        Metric metric = receivedBatches.get(0).getMetrics().get(0);
+        assertEquals("my-histogram", metric.getName());
+        assertTrue(metric.isSetTags());
+        assertEquals(3, metric.getTagsSize());
+
+        Map<String, String> expectedTags = new HashMap<>(3, 1);
+        expectedTags.put("foo", "bar");
+        expectedTags.put("bucketid", "0001");
+        expectedTags.put("bucket", "0.000000-25000000.000000");
+        for (MetricTag tag : metric.getTags()) {
+            assertEquals(expectedTags.get(tag.getTagName()), tag.getTagValue());
+        }
+
+        assertTrue(metric.isSetMetricValue());
+
+        MetricValue value = metric.getMetricValue();
+        assertTrue(value.isSetCount());
+        assertFalse(value.isSetGauge());
+        assertFalse(value.isSetTimer());
+
+        CountValue count = value.getCount();
+        assertTrue(count.isSetI64Value());
+        assertEquals(7, count.getI64Value());
+
+        // Verify second bucket
+        metric = receivedBatches.get(0).getMetrics().get(1);
+        assertEquals("my-histogram", metric.getName());
+        assertTrue(metric.isSetTags());
+        assertEquals(3, metric.getTagsSize());
+
+        expectedTags.put("bucketid", "0003");
+        expectedTags.put("bucket", "50000000.000000-75000000.000000");
+        for (MetricTag tag : metric.getTags()) {
+            assertEquals(expectedTags.get(tag.getTagName()), tag.getTagValue());
+        }
+
+        assertTrue(metric.isSetMetricValue());
+
+        value = metric.getMetricValue();
+        assertTrue(value.isSetCount());
+        assertFalse(value.isSetGauge());
+        assertFalse(value.isSetTimer());
+
+        count = value.getCount();
+        assertTrue(count.isSetI64Value());
+        assertEquals(3, count.getI64Value());
     }
 
     @Test
@@ -494,6 +432,13 @@ public class M3ReporterTest {
         assertEquals(CapableOf.REPORTING_TAGGING, reporter.capabilities());
     }
 
+    private static MockM3Server bootM3Collector(int expectedMetricsCount) throws InterruptedException {
+        final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress);
+        new Thread(server::serve).start();
+        server.awaitStarting();
+        return server;
+    }
+
     @Test
     public void testSinglePacketPayloadOverflow() throws InterruptedException {
         // NOTE: Every metric emitted in this test is taking about 22 bytes,
@@ -501,50 +446,40 @@ public class M3ReporterTest {
         //       which should be split across 2 UDP datagrams with the current configuration
         int expectedMetricsCount = 5_000;
 
-        final MockM3Server server = new MockM3Server(expectedMetricsCount, socketAddress);
-
-        Thread serverThread = new Thread(server::serve);
-        serverThread.start();
-
         // NOTE: We're using default max packet size
-        M3Reporter reporter = new M3Reporter.Builder(socketAddress)
+        M3Reporter.Builder reporterBuilder = new M3Reporter.Builder(socketAddress)
                 .service("test-service")
                 .commonTags(
                         ImmutableMap.of("env", "test")
                 )
                 // Effectively disable time-based flushing to only keep
                 // size-based one
-                .maxProcessorWaitUntilFlushMillis(1_000_000)
-                .build();
+                .maxProcessorWaitUntilFlushMillis(1_000_000);
 
-        ImmutableMap<String, String> emptyTags =
-                new ImmutableMap.Builder<String, String>(0).build();
+        List<Metric> metrics;
 
-        for (int i = 0; i < expectedMetricsCount; ++i) {
-            // NOTE: The goal is to minimize the metric size, to make sure
-            //       they're granular enough to detect any transport/reporter configuration
-            //       inconsistencies
-            reporter.reportCounter("c", emptyTags, 1);
+        try (final MockM3Server server = bootM3Collector(expectedMetricsCount)) {
+            try (final M3Reporter reporter = reporterBuilder.build()) {
+
+                ImmutableMap<String, String> emptyTags =
+                        new ImmutableMap.Builder<String, String>(0).build();
+
+                for (int i = 0; i < expectedMetricsCount; ++i) {
+                    // NOTE: The goal is to minimize the metric size, to make sure
+                    //       they're granular enough to detect any transport/reporter configuration
+                    //       inconsistencies
+                    reporter.reportCounter("c", emptyTags, 1);
+                }
+
+                // Shutdown reporter
+                reporter.close();
+
+                server.awaitReceiving(MAX_WAIT_TIMEOUT);
+
+                metrics = server.getService().snapshotMetrics();
+            }
         }
 
-        // Make sure reporter is flushed
-        reporter.flush();
-
-        // Shutdown both reporter and server
-        reporter.close();
-        server.awaitAndClose();
-
-        List<MetricBatch> batches = server.getService().getBatches();
-
-        int totalMetrics = 0;
-
-        // Validate that all metrics had been received
-        for (MetricBatch batch : batches) {
-            assertNotNull(batch);
-
-            totalMetrics += batch.metrics.size();
-        }
-
-        assertEquals(totalMetrics, expectedMetricsCount);
+        assertEquals(expectedMetricsCount, metrics.size());
     }
 }

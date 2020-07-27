@@ -23,6 +23,8 @@ package com.uber.m3.tally.m3.thrift;
 import org.apache.http.annotation.GuardedBy;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -40,6 +42,8 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     //       network configurations therefore setting payload size to be no more than:
     //       65535 - 512 = 65023 bytes
     public static final int PACKET_DATA_PAYLOAD_MAX_SIZE = 65023;
+
+    protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     protected final Object sendLock = new Object();
 
@@ -82,6 +86,8 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     @Override
     public void close() {
         socket.close();
+
+        logger.info("UDP socket has been closed");
     }
 
     @Override

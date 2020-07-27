@@ -99,20 +99,23 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
 
+    /**
+     * NOTE: DO NOT CHANGE THIS NUMBER!
+     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
+     *       to how metrics are processed and eventually submitted to M3 collectors;
+     */
     private static final int NUM_PROCESSORS = 1;
 
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
-    private M3.Client client;
-
-    private Duration maxBufferingDelay;
+    private final Duration maxBufferingDelay;
 
     private final int payloadCapacity;
 
-    private String bucketIdTagName;
-    private String bucketTagName;
-    private String bucketValFmt;
+    private final String bucketIdTagName;
+    private final String bucketTagName;
+    private final String bucketValFmt;
 
     private final Set<MetricTag> commonTags;
 
@@ -125,51 +128,35 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private CountDownLatch shutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+    private final CountDownLatch processorsShutdownLatch;
 
-    private TTransport transport;
+    private final List<Processor> processors;
 
-    private AtomicBoolean isShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
     private M3Reporter(Builder builder) {
-        try {
-            // Builder verifies non-null, non-empty socketAddresses
-            SocketAddress[] socketAddresses = builder.socketAddresses;
+        payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
 
-            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
+        maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
 
-            if (socketAddresses.length > 1) {
-                transport = new TMultiUdpClient(socketAddresses);
-            } else {
-                transport = new TUdpClient(socketAddresses[0]);
-            }
+        bucketIdTagName = builder.histogramBucketIdName;
+        bucketTagName = builder.histogramBucketName;
+        bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
-            transport.open();
+        metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-            client = new M3.Client(protocolFactory.getProtocol(transport));
+        executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
 
-            payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
+        clock = Clock.systemUTC();
 
-            maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
+        commonTags = builder.metricTagSet;
 
-            bucketIdTagName = builder.histogramBucketIdName;
-            bucketTagName = builder.histogramBucketName;
-            bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
+        processorsShutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
-            metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
-
-            executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
-
-            clock = Clock.systemUTC();
-
-            commonTags = builder.metricTagSet;
-
-            for (int i = 0; i < NUM_PROCESSORS; ++i) {
-                addAndRunProcessor();
-            }
-        } catch (TTransportException | SocketException e) {
-            throw new RuntimeException("Exception creating M3Reporter", e);
+        processors = new ArrayList<>();
+        for (int i = 0; i < NUM_PROCESSORS; ++i) {
+            processors.add(bootProcessor(builder.endpointSocketAddresses));
         }
     }
 
@@ -197,8 +184,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    private void addAndRunProcessor() {
-        executor.execute(new Processor());
+    private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
+        try {
+            Processor processor = new Processor(endpointSocketAddresses);
+            executor.execute(processor);
+            return processor;
+        } catch (TTransportException | SocketException e) {
+            LOG.error("Failed to boot processor", e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -212,11 +206,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        try {
-            metricQueue.put(SizedMetric.FLUSH);
-        } catch (InterruptedException e) {
-            LOG.warn("Interrupted while trying to queue flush sentinel");
-        }
+        processors.forEach(Processor::scheduleFlush);
     }
 
     @Override
@@ -226,9 +216,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        // Put sentinal value in queue so that processors know to disregard anything that comes after it.
-        queueSizedMetric(SizedMetric.CLOSE);
-
         // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
         // thread(s) or else they will block forever
         executor.shutdownNow();
@@ -236,7 +223,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
             // to complete
-            if (!shutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
+            if (!processorsShutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
                 LOG.warn(
                         "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
                         MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
@@ -245,8 +232,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         } catch (InterruptedException e) {
             LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
-
-        transport.close();
     }
 
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
@@ -463,6 +448,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
+    private static void runNoThrow(ThrowingRunnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            // no-op
+        }
+    }
+
     private class Processor implements Runnable {
 
         private final List<Metric> metricsBuffer =
@@ -470,12 +463,39 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         private Instant lastBufferFlushTimestamp = Instant.now(clock);
 
-        private int metricsSize = 0;
+        private int bufferedBytes = 0;
+
+        private final M3.Client client;
+        private final TTransport transport;
+
+        private final AtomicBoolean shouldFlush = new AtomicBoolean(false);
+
+        Processor(SocketAddress[] socketAddresses) throws TTransportException, SocketException {
+            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
+
+            if (socketAddresses.length > 1) {
+                transport = new TMultiUdpClient(socketAddresses);
+            } else {
+                transport = new TUdpClient(socketAddresses[0]);
+            }
+
+            // Open the socket
+            transport.open();
+
+            client = new M3.Client(protocolFactory.getProtocol(transport));
+
+            LOG.info("Booted reporting processor");
+        }
 
         @Override
         public void run() {
-            try {
-                while (!executor.isShutdown()) {
+            while (!isShutdown.get()) {
+                try {
+                    // Check whether flush has been requested by the reporter
+                    if (shouldFlush.compareAndSet(true, false)) {
+                        flushBuffered();
+                    }
+
                     // This `poll` call will block for at most the specified duration to take an item
                     // off the queue. If we get an item, we append it to the queue to be flushed,
                     // otherwise we flush what we have so far.
@@ -484,46 +504,49 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // catch block.
                     SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
-                    // Drop metrics that came in after close
-                    if (sizedMetric == SizedMetric.CLOSE) {
-                        metricQueue.clear();
-                        break;
-                    }
-
                     if (sizedMetric == null) {
                         // If we didn't get any new metrics after waiting the specified time,
                         // flush what we have so far.
-                        process(SizedMetric.FLUSH);
+                        flushBuffered();
                     } else {
                         process(sizedMetric);
                     }
-
+                } catch (InterruptedException t) {
+                    // no-op
+                } catch (Throwable t) {
+                    // This is fly-away guard making sure that uncaught exception
+                    // will be logged
+                    LOG.error("Unhandled exception in processor", t);
+                    throw new RuntimeException(t);
                 }
-            } catch (InterruptedException e) {
-                // Don't care if we get interrupted - the finally block will clean up
-            } finally {
-                drainQueue();
-                flushBuffered();
-                // Count down shutdown latch to notify reporter
-                shutdownLatch.countDown();
             }
+
+            LOG.warn("Processor shutting down");
+
+            // Drain queue of any remaining metrics submitted prior to shutdown;
+            runNoThrow(this::drainQueue);
+            // Flush remaining buffers at last (best effort)
+            runNoThrow(this::flushBuffered);
+
+            // Close transport
+            transport.close();
+
+            // Count down shutdown latch to notify reporter
+            processorsShutdownLatch.countDown();
+
+            LOG.warn("Processor shut down");
         }
 
-        private void process(SizedMetric sizedMetric) {
-            if (sizedMetric == SizedMetric.FLUSH) {
-                flushBuffered();
-                return;
-            }
-
+        private void process(SizedMetric sizedMetric) throws TException {
             int size = sizedMetric.getSize();
-            if (metricsSize + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
+            if (bufferedBytes + size > payloadCapacity || elapsedMaxDelaySinceLastFlush()) {
                 flushBuffered();
             }
 
             Metric metric = sizedMetric.getMetric();
 
             metricsBuffer.add(metric);
-            metricsSize += size;
+            bufferedBytes += size;
         }
 
         private boolean elapsedMaxDelaySinceLastFlush() {
@@ -532,19 +555,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             );
         }
 
-        private void drainQueue() {
-            while (!metricQueue.isEmpty()) {
-                SizedMetric sizedMetric = metricQueue.remove();
-                // Don't care about metrics that came in after close
-                if (sizedMetric == SizedMetric.CLOSE) {
-                    break;
-                }
+        private void drainQueue() throws TException {
+            SizedMetric metrics;
 
-                process(sizedMetric);
+            while ((metrics = metricQueue.poll()) != null) {
+                process(metrics);
             }
         }
 
-        private void flushBuffered() {
+        private void flushBuffered() throws TException {
             if (metricsBuffer.isEmpty()) {
                 return;
             }
@@ -555,14 +574,24 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                                 .setCommonTags(commonTags)
                                 .setMetrics(metricsBuffer)
                 );
-            } catch (TException tException) {
-                LOG.warn("Failed to flush metrics: " + tException.getMessage());
+            } catch (TException t) {
+                LOG.error("Failed to flush metrics", t);
+                throw t;
             }
 
             metricsBuffer.clear();
-            metricsSize = 0;
+            bufferedBytes = 0;
             lastBufferFlushTimestamp = Instant.now(clock);
         }
+
+        public void scheduleFlush() {
+            shouldFlush.set(true);
+        }
+    }
+
+    @FunctionalInterface
+    interface ThrowingRunnable {
+        void run() throws Exception;
     }
 
     /**
@@ -602,7 +631,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
      * Builder pattern to construct an {@link M3Reporter}.
      */
     public static class Builder {
-        protected SocketAddress[] socketAddresses;
+        protected SocketAddress[] endpointSocketAddresses;
         protected String service;
         protected String env;
         protected ExecutorService executor;
@@ -621,14 +650,14 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
-         * @param socketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
+         * @param endpointSocketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
          */
-        public Builder(SocketAddress[] socketAddresses) {
-            if (socketAddresses == null || socketAddresses.length == 0) {
+        public Builder(SocketAddress[] endpointSocketAddresses) {
+            if (endpointSocketAddresses == null || endpointSocketAddresses.length == 0) {
                 throw new IllegalArgumentException("Must specify at least one SocketAddress");
             }
 
-            this.socketAddresses = socketAddresses;
+            this.endpointSocketAddresses = endpointSocketAddresses;
         }
 
         /**

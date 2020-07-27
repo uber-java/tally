@@ -50,6 +50,8 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
     public void open() throws TTransportException {
         try {
             socket.connect(socketAddress);
+
+            logger.info("UDP socket has been opened");
         } catch (SocketException e) {
             throw new TTransportException("Error opening transport", e);
         }

@@ -28,6 +28,8 @@ import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -35,14 +37,17 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class MockM3Server {
-    private static final Duration MAX_WAIT_TIMEOUT = Duration.ofSeconds(30);
+public class MockM3Server implements AutoCloseable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MockM3Server.class);
 
     private final CountDownLatch expectedMetricsLatch;
 
-    private TProcessor processor;
-    private TTransport transport;
-    private MockM3Service service;
+    private final Object startupMonitor = new Object();
+
+    private final TProcessor processor;
+    private final TTransport transport;
+    private final MockM3Service service;
 
     public MockM3Server(
         int expectedMetricsCount,
@@ -62,11 +67,17 @@ public class MockM3Server {
     public void serve() {
         try {
             transport.open();
+
+            LOG.info("Opened receiving server socket");
         } catch (TTransportException e) {
             throw new RuntimeException("Failed to open socket", e);
         }
 
         TProtocol protocol = new TCompactProtocol.Factory().getProtocol(transport);
+
+        synchronized (startupMonitor) {
+            startupMonitor.notifyAll();
+        }
 
         while (transport.isOpen()) {
             try {
@@ -81,12 +92,31 @@ public class MockM3Server {
         }
     }
 
-    public void awaitAndClose() throws InterruptedException {
-        expectedMetricsLatch.await(MAX_WAIT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
-        transport.close();
-    }
-
     public MockM3Service getService() {
         return service;
+    }
+
+    /**
+     * Awaits receiving of all the expected metrics
+     */
+    public void awaitReceiving(Duration waitTimeout) throws InterruptedException {
+        expectedMetricsLatch.await(waitTimeout.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    /**
+     * Awaits for the server to be fully booted up
+     */
+    public void awaitStarting() throws InterruptedException {
+        synchronized (startupMonitor) {
+            startupMonitor.wait();
+        }
+    }
+
+    @Override
+    public void close() {
+        // Close immediately without waiting
+        transport.close();
+
+        LOG.info("Closing receiving server socket");
     }
 }

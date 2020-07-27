@@ -22,40 +22,11 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.ImmutableMap;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
 /**
- * Default implementation of a {@link Gauge}.
+ * Abstracts capability to report the metrics to {@link StatsReporter}
  */
-class GaugeImpl extends MetricBase implements Gauge, Reportable {
-    private AtomicBoolean updated = new AtomicBoolean(false);
-    private AtomicLong curr = new AtomicLong(0);
+interface Reportable {
 
-    protected GaugeImpl(ScopeImpl scope, String fqn) {
-        super(fqn);
+    void report(ImmutableMap<String, String> tags, StatsReporter reporter);
 
-        scope.addToReportingQueue(this);
-    }
-
-    @Override
-    public void update(double value) {
-        curr.set(Double.doubleToLongBits(value));
-        updated.set(true);
-    }
-
-    double value() {
-        return Double.longBitsToDouble(curr.get());
-    }
-
-    @Override
-    public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
-        if (updated.getAndSet(false)) {
-            reporter.reportGauge(getQualifiedName(), tags, value());
-        }
-    }
-
-    double snapshot() {
-        return value();
-    }
 }

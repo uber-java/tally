@@ -31,30 +31,37 @@ public class GaugeImplTest {
     private TestStatsReporter reporter;
     private GaugeImpl gauge;
 
+    private ScopeImpl scope;
+
     @Before
     public void setUp() {
         reporter = new TestStatsReporter();
-        gauge = new GaugeImpl("gauge");
+        scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(reporter)
+                .build();
+
+        gauge = new GaugeImpl(scope, "gauge");
     }
 
     @Test
     public void update() {
         gauge.update(42);
-        gauge.report("", null, reporter);
+        gauge.report(null, reporter);
         assertEquals(42, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(2);
         gauge.update(8);
-        gauge.report("", null, reporter);
+        gauge.report(null, reporter);
         assertEquals(8, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(0);
-        gauge.report("", null, reporter);
+        gauge.report(null, reporter);
         assertEquals(0, reporter.nextGaugeVal(), EPSILON);
 
         gauge.update(1);
         gauge.update(-3);
-        gauge.report("", null, reporter);
+        gauge.report(null, reporter);
         assertEquals(-3, reporter.nextGaugeVal(), EPSILON);
     }
 

@@ -28,35 +28,41 @@ import static org.junit.Assert.assertEquals;
 public class CounterImplTest {
     private TestStatsReporter reporter;
     private CounterImpl counter;
+    private ScopeImpl scope;
 
     @Before
     public void setUp() {
         reporter = new TestStatsReporter();
-        counter = new CounterImpl("counter");
+        scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(reporter)
+                .build();
+
+        counter = new CounterImpl(scope, "counter");
     }
 
     @Test
     public void inc() {
         counter.inc(1);
-        counter.report("", null, reporter);
+        counter.report(null, reporter);
         assertEquals(1, reporter.nextCounterVal());
 
         counter.inc(1);
-        counter.report("", null, reporter);
+        counter.report(null, reporter);
         assertEquals(1, reporter.nextCounterVal());
 
         counter.inc(1);
         counter.inc(1);
-        counter.report("", null, reporter);
+        counter.report(null, reporter);
         assertEquals(2, reporter.nextCounterVal());
 
         counter.inc(3);
-        counter.report("", null, reporter);
+        counter.report(null, reporter);
         assertEquals(3, reporter.nextCounterVal());
 
         counter.inc(1);
         counter.inc(-3);
-        counter.report("", null, reporter);
+        counter.report(null, reporter);
         assertEquals(-2, reporter.nextCounterVal());
     }
 

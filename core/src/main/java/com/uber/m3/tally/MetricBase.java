@@ -20,8 +20,9 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.ImmutableMap;
-
+/**
+ * Abstract common logic among every metric ({@link Counter}, {@link Gauge}, {@link Histogram})
+ */
 abstract class MetricBase {
 
     private final String fullyQualifiedName;
@@ -30,9 +31,8 @@ abstract class MetricBase {
         this.fullyQualifiedName = fqn;
     }
 
-    String getQualifiedName() {
+    final String getQualifiedName() {
         return fullyQualifiedName;
     }
 
-    abstract void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter);
 }

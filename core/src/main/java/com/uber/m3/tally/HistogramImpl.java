@@ -23,88 +23,104 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Default implementation of a {@link Histogram}.
  */
 class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
-    private Type type;
-    private ImmutableMap<String, String> tags;
-    private Buckets specification;
-    private List<HistogramBucket> buckets;
-    private List<Double> lookupByValue;
-    private List<Duration> lookupByDuration;
+    private final Type type;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets specification;
+
+    // NOTE: Bucket counters are lazily initialized. Since ref updates are atomic in JMM,
+    // no dedicated synchronization is used on the read path, only on the write path
+    private final CounterImpl[] bucketCounters;
+
+    private final double[] lookupByValue;
+    private final Duration[] lookupByDuration;
+
+    private final ScopeImpl scope;
 
     HistogramImpl(
+        ScopeImpl scope,
         String fqn,
         ImmutableMap<String, String> tags,
         Buckets buckets
     ) {
         super(fqn);
 
-        if (buckets instanceof DurationBuckets) {
-            type = Type.DURATION;
-        } else {
-            type = Type.VALUE;
-        }
-
-        BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
-        int pairsLen = pairs.length;
-
+        this.scope = scope;
+        this.type = buckets instanceof DurationBuckets ? Type.DURATION : Type.VALUE;
         this.tags = tags;
         this.specification = buckets;
 
-        this.buckets = new ArrayList<>(pairsLen);
-        this.lookupByValue = new ArrayList<>(pairsLen);
-        this.lookupByDuration = new ArrayList<>(pairsLen);
+        // Each bucket value, serves as a boundary de-marking upper bound
+        // for the bucket to the left, and lower bound for the bucket to the right
+        this.bucketCounters = new CounterImpl[buckets.asValues().length + 1];
 
-        for (BucketPair pair : pairs) {
-            addBucket(new HistogramBucket(
-                pair.lowerBoundValue(),
-                pair.upperBoundValue(),
-                pair.lowerBoundDuration(),
-                pair.upperBoundDuration()
-            ));
-        }
-    }
+        this.lookupByValue =
+                Arrays.stream(buckets.asValues())
+                    .mapToDouble(x -> x)
+                    .toArray();
 
-    private void addBucket(HistogramBucket bucket) {
-        buckets.add(bucket);
-        lookupByValue.add(bucket.valueUpperBound);
-        lookupByDuration.add(bucket.durationUpperBound);
+        this.lookupByDuration =
+                Arrays.copyOf(buckets.asDurations(), buckets.asDurations().length);
     }
 
     @Override
     public void recordValue(double value) {
-        int index = toBucketIndex(Collections.binarySearch(lookupByValue, value));
-        buckets.get(index).samples.inc(1);
+        int index = toBucketIndex(Arrays.binarySearch(lookupByValue, value));
+        getOrCreateCounter(index).inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = toBucketIndex(Collections.binarySearch(lookupByDuration, duration));
-        buckets.get(index).samples.inc(1);
+        int index = toBucketIndex(Arrays.binarySearch(lookupByDuration, duration));
+        getOrCreateCounter(index).inc(1);
+    }
+
+    private CounterImpl getOrCreateCounter(int index) {
+        if (bucketCounters[index] != null) {
+            return bucketCounters[index];
+        }
+
+        // To maintain lock granularity we synchronize only on a
+        // particular bucket leveraging bucket's boundary as a sync target
+        synchronized (lookupByDuration[Math.min(index, lookupByDuration.length - 1)]) {
+            // Check whether bucket has been already set,
+            // while we were waiting for lock
+            if (bucketCounters[index] != null) {
+                return bucketCounters[index];
+            }
+
+            bucketCounters[index] = new HistogramBucketCounterImpl(scope, getQualifiedName(), index);
+            return bucketCounters[index];
+        }
     }
 
     private int toBucketIndex(int binarySearchResult) {
-        if (binarySearchResult < 0) {
-            // binarySearch returns the index of the search key if it is contained in the list;
-            // otherwise, (-(insertion point) - 1).
-            binarySearchResult = -(binarySearchResult + 1);
+        // Buckets are defined in the following way:
+        //      - Each bucket is inclusive of its lower bound, and exclusive of the upper: [lower, upper)
+        //      - All buckets are defined by upper bounds: [2, 4, 8, 16, 32, ...]: therefore i
+        //      in this case [-inf, 2) will be the first bucket, [2, 4) -- the second and so on
+        //
+        // Given that our buckets are designated as [lower, upper), and
+        // that the binary search is performed over upper bounds, if binary
+        // search found the exact match we need to shift it by 1 to index appropriate bucket in the
+        // array of (bucket's) counters
+        if (binarySearchResult >= 0) {
+            return binarySearchResult + 1;
         }
 
-        // binarySearch can return collections.size(), guarding against that.
-        // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (binarySearchResult >= buckets.size()) {
-            binarySearchResult = buckets.size() - 1;
-        }
-
-        return binarySearchResult;
+        // Otherwise, binary search will return {@code (-(insertion point) - 1)} where
+        // "insertion point" designates first element that is _greater_ than the key, therefore
+        // we simply use this an index in the array of counters
+        //
+        // NOTE: {@code ~binarySearchResult} is equivalent to {@code -(binarySearchResult) - 1}
+        return ~binarySearchResult;
     }
 
     @Override
@@ -116,39 +132,36 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         return tags;
     }
 
-    @Override
-    void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
-        for (HistogramBucket bucket : buckets) {
-            long samples = bucket.samples.value();
-
-            if (samples == 0) {
-                continue;
-            }
-
-            switch (type) {
-                case VALUE:
-                    reporter.reportHistogramValueSamples(
-                        name, tags, specification, bucket.valueLowerBound, bucket.valueUpperBound, samples
-                    );
-                    break;
-                case DURATION:
-                    reporter.reportHistogramDurationSamples(
-                        name, tags, specification, bucket.durationLowerBound, bucket.durationUpperBound, samples
-                    );
-                    break;
-            }
-        }
+    private Duration getUpperBoundDurationForBucket(int bucketIndex) {
+        return bucketIndex < lookupByDuration.length ? lookupByDuration[bucketIndex] : Duration.MAX_VALUE;
     }
 
+    private double getUpperBoundValueForBucket(int bucketIndex) {
+        return bucketIndex < lookupByValue.length ? lookupByValue[bucketIndex] : Double.MAX_VALUE;
+    }
+
+    private Duration getLowerBoundDurationForBucket(int bucketIndex) {
+        return bucketIndex == 0 ? Duration.MIN_VALUE : lookupByDuration[bucketIndex - 1];
+    }
+
+    private double getLowerBoundValueForBucket(int bucketIndex) {
+        return bucketIndex == 0 ? Double.MIN_VALUE : lookupByValue[bucketIndex - 1];
+    }
+
+    private long getCounterValue(int index) {
+        return bucketCounters[index] != null ? bucketCounters[index].value() : 0;
+    }
+
+    // NOTE: Only used in testing
     Map<Double, Long> snapshotValues() {
         if (type == Type.DURATION) {
             return null;
         }
 
-        Map<Double, Long> values = new HashMap<>(buckets.size(), 1);
+        Map<Double, Long> values = new HashMap<>(bucketCounters.length, 1);
 
-        for (HistogramBucket bucket : buckets) {
-            values.put(bucket.valueUpperBound, bucket.samples.value());
+        for (int i = 0; i < bucketCounters.length; ++i) {
+            values.put(getUpperBoundValueForBucket(i), getCounterValue(i));
         }
 
         return values;
@@ -159,10 +172,10 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return null;
         }
 
-        Map<Duration, Long> durations = new HashMap<>(buckets.size(), 1);
+        Map<Duration, Long> durations = new HashMap<>(bucketCounters.length, 1);
 
-        for (HistogramBucket bucket : buckets) {
-            durations.put(bucket.durationUpperBound, bucket.samples.value());
+        for (int i = 0; i < bucketCounters.length; ++i) {
+            durations.put(getUpperBoundDurationForBucket(i), getCounterValue(i));
         }
 
         return durations;
@@ -173,29 +186,55 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
     }
 
-    class HistogramBucket {
-        CounterImpl samples;
-        double valueLowerBound;
-        double valueUpperBound;
-        Duration durationLowerBound;
-        Duration durationUpperBound;
-
-        HistogramBucket(
-            double valueLowerBound,
-            double valueUpperBound,
-            Duration durationLowerBound,
-            Duration durationUpperBound
-        ) {
-            this.samples = new CounterImpl(getQualifiedName());
-            this.valueLowerBound = valueLowerBound;
-            this.valueUpperBound = valueUpperBound;
-            this.durationLowerBound = durationLowerBound;
-            this.durationUpperBound = durationUpperBound;
-        }
-    }
-
     enum Type {
         VALUE,
         DURATION
+    }
+
+    /**
+     * Extension of the {@link CounterImpl} adjusting it's reporting procedure
+     * to adhere to histogram format
+     */
+    class HistogramBucketCounterImpl extends CounterImpl {
+
+        private final int bucketIndex;
+
+        protected HistogramBucketCounterImpl(ScopeImpl scope, String fqn, int bucketIndex) {
+            super(scope, fqn);
+
+            this.bucketIndex = bucketIndex;
+        }
+
+        @Override
+        public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
+            long inc = value();
+            if (inc == 0) {
+                // Nothing to report
+                return;
+            }
+
+            switch (type) {
+                case VALUE:
+                    reporter.reportHistogramValueSamples(
+                        getQualifiedName(),
+                        tags,
+                        specification,
+                        getLowerBoundValueForBucket(bucketIndex),
+                        getUpperBoundValueForBucket(bucketIndex),
+                        inc
+                    );
+                    break;
+                case DURATION:
+                    reporter.reportHistogramDurationSamples(
+                        getQualifiedName(),
+                        tags,
+                        specification,
+                        getLowerBoundDurationForBucket(bucketIndex),
+                        getUpperBoundDurationForBucket(bucketIndex),
+                        inc
+                    );
+                    break;
+            }
+        }
     }
 }

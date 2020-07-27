@@ -40,18 +40,3 @@ task jmh(type: JavaExec, dependsOn: jmhClasses) {
 }
 
 classes.finalizedBy(jmhClasses)
-
-//jmh {
-//    benchmarkMode = ['Throughput']
-//
-//    warmupIterations = 5
-//
-//    iterations = 5
-//    batchSize = 1
-//
-//    fork = 1
-//    forceGC = true
-//    includeTests = true
-//
-//    duplicateClassesStrategy = 'warn'
-//}

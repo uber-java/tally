@@ -41,7 +41,7 @@ public class GaugeImplTest {
                 .reporter(reporter)
                 .build();
 
-        gauge = new GaugeImpl(scope,"gauge");
+        gauge = new GaugeImpl(scope, "gauge");
     }
 
     @Test

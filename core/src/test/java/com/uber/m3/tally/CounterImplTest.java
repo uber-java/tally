@@ -38,7 +38,7 @@ public class CounterImplTest {
                 .reporter(reporter)
                 .build();
 
-        counter = new CounterImpl(scope,"counter");
+        counter = new CounterImpl(scope, "counter");
     }
 
     @Test

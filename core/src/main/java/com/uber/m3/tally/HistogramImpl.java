@@ -96,7 +96,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
                 return bucketCounters[index];
             }
 
-            return (bucketCounters[index] = new HistogramBucketCounterImpl(scope, getQualifiedName(), index));
+            bucketCounters[index] = new HistogramBucketCounterImpl(scope, getQualifiedName(), index);
+            return bucketCounters[index];
         }
     }
 
@@ -172,7 +173,6 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         }
 
         Map<Duration, Long> durations = new HashMap<>(bucketCounters.length, 1);
-
 
         for (int i = 0; i < bucketCounters.length; ++i) {
             durations.put(getUpperBoundDurationForBucket(i), getCounterValue(i));

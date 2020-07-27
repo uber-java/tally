@@ -116,9 +116,4 @@ public class ScopeImplBenchmark {
         }
 
     }
-
-    @Benchmark
-    public void scopeReportingBenchmark(BenchmarkState state) {
-        state.scope.reportLoopIteration();
-    }
 }

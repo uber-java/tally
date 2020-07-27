@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -42,14 +43,14 @@ class ScopeImpl implements Scope {
     private ScheduledExecutorService scheduler;
     private Registry registry;
 
-    // ConcurrentHashMap nearly always allowing read operations seems like a good
-    // performance upside to the consequence of reporting a newly-made metric in
-    // the middle of looping and reporting through all metrics. Therefore, we only
-    // synchronize on these maps when having to allocate new metrics.
-    private final Map<String, CounterImpl> counters = new ConcurrentHashMap<>();
-    private final Map<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
-    private final Map<String, TimerImpl> timers = new ConcurrentHashMap<>();
-    private final Map<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CounterImpl> counters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
+
+    // TODO validate if needs to be concurrent at all
+    private final ConcurrentLinkedQueue<MetricBase> reportingQueue = new ConcurrentLinkedQueue<>();
+
+    private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
 
     // Private ScopeImpl constructor. Root scopes should be built using the RootScopeBuilder class
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
@@ -65,82 +66,31 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        CounterImpl counter = counters.get(name);
-
-        if (counter != null) {
-            return counter;
-        }
-
-        synchronized (counters) {
-            if (!counters.containsKey(name)) {
-                counters.put(name, new CounterImpl());
-            }
-
-            counter = counters.get(name);
-        }
-
-        return counter;
+        return counters.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new CounterImpl(fullyQualifiedName(name)))
+        );
     }
 
     @Override
     public Gauge gauge(String name) {
-        GaugeImpl gauge = gauges.get(name);
-
-        if (gauge != null) {
-            return gauge;
-        }
-
-        synchronized (gauges) {
-            if (!gauges.containsKey(name)) {
-                gauges.put(name, new GaugeImpl());
-            }
-
-            gauge = gauges.get(name);
-        }
-
-        return gauge;
+        return gauges.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new GaugeImpl(fullyQualifiedName(name))));
     }
 
     @Override
     public Timer timer(String name) {
-        TimerImpl timer = timers.get(name);
-
-        if (timer != null) {
-            return timer;
-        }
-
-        synchronized (timers) {
-            if (!timers.containsKey(name)) {
-                timers.put(name, new TimerImpl(fullyQualifiedName(name), tags, reporter));
-            }
-
-            timer = timers.get(name);
-        }
-
-        return timer;
+        // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
+        // i.e. they are not buffered
+        return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, Buckets buckets) {
-        if (buckets == null) {
-            buckets = defaultBuckets;
-        }
-
-        HistogramImpl histogram = histograms.get(name);
-
-        if (histogram != null) {
-            return histogram;
-        }
-
-        synchronized (histograms) {
-            if (!histograms.containsKey(name)) {
-                histograms.put(name, new HistogramImpl(fullyQualifiedName(name), tags, reporter, buckets));
-            }
-
-            histogram = histograms.get(name);
-        }
-
-        return histogram;
+        return histograms.computeIfAbsent(name, ignored ->
+                // NOTE: This will called at most once
+                addToReportingQueue(new HistogramImpl(fullyQualifiedName(name), tags, buckets)));
     }
 
     @Override
@@ -178,24 +128,18 @@ class ScopeImpl implements Scope {
         }
     }
 
+    private <T extends MetricBase> T addToReportingQueue(T metric) {
+        reportingQueue.add(metric);
+        return metric;
+    }
+
     /**
      * Reports using the specified reporter.
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
-        for (Map.Entry<String, CounterImpl> counter : counters.entrySet()) {
-            counter.getValue().report(fullyQualifiedName(counter.getKey()), tags, reporter);
-        }
-
-        for (Map.Entry<String, GaugeImpl> gauge : gauges.entrySet()) {
-            gauge.getValue().report(fullyQualifiedName(gauge.getKey()), tags, reporter);
-        }
-
-        // No operations on timers required here; they report directly to the StatsReporter
-        // i.e. they are not buffered
-
-        for (Map.Entry<String, HistogramImpl> histogram : histograms.entrySet()) {
-            histogram.getValue().report(fullyQualifiedName(histogram.getKey()), tags, reporter);
+        for (MetricBase metric : reportingQueue) {
+            metric.report(metric.getQualifiedName(), tags, reporter);
         }
     }
 
@@ -342,7 +286,7 @@ class ScopeImpl implements Scope {
     }
 
     // One iteration of reporting this scope and all its subscopes
-    private void reportLoopIteration() {
+    void reportLoopIteration() {
         Collection<ScopeImpl> subscopes = registry.subscopes.values();
 
         if (reporter != null) {

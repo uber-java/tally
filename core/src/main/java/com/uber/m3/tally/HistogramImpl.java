@@ -32,9 +32,8 @@ import java.util.Map;
 /**
  * Default implementation of a {@link Histogram}.
  */
-class HistogramImpl implements Histogram, StopwatchRecorder {
+class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     private Type type;
-    private String name;
     private ImmutableMap<String, String> tags;
     private Buckets specification;
     private List<HistogramBucket> buckets;
@@ -42,11 +41,12 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
     private List<Duration> lookupByDuration;
 
     HistogramImpl(
-        String name,
+        String fqn,
         ImmutableMap<String, String> tags,
-        StatsReporter reporter,
         Buckets buckets
     ) {
+        super(fqn);
+
         if (buckets instanceof DurationBuckets) {
             type = Type.DURATION;
         } else {
@@ -56,12 +56,12 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         BucketPair[] pairs = BucketPairImpl.bucketPairs(buckets);
         int pairsLen = pairs.length;
 
-        this.name = name;
         this.tags = tags;
-        specification = buckets;
+        this.specification = buckets;
+
         this.buckets = new ArrayList<>(pairsLen);
-        lookupByValue = new ArrayList<>(pairsLen);
-        lookupByDuration = new ArrayList<>(pairsLen);
+        this.lookupByValue = new ArrayList<>(pairsLen);
+        this.lookupByDuration = new ArrayList<>(pairsLen);
 
         for (BucketPair pair : pairs) {
             addBucket(new HistogramBucket(
@@ -81,40 +81,30 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
 
     @Override
     public void recordValue(double value) {
-        int index = Collections.binarySearch(lookupByValue, value);
-
-        if (index < 0) {
-            // binarySearch returns the index of the search key if it is contained in the list;
-            // otherwise, (-(insertion point) - 1).
-            index = -(index + 1);
-        }
-
-        // binarySearch can return collections.size(), guarding against that.
-        // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (index >= buckets.size()) {
-            index = buckets.size() - 1;
-        }
-
+        int index = toBucketIndex(Collections.binarySearch(lookupByValue, value));
         buckets.get(index).samples.inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = Collections.binarySearch(lookupByDuration, duration);
+        int index = toBucketIndex(Collections.binarySearch(lookupByDuration, duration));
+        buckets.get(index).samples.inc(1);
+    }
 
-        if (index < 0) {
+    private int toBucketIndex(int binarySearchResult) {
+        if (binarySearchResult < 0) {
             // binarySearch returns the index of the search key if it is contained in the list;
             // otherwise, (-(insertion point) - 1).
-            index = -(index + 1);
+            binarySearchResult = -(binarySearchResult + 1);
         }
 
         // binarySearch can return collections.size(), guarding against that.
         // pointing to last bucket is fine in that case because it's [_,infinity).
-        if (index >= buckets.size()) {
-            index = buckets.size() - 1;
+        if (binarySearchResult >= buckets.size()) {
+            binarySearchResult = buckets.size() - 1;
         }
 
-        buckets.get(index).samples.inc(1);
+        return binarySearchResult;
     }
 
     @Override
@@ -122,14 +112,11 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
         return new Stopwatch(System.nanoTime(), this);
     }
 
-    String getName() {
-        return name;
-    }
-
     ImmutableMap<String, String> getTags() {
         return tags;
     }
 
+    @Override
     void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter) {
         for (HistogramBucket bucket : buckets) {
             long samples = bucket.samples.value();
@@ -199,7 +186,7 @@ class HistogramImpl implements Histogram, StopwatchRecorder {
             Duration durationLowerBound,
             Duration durationUpperBound
         ) {
-            samples = new CounterImpl();
+            this.samples = new CounterImpl(getQualifiedName());
             this.valueLowerBound = valueLowerBound;
             this.valueUpperBound = valueUpperBound;
             this.durationLowerBound = durationLowerBound;

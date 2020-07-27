@@ -28,14 +28,23 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Default implementation of a {@link Gauge}.
  */
-class GaugeImpl implements Gauge {
+class GaugeImpl extends MetricBase implements Gauge {
     private AtomicBoolean updated = new AtomicBoolean(false);
     private AtomicLong curr = new AtomicLong(0);
+
+    protected GaugeImpl(String fqn) {
+        super(fqn);
+    }
 
     @Override
     public void update(double value) {
         curr.set(Double.doubleToLongBits(value));
         updated.set(true);
+    }
+
+    @Override
+    public String getQualifiedName() {
+        return super.getQualifiedName();
     }
 
     double value() {

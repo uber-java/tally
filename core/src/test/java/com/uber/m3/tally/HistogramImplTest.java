@@ -45,7 +45,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -57,7 +56,7 @@ public class HistogramImplTest {
             histogram.recordValue(50 + Math.random() * 10);
         }
 
-        histogram.report(histogram.getName(), histogram.getTags(), reporter);
+        histogram.report(histogram.getQualifiedName(), histogram.getTags(), reporter);
 
         assertEquals(new Long(3L), reporter.getValueSamples().get(10d));
         assertEquals(new Long(5L), reporter.getValueSamples().get(60d));
@@ -71,7 +70,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -83,7 +81,7 @@ public class HistogramImplTest {
             histogram.recordDuration(Duration.ofMillis(50).add(Duration.ofMillis(Math.random() * 10)));
         }
 
-        histogram.report(histogram.getName(), histogram.getTags(), reporter);
+        histogram.report(histogram.getQualifiedName(), histogram.getTags(), reporter);
 
         assertEquals(new Long(3L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
         assertEquals(new Long(5L), reporter.getDurationSamples().get(Duration.ofMillis(60)));
@@ -97,7 +95,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -105,7 +102,7 @@ public class HistogramImplTest {
         assertNotNull(stopwatch);
         stopwatch.stop();
 
-        histogram.report(histogram.getName(), histogram.getTags(), reporter);
+        histogram.report(histogram.getQualifiedName(), histogram.getTags(), reporter);
 
         assertEquals(new Long(1L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
     }
@@ -117,7 +114,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 
@@ -152,7 +148,6 @@ public class HistogramImplTest {
         histogram = new HistogramImpl(
             "",
             null,
-            reporter,
             buckets
         );
 

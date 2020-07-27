@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,26 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-plugins {
-    id "org.jruyi.thrift" version "0.4.0"
-}
+package com.uber.m3.tally;
 
-description = 'tally M3 reporter'
+import com.uber.m3.util.ImmutableMap;
 
-dependencies {
-    compile('org.apache.thrift:libthrift:0.9.3')
+abstract class MetricBase {
 
-    compile project(':tally-core')
-}
+    private final String fullyQualifiedName;
 
-compileThrift {
-    generator 'java', 'private-members'
-
-    outputDir "${projectDir}/src/generated/java"
-
-    createGenFolder false
-
-    onlyIf {
-        project.hasProperty('genThrift')
+    protected MetricBase(String fqn) {
+        this.fullyQualifiedName = fqn;
     }
+
+    String getQualifiedName() {
+        return fullyQualifiedName;
+    }
+
+    abstract void report(String name, ImmutableMap<String, String> tags, StatsReporter reporter);
 }

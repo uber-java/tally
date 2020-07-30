@@ -35,6 +35,8 @@ public class TestStatsReporter implements StatsReporter {
     private Map<Double, Long> valueSamples = new HashMap<>();
     private Map<Duration, Long> durationSamples = new HashMap<>();
 
+    private Map<Double, Long> cumulativeValueSamples = new HashMap<>();
+
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
         counters.add(new MetricStruct<>(name, tags, value));
@@ -83,6 +85,10 @@ public class TestStatsReporter implements StatsReporter {
         long samples
     ) {
         valueSamples.put(bucketUpperBound, samples);
+        cumulativeValueSamples.put(
+                bucketUpperBound,
+                cumulativeValueSamples.getOrDefault(bucketUpperBound, 0L) + samples
+        );
         this.buckets = buckets;
     }
 
@@ -120,6 +126,10 @@ public class TestStatsReporter implements StatsReporter {
 
     public Map<Double, Long> getValueSamples() {
         return valueSamples;
+    }
+
+    public Map<Double, Long> getCumulativeValueSamples() {
+        return cumulativeValueSamples;
     }
 
     public Buckets getBuckets() {

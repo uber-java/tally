@@ -20,12 +20,12 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.tally.BucketPair;
-import com.uber.m3.tally.BucketPairImpl;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
+import com.uber.m3.tally.DurationBuckets;
 import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.tally.ValueBuckets;
 import com.uber.m3.tally.m3.thrift.TCalcTransport;
 import com.uber.m3.tally.m3.thrift.TMultiUdpClient;
 import com.uber.m3.tally.m3.thrift.TUdpClient;
@@ -58,7 +58,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -113,8 +112,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private final int payloadCapacity;
 
-    private final String bucketIdTagName;
-    private final String bucketTagName;
+    private final String bucketIdTagKey;
+    private final String bucketValueTagKey;
     private final String bucketValFmt;
 
     private final Set<MetricTag> commonTags;
@@ -140,8 +139,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
 
-        bucketIdTagName = builder.histogramBucketIdName;
-        bucketTagName = builder.histogramBucketName;
+        bucketIdTagKey = builder.histogramBucketIdName;
+        bucketValueTagKey = builder.histogramBucketName;
         bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
         metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
@@ -317,13 +316,47 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
     }
 
+    /**
+     * @deprecated DO NOT USE
+     *
+     * Please use {@link #reportHistogramValueSamples(String, Map, Buckets, int, long)} instead
+     */
+    @Deprecated
     @Override
+    public void reportHistogramValueSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            double bucketLowerBound,
+            double bucketUpperBound,
+            long samples
+    ) {
+        reportHistogramValueSamples(name, tags, buckets, buckets.getBucketIndexFor(bucketLowerBound), samples);
+    }
+
+    /**
+     * @deprecated DO NOT USE
+     *
+     * Please use {@link #reportHistogramValueSamples(String, Map, Buckets, int, long)} instead
+     */
+    @Override
+    @Deprecated
+    public void reportHistogramDurationSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            Duration bucketLowerBound,
+            Duration bucketUpperBound,
+            long samples
+    ) {
+        reportHistogramValueSamples(name, tags, buckets, buckets.getBucketIndexFor(bucketLowerBound), samples);
+    }
+
     public void reportHistogramValueSamples(
         String name,
         Map<String, String> tags,
         Buckets buckets,
-        double bucketLowerBound,
-        double bucketUpperBound,
+        int bucketIndex,
         long samples
     ) {
         // Append histogram bucket-specific tags
@@ -332,85 +365,34 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
 
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
 
-        if (tags == null) {
-            // We know that the HashMap will only contain two items at this point,
-            // therefore initialCapacity of 2 and loadFactor of 1.
-            tags = new HashMap<>(2, 1);
-        } else {
-            // Copy over the map since it might be unmodifiable and, even if it's
-            // not, we don't want to modify it.
-            tags = new HashMap<>(tags);
+        if (tags != null) {
+            builder.putAll(tags);
         }
 
-        for (int i = 0; i < bucketPairs.length; i++) {
-            // Look for the first pair with an upper bound greater than or equal
-            // to the given upper bound.
-            if (bucketPairs[i].upperBoundValue() >= bucketUpperBound) {
-                String idTagValue = String.format(bucketIdFmt, i);
-
-                tags.put(bucketIdTagName, idTagValue);
-                tags.put(bucketTagName,
+        String bucketValueTag;
+        if (buckets instanceof ValueBuckets) {
+            bucketValueTag =
                     String.format("%s-%s",
-                        valueBucketString(bucketPairs[i].lowerBoundValue()),
-                        valueBucketString(bucketPairs[i].upperBoundValue())
-                    )
-                );
-
-                break;
-            }
-        }
-
-        reportCounterInternal(name, tags, samples);
-    }
-
-    @Override
-    public void reportHistogramDurationSamples(
-        String name,
-        Map<String, String> tags,
-        Buckets buckets,
-        Duration bucketLowerBound,
-        Duration bucketUpperBound,
-        long samples
-    ) {
-        // Append histogram bucket-specific tags
-        int bucketIdLen = String.valueOf(buckets.size()).length();
-        bucketIdLen = Math.max(bucketIdLen, MIN_METRIC_BUCKET_ID_TAG_LENGTH);
-
-        String bucketIdFmt = String.format("%%0%sd", bucketIdLen);
-
-        BucketPair[] bucketPairs = BucketPairImpl.bucketPairs(buckets);
-
-        if (tags == null) {
-            // We know that the HashMap will only contain two items at this point,
-            // therefore initialCapacity of 2 and loadFactor of 1.
-            tags = new HashMap<>(2, 1);
-        } else {
-            // Copy over the map since it might be unmodifiable and, even if it's
-            // not, we don't want to modify it.
-            tags = new HashMap<>(tags);
-        }
-
-        for (int i = 0; i < bucketPairs.length; i++) {
-            // Look for the first pair with an upper bound greater than or equal
-            // to the given upper bound.
-            if (bucketPairs[i].upperBoundDuration().compareTo(bucketUpperBound) >= 0) {
-                String idTagValue = String.format(bucketIdFmt, i);
-
-                tags.put(bucketIdTagName, idTagValue);
-                tags.put(bucketTagName,
+                            valueBucketString(buckets.getValueLowerBoundFor(bucketIndex)),
+                            valueBucketString(buckets.getValueUpperBoundFor(bucketIndex))
+                    );
+        } else if (buckets instanceof DurationBuckets) {
+            bucketValueTag =
                     String.format("%s-%s",
-                        durationBucketString(bucketPairs[i].lowerBoundDuration()),
-                        durationBucketString(bucketPairs[i].upperBoundDuration())
-                    )
-                );
-
-                break;
-            }
+                            durationBucketString(buckets.getDurationLowerBoundFor(bucketIndex)),
+                            durationBucketString(buckets.getDurationUpperBoundFor(bucketIndex))
+                    );
+        } else {
+            throw new IllegalArgumentException("unsupported buckets format");
         }
 
-        reportCounterInternal(name, tags, samples);
+        builder
+            .put(bucketIdTagKey, String.format(bucketIdFmt, bucketIndex))
+            .put(bucketValueTagKey, bucketValueTag);
+
+        reportCounterInternal(name, builder.build(), samples);
     }
 
     // Relies on the calling function to provide guarantees of the reporter being open

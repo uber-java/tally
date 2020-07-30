@@ -25,18 +25,22 @@ import com.uber.m3.util.Duration;
 import java.util.List;
 
 /**
- * Buckets of a {@link Histogram}.
+ * @deprecated DO NOT USE
+ *
+ * Please use {@link ImmutableBuckets} instead
  */
-public interface Buckets<E> extends List<E> {
+@Deprecated
+public interface Buckets<E> extends ImmutableBuckets, List<E> {
     /**
-     * Returns these buckets as {@code double}s.
-     * @return an array of {@code double}s representing these buckets
+     * @deprecated DO NOT USE
      */
+    @Deprecated
     Double[] asValues();
 
     /**
-     * Returns these buckets as {@link Duration}s.
-     * @return an array of {@link Duration}s representing these buckets
+     * @deprecated DO NOT USE
      */
+    @Deprecated
     Duration[] asDurations();
+
 }

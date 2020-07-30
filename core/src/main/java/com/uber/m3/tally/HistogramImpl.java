@@ -23,8 +23,9 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,15 +33,14 @@ import java.util.Map;
  */
 class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     private final Type type;
+
     private final ImmutableMap<String, String> tags;
-    private final Buckets specification;
+
+    private final ImmutableBuckets specification;
 
     // NOTE: Bucket counters are lazily initialized. Since ref updates are atomic in JMM,
     // no dedicated synchronization is used on the read path, only on the write path
     private final CounterImpl[] bucketCounters;
-
-    private final double[] lookupByValue;
-    private final Duration[] lookupByDuration;
 
     private final ScopeImpl scope;
 
@@ -60,25 +60,17 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         // Each bucket value, serves as a boundary de-marking upper bound
         // for the bucket to the left, and lower bound for the bucket to the right
         this.bucketCounters = new CounterImpl[buckets.asValues().length + 1];
-
-        this.lookupByValue =
-                Arrays.stream(buckets.asValues())
-                    .mapToDouble(x -> x)
-                    .toArray();
-
-        this.lookupByDuration =
-                Arrays.copyOf(buckets.asDurations(), buckets.asDurations().length);
     }
 
     @Override
     public void recordValue(double value) {
-        int index = toBucketIndex(Arrays.binarySearch(lookupByValue, value));
+        int index = toBucketIndex(Collections.binarySearch(specification.getValueUpperBounds(), value));
         getOrCreateCounter(index).inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = toBucketIndex(Arrays.binarySearch(lookupByDuration, duration));
+        int index = toBucketIndex(Collections.binarySearch(specification.getDurationUpperBounds(), duration));
         getOrCreateCounter(index).inc(1);
     }
 
@@ -87,9 +79,14 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return bucketCounters[index];
         }
 
+        List<?> bucketsBounds =
+                this.type == Type.VALUE
+                        ? specification.getValueUpperBounds()
+                        : specification.getDurationUpperBounds();
+
         // To maintain lock granularity we synchronize only on a
         // particular bucket leveraging bucket's boundary as a sync target
-        synchronized (lookupByDuration[Math.min(index, lookupByDuration.length - 1)]) {
+        synchronized (bucketsBounds.get(Math.min(index, bucketsBounds.size() - 1))) {
             // Check whether bucket has been already set,
             // while we were waiting for lock
             if (bucketCounters[index] != null) {
@@ -101,7 +98,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         }
     }
 
-    private int toBucketIndex(int binarySearchResult) {
+    static int toBucketIndex(int binarySearchResult) {
         // Buckets are defined in the following way:
         //      - Each bucket is inclusive of its lower bound, and exclusive of the upper: [lower, upper)
         //      - All buckets are defined by upper bounds: [2, 4, 8, 16, 32, ...]: therefore i
@@ -133,19 +130,19 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     }
 
     private Duration getUpperBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex < lookupByDuration.length ? lookupByDuration[bucketIndex] : Duration.MAX_VALUE;
-    }
-
-    private double getUpperBoundValueForBucket(int bucketIndex) {
-        return bucketIndex < lookupByValue.length ? lookupByValue[bucketIndex] : Double.MAX_VALUE;
+        return bucketIndex < specification.getDurationUpperBounds().size() ? specification.getDurationUpperBounds().get(bucketIndex) : Duration.MAX_VALUE;
     }
 
     private Duration getLowerBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Duration.MIN_VALUE : lookupByDuration[bucketIndex - 1];
+        return bucketIndex == 0 ? Duration.MIN_VALUE : specification.getDurationUpperBounds().get(bucketIndex - 1);
+    }
+
+    private double getUpperBoundValueForBucket(int bucketIndex) {
+        return bucketIndex < specification.getValueUpperBounds().size() ? specification.getValueUpperBounds().get(bucketIndex) : Double.MAX_VALUE;
     }
 
     private double getLowerBoundValueForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Double.MIN_VALUE : lookupByValue[bucketIndex - 1];
+        return bucketIndex == 0 ? Double.MIN_VALUE : specification.getValueUpperBounds().get(bucketIndex - 1);
     }
 
     private long getCounterValue(int index) {
@@ -218,7 +215,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
                     reporter.reportHistogramValueSamples(
                         getQualifiedName(),
                         tags,
-                        specification,
+                        (Buckets) specification,
                         getLowerBoundValueForBucket(bucketIndex),
                         getUpperBoundValueForBucket(bucketIndex),
                         inc
@@ -228,7 +225,7 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
                     reporter.reportHistogramDurationSamples(
                         getQualifiedName(),
                         tags,
-                        specification,
+                        (Buckets) specification,
                         getLowerBoundDurationForBucket(bucketIndex),
                         getUpperBoundDurationForBucket(bucketIndex),
                         inc

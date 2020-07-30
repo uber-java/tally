@@ -169,4 +169,9 @@ public class ImmutableList<E> implements List<E> {
     public int hashCode() {
         return collection.hashCode();
     }
+
+    @Override
+    public String toString() {
+        return collection.toString();
+    }
 }

@@ -22,12 +22,10 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
-import java.util.Collections;
-
 /**
  * Default implementation of a {@link BucketPair}
  *
- * @deprecated will be removed
+ * @deprecated DO NOT USE, WILL BE REMOVED IN THE NEXT VERSION
  */
 @Deprecated
 public class BucketPairImpl implements BucketPair {
@@ -59,8 +57,6 @@ public class BucketPairImpl implements BucketPair {
                 )
             };
         }
-
-        Collections.sort(buckets);
 
         Double[] asValueBuckets = buckets.asValues();
         Duration[] asDurationBuckets = buckets.asDurations();

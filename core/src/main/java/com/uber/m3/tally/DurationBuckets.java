@@ -22,18 +22,62 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * {@link Buckets} implementation backed by {@link Duration}s.
  */
 public class DurationBuckets extends AbstractBuckets<Duration> {
+
     public DurationBuckets(Duration[] durations) {
         super(durations);
     }
 
-    public DurationBuckets() {
-        super();
+    @Override
+    public Duration getDurationLowerBoundFor(int bucketIndex) {
+        return bucketIndex == 0 ? Duration.MIN_VALUE : buckets.get(bucketIndex - 1);
     }
 
+    @Override
+    public Duration getDurationUpperBoundFor(int bucketIndex) {
+        return bucketIndex < buckets.size() ? buckets.get(bucketIndex) : Duration.MAX_VALUE;
+    }
+
+    @Override
+    public int getBucketIndexFor(Duration value) {
+        return HistogramImpl.toBucketIndex(Collections.binarySearch(buckets, value));
+    }
+
+    @Override
+    public List<Duration> getDurationUpperBounds() {
+        return Collections.unmodifiableList(buckets);
+    }
+
+    @Override
+    public double getValueLowerBoundFor(int bucketIndex) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public double getValueUpperBoundFor(int bucketIndex) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public int getBucketIndexFor(double value) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public List<Double> getValueUpperBounds() {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    /**
+     * @deprecated DO NOT USE
+     */
+    @Deprecated
     @Override
     public Double[] asValues() {
         Double[] values = new Double[buckets.size()];
@@ -45,6 +89,10 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
         return values;
     }
 
+    /**
+     * @deprecated DO NOT USE
+     */
+    @Deprecated
     @Override
     public Duration[] asDurations() {
         return buckets.toArray(new Duration[buckets.size()]);

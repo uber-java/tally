@@ -22,6 +22,9 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * {@link Buckets} implementation backed by {@code Double} values.
  */
@@ -30,15 +33,59 @@ public class ValueBuckets extends AbstractBuckets<Double> {
         super(values);
     }
 
-    public ValueBuckets() {
-        super();
+    @Override
+    public double getValueLowerBoundFor(int bucketIndex) {
+        return bucketIndex == 0 ? Double.MIN_VALUE : buckets.get(bucketIndex - 1);
     }
 
+    @Override
+    public double getValueUpperBoundFor(int bucketIndex) {
+        return bucketIndex < buckets.size() ? buckets.get(bucketIndex) : Double.MAX_VALUE;
+    }
+
+    @Override
+    public int getBucketIndexFor(double value) {
+        return HistogramImpl.toBucketIndex(Collections.binarySearch(buckets, value));
+    }
+
+    @Override
+    public List<Double> getValueUpperBounds() {
+        return Collections.unmodifiableList(buckets);
+    }
+
+    @Override
+    public Duration getDurationLowerBoundFor(int bucketIndex) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public Duration getDurationUpperBoundFor(int bucketIndex) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public int getBucketIndexFor(Duration value) {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public List<Duration> getDurationUpperBounds() {
+        throw new UnsupportedOperationException("not supported");
+    }
+
+    /**
+     * @deprecated DO NOT USE
+     */
+    @Deprecated
     @Override
     public Double[] asValues() {
         return buckets.toArray(new Double[buckets.size()]);
     }
 
+    /**
+     * @deprecated DO NOT USE
+     */
+    @Deprecated
     @Override
     public Duration[] asDurations() {
         Duration[] durations = new Duration[buckets.size()];

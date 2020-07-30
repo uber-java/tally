@@ -21,8 +21,8 @@
 package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableList;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -30,21 +30,30 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
- * Abstract {@link Buckets} implementation for common functionality.
+ * @deprecated DO NOT USE
+ *
+ * Please use {@link ImmutableBuckets} instead
  */
-public abstract class AbstractBuckets<T> implements Buckets<T> {
+@Deprecated
+public abstract class AbstractBuckets<T extends Comparable<T>> implements Buckets<T> {
     protected List<T> buckets;
 
     AbstractBuckets(T[] buckets) {
         if (buckets == null) {
-            this.buckets = new ArrayList<>();
-        } else {
-            this.buckets = new ArrayList<>(Arrays.asList(buckets));
+            throw new IllegalArgumentException("provided buckets could not be null");
         }
+
+        validate(buckets);
+
+        this.buckets = new ImmutableList<>(Arrays.asList(buckets));
     }
 
-    AbstractBuckets() {
-        this(null);
+    public void validate(T[] buckets) {
+        for (int i = 1; i < buckets.length; ++i) {
+            if (buckets[i - 1].compareTo(buckets[i]) > 0) {
+                throw new IllegalArgumentException("buckets should be in a non-decreasing order");
+            }
+        }
     }
 
     @Override

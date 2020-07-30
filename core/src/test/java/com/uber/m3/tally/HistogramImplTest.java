@@ -21,17 +21,28 @@
 package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class HistogramImplTest {
+
+    private static final double[] BUCKETS = new double[] {
+        1.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 125.0, 150.0, 175.0, 200.0,
+        225.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0, 850.0, 900.0, 950.0, 1000.0
+    };
+
     private TestStatsReporter reporter;
     private ScopeImpl scope;
 
@@ -44,6 +55,46 @@ public class HistogramImplTest {
             new ScopeBuilder(null, new ScopeImpl.Registry())
                 .reporter(reporter)
                 .build();
+    }
+
+    @Test
+    public void test() {
+        histogram = new HistogramImpl(scope, "histogram", ImmutableMap.EMPTY, ValueBuckets.custom(BUCKETS));
+
+        double maxUpperBound = BUCKETS[BUCKETS.length - 1];
+
+        List<Double> values =
+                IntStream.range(0, 10000)
+                    .mapToDouble(ignored -> Math.random() * (maxUpperBound + 1))
+                    .mapToObj(a -> a)
+                    .collect(Collectors.toList());
+
+        Map<Double, Long> expected = new HashMap<>();
+
+        for (int i = 0; i < values.size(); ++i) {
+            int index = Arrays.binarySearch(BUCKETS, values.get(i));
+            double upper;
+            if (index >= 0) {
+                upper = index + 1 < BUCKETS.length ? BUCKETS[index + 1] : Double.MAX_VALUE;
+            } else {
+                upper = ~index < BUCKETS.length ? BUCKETS[~index] : Double.MAX_VALUE;
+            }
+
+            expected.put(upper, expected.getOrDefault(upper, 0L) + 1);
+
+            ////////////////////////////////////////////////////
+
+            histogram.recordValue(values.get(i));
+
+            if (i % 13 == 0) {
+                scope.report(reporter);
+            }
+
+        }
+
+        scope.report(reporter);
+
+        assertEquals(reporter.getCumulativeValueSamples(), expected);
     }
 
     @Test

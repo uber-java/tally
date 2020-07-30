@@ -40,6 +40,7 @@ public interface Buckets<E> extends ImmutableBuckets, List<E> {
     /**
      * @deprecated DO NOT USE
      */
+    @Deprecated
     Duration[] asDurations();
 
 }

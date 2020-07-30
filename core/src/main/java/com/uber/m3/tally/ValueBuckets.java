@@ -67,7 +67,6 @@ public class ValueBuckets extends AbstractBuckets<Double> {
         throw new UnsupportedOperationException("not supported");
     }
 
-
     @Override
     public int getBucketIndexFor(Duration value) {
         throw new UnsupportedOperationException("not supported");

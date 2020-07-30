@@ -76,7 +76,14 @@ public class ScopeImplTest {
         );
         assertNotNull(histogram);
 
+        Histogram histogramDefaultBuckets = scope.histogram(
+                "new-histogram-default-buckets",
+                null
+        );
+        assertNotNull(histogramDefaultBuckets);
+
         Histogram sameHistogram = scope.histogram("new-histogram", null);
+
         // Should be the same Histogram object and not a new instance
         assertTrue(histogram == sameHistogram);
     }

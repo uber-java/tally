@@ -25,6 +25,7 @@ import com.uber.m3.util.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -89,7 +90,14 @@ class ScopeImpl implements Scope {
     public Histogram histogram(String name, Buckets buckets) {
         return histograms.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
-                new HistogramImpl(this, fullyQualifiedName(name), tags, buckets));
+                new HistogramImpl(
+                        this,
+                        fullyQualifiedName(name),
+                        tags,
+                        Optional.ofNullable(buckets)
+                                .orElse(defaultBuckets)
+                )
+        );
     }
 
     @Override

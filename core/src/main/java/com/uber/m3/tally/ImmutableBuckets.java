@@ -24,26 +24,64 @@ import com.uber.m3.util.Duration;
 
 import java.util.List;
 
+/**
+ * Abstracts buckets used in {@link Histogram} metrics,
+ *
+ * Buckets are defined by the list of upper-bounds in the following way:
+ *
+ *  <blockquote>
+ *  <pre>
+ *      double bounds[] = new double[] { 1, 2, 4, 8, 16 };
+ *
+ *      // For the given set of bounds:
+ *      //    first bucket      [-inf, 1)
+ *      //    second bucket     [1, 2)
+ *      //    ...
+ *      //    last bucket       [16, +inf)
+ *  <pre/>
+ *  </blockquote>
+ */
 public interface ImmutableBuckets {
 
+    /**
+     * Gets corresponding bucket lower bound
+     */
     double getValueLowerBoundFor(int bucketIndex);
+
+    /**
+     * Gets corresponding bucket upper bound
+     */
     double getValueUpperBoundFor(int bucketIndex);
 
+    /**
+     * Gets corresponding bucket lower bound
+     */
     Duration getDurationLowerBoundFor(int bucketIndex);
+
+    /**
+     * Gets corresponding bucket upper bound
+     */
     Duration getDurationUpperBoundFor(int bucketIndex);
 
+    /**
+     * Gets index of the corresponding bucket this value would fall under
+     */
     int getBucketIndexFor(double value);
+
+    /**
+     * Gets index of the corresponding bucket this value would fall under
+     */
     int getBucketIndexFor(Duration value);
 
     /**
-     * Returns these buckets as {@code double}s.
+     * Returns defined buckets' upper-bound values as {@link Double}s.
      * @return an immutable list of {@code double}s representing these buckets
      */
-    List<Double> getValueBuckets();
+    List<Double> getValueUpperBounds();
 
     /**
-     * Returns these buckets as {@link Duration}s.
+     * Returns defined buckets' upper-bound values as {@link Duration}s.
      * @return an immutable list of {@link Duration}s representing these buckets
      */
-    List<Duration> getDurationBuckets();
+    List<Duration> getDurationUpperBounds();
 }

@@ -64,13 +64,13 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
     @Override
     public void recordValue(double value) {
-        int index = toBucketIndex(Collections.binarySearch(specification.getValueBuckets(), value));
+        int index = toBucketIndex(Collections.binarySearch(specification.getValueUpperBounds(), value));
         getOrCreateCounter(index).inc(1);
     }
 
     @Override
     public void recordDuration(Duration duration) {
-        int index = toBucketIndex(Collections.binarySearch(specification.getDurationBuckets(), duration));
+        int index = toBucketIndex(Collections.binarySearch(specification.getDurationUpperBounds(), duration));
         getOrCreateCounter(index).inc(1);
     }
 
@@ -81,8 +81,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
         List<?> bucketsBounds =
                 this.type == Type.VALUE
-                        ? specification.getValueBuckets()
-                        : specification.getDurationBuckets();
+                        ? specification.getValueUpperBounds()
+                        : specification.getDurationUpperBounds();
 
         // To maintain lock granularity we synchronize only on a
         // particular bucket leveraging bucket's boundary as a sync target
@@ -130,19 +130,19 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     }
 
     private Duration getUpperBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex < specification.getDurationBuckets().size() ? specification.getDurationBuckets().get(bucketIndex) : Duration.MAX_VALUE;
+        return bucketIndex < specification.getDurationUpperBounds().size() ? specification.getDurationUpperBounds().get(bucketIndex) : Duration.MAX_VALUE;
     }
 
     private Duration getLowerBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Duration.MIN_VALUE : specification.getDurationBuckets().get(bucketIndex - 1);
+        return bucketIndex == 0 ? Duration.MIN_VALUE : specification.getDurationUpperBounds().get(bucketIndex - 1);
     }
 
     private double getUpperBoundValueForBucket(int bucketIndex) {
-        return bucketIndex < specification.getValueBuckets().size() ? specification.getValueBuckets().get(bucketIndex) : Double.MAX_VALUE;
+        return bucketIndex < specification.getValueUpperBounds().size() ? specification.getValueUpperBounds().get(bucketIndex) : Double.MAX_VALUE;
     }
 
     private double getLowerBoundValueForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Double.MIN_VALUE : specification.getValueBuckets().get(bucketIndex - 1);
+        return bucketIndex == 0 ? Double.MIN_VALUE : specification.getValueUpperBounds().get(bucketIndex - 1);
     }
 
     private long getCounterValue(int index) {

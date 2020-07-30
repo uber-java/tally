@@ -22,8 +22,6 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 
-import java.util.Collections;
-
 /**
  * Default implementation of a {@link BucketPair}
  *

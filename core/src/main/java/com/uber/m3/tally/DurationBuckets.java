@@ -50,7 +50,7 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
     }
 
     @Override
-    public List<Duration> getDurationBuckets() {
+    public List<Duration> getDurationUpperBounds() {
         return Collections.unmodifiableList(buckets);
     }
 
@@ -70,7 +70,7 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
     }
 
     @Override
-    public List<Double> getValueBuckets() {
+    public List<Double> getValueUpperBounds() {
         throw new UnsupportedOperationException("not supported");
     }
 

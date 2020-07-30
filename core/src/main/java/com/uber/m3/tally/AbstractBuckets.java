@@ -35,7 +35,7 @@ import java.util.ListIterator;
  * Please use {@link ImmutableBuckets} instead
  */
 @Deprecated
-public abstract class AbstractBuckets<T> implements Buckets<T> {
+public abstract class AbstractBuckets<T extends Comparable<T>> implements Buckets<T> {
     protected List<T> buckets;
 
     AbstractBuckets(T[] buckets) {
@@ -43,7 +43,17 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
             throw new IllegalArgumentException("provided buckets could not be null");
         }
 
+        validate(buckets);
+
         this.buckets = new ImmutableList<>(Arrays.asList(buckets));
+    }
+
+    public void validate(T[] buckets) {
+        for (int i = 1; i < buckets.length; ++i) {
+            if (buckets[i - 1].compareTo(buckets[i]) > 0) {
+                throw new IllegalArgumentException("buckets should be in a non-decreasing order");
+            }
+        }
     }
 
     @Override

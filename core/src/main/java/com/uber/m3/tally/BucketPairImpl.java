@@ -60,8 +60,6 @@ public class BucketPairImpl implements BucketPair {
             };
         }
 
-        Collections.sort(buckets);
-
         Double[] asValueBuckets = buckets.asValues();
         Duration[] asDurationBuckets = buckets.asDurations();
         BucketPair[] pairs = new BucketPair[buckets.size() + 1];

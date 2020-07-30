@@ -79,7 +79,10 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return bucketCounters[index];
         }
 
-        List<Double> bucketsBounds = specification.getValueBuckets();
+        List<?> bucketsBounds =
+                this.type == Type.VALUE
+                        ? specification.getValueBuckets()
+                        : specification.getDurationBuckets();
 
         // To maintain lock granularity we synchronize only on a
         // particular bucket leveraging bucket's boundary as a sync target

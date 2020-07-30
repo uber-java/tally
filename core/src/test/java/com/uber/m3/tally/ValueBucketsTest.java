@@ -142,9 +142,6 @@ public class ValueBucketsTest {
         ValueBuckets buckets = ValueBuckets.linear(0, 10, 6);
         assertEquals("[0.0, 10.0, 20.0, 30.0, 40.0, 50.0]", buckets.toString());
 
-        buckets = new ValueBuckets();
-        assertEquals("[]", buckets.toString());
-
         buckets = new ValueBuckets(new Double[]{99.99});
         assertEquals("[99.99]", buckets.toString());
     }

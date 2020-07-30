@@ -21,8 +21,8 @@
 package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableList;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -40,14 +40,10 @@ public abstract class AbstractBuckets<T> implements Buckets<T> {
 
     AbstractBuckets(T[] buckets) {
         if (buckets == null) {
-            this.buckets = new ArrayList<>();
-        } else {
-            this.buckets = new ArrayList<>(Arrays.asList(buckets));
+            throw new IllegalArgumentException("provided buckets could not be null");
         }
-    }
 
-    AbstractBuckets() {
-        this(null);
+        this.buckets = new ImmutableList<>(Arrays.asList(buckets));
     }
 
     @Override

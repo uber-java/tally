@@ -34,10 +34,6 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
         super(durations);
     }
 
-    public DurationBuckets() {
-        super();
-    }
-
     @Override
     public Duration getDurationLowerBoundFor(int bucketIndex) {
         return bucketIndex == 0 ? Duration.MIN_VALUE : buckets.get(bucketIndex - 1);

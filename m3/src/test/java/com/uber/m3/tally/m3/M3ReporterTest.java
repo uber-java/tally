@@ -43,6 +43,7 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -383,9 +384,13 @@ public class M3ReporterTest {
         expectedTags.put("foo", "bar");
         expectedTags.put("bucketid", "0001");
         expectedTags.put("bucket", "0.000000-25000000.000000");
-        for (MetricTag tag : metric.getTags()) {
-            assertEquals(expectedTags.get(tag.getTagName()), tag.getTagValue());
-        }
+
+        Map<String, String> receivedTags =
+                metric.getTags()
+                        .stream()
+                        .collect(Collectors.toMap(MetricTag::getTagName, MetricTag::getTagValue));
+
+        assertEquals(expectedTags, receivedTags);
 
         assertTrue(metric.isSetMetricValue());
 

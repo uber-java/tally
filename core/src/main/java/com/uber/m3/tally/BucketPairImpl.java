@@ -27,7 +27,7 @@ import java.util.Collections;
 /**
  * Default implementation of a {@link BucketPair}
  *
- * @deprecated will be removed
+ * @deprecated DO NOT USE, WILL BE REMOVED IN THE NEXT VERSION
  */
 @Deprecated
 public class BucketPairImpl implements BucketPair {

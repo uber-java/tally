@@ -30,8 +30,11 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
- * Abstract {@link Buckets} implementation for common functionality.
+ * @deprecated DO NOT USE
+ *
+ * Please use {@link ImmutableBuckets} instead
  */
+@Deprecated
 public abstract class AbstractBuckets<T> implements Buckets<T> {
     protected List<T> buckets;
 

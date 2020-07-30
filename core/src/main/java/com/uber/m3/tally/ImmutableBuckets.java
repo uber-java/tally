@@ -38,7 +38,7 @@ import java.util.List;
  *      //    second bucket     [1, 2)
  *      //    ...
  *      //    last bucket       [16, +inf)
- *  <pre/>
+ *  </pre>
  *  </blockquote>
  */
 public interface ImmutableBuckets {

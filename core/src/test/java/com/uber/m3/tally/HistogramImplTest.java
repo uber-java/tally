@@ -37,6 +37,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class HistogramImplTest {
+
+    private static final double[] BUCKETS = new double[] {
+        1.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 125.0, 150.0, 175.0, 200.0,
+        225.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0, 850.0, 900.0, 950.0, 1000.0
+    };
+
     private TestStatsReporter reporter;
     private ScopeImpl scope;
 
@@ -50,11 +56,6 @@ public class HistogramImplTest {
                 .reporter(reporter)
                 .build();
     }
-
-    private static final double BUCKETS[] = new double[]{
-            1.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 125.0, 150.0, 175.0, 200.0,
-            225.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0, 850.0, 900.0, 950.0, 1000.0
-    };
 
     @Test
     public void test() {

@@ -87,7 +87,7 @@ public class DurationBuckets extends AbstractBuckets<Duration> {
         Double[] values = new Double[buckets.size()];
 
         for (int i = 0; i < values.length; i++) {
-            values[i] = buckets.get(i).getSeconds() * Duration.NANOS_PER_SECOND;
+            values[i] = buckets.get(i).getSeconds();
         }
 
         return values;

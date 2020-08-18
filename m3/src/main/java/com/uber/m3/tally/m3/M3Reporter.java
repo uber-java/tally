@@ -259,6 +259,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
         // thread(s) or else they will block forever
+        scheduledExecutorService.shutdownNow();
         executorService.shutdownNow();
 
         try {

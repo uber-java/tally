@@ -94,6 +94,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
      */
     static final int NUM_PROCESSORS = 1;
 
+    static final Duration HEARTBEAT_PERIOD = Duration.ofSeconds(10);
+
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
     private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
@@ -178,7 +180,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         // Schedule regular heartbeat up-keeping processors up and running
-        scheduledExecutorService.scheduleAtFixedRate(this::heartbeat, 1, 1, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(this::heartbeat, 0, HEARTBEAT_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     // NOTE: This method is not concurrent

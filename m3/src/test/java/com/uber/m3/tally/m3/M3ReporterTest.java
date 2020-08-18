@@ -133,7 +133,7 @@ public class M3ReporterTest {
 
             // We simply block here awaiting for reporter to re-create processors, subsequently
             // invoking Thrift factory again
-            boolean countdown = latch.await(5, TimeUnit.SECONDS);
+            boolean countdown = latch.await((long) (M3Reporter.HEARTBEAT_PERIOD.getSeconds() + 1), TimeUnit.SECONDS);
 
             assertTrue(countdown);
         }

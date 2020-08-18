@@ -58,7 +58,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +107,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
      *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
      *       to how metrics are processed and eventually submitted to M3 collectors;
      */
-    private static final int NUM_PROCESSORS = 1;
+    static final int NUM_PROCESSORS = 1;
 
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
@@ -142,10 +141,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private final Processor[] processors;
 
+    private final TProtocolFactory protocolFactory;
+
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
     // Use inner Builder class to construct an M3Reporter
-    private M3Reporter(Builder builder) {
+    M3Reporter(Builder builder, TProtocolFactory thriftProtocolFactory) {
         payloadCapacity = calculatePayloadCapacity(builder.maxPacketSizeBytes, builder.metricTagSet);
 
         maxBufferingDelay = Duration.ofMillis(builder.maxProcessorWaitUntilFlushMillis);
@@ -165,6 +166,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         commonTags = builder.metricTagSet;
 
+        protocolFactory = thriftProtocolFactory;
+
         processorsShutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
         collectorEndpointSockedAddresses = builder.endpointSocketAddresses;
@@ -175,11 +178,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         // Schedule regular heartbeat up-keeping processors up and running
-        scheduledExecutorService.scheduleAtFixedRate(this::heartbeat, 5, 1, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(this::heartbeat, 1, 1, TimeUnit.SECONDS);
     }
 
     // NOTE: This method is not concurrent
-    private void heartbeat() {
+    void heartbeat() {
         synchronized (this) {
             for (int i = 0; i < processors.length; ++i) {
                 if (processors[i].getState() != ProcessorState.RUNNING) {
@@ -215,7 +218,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
         try {
-            Processor processor = new Processor(endpointSocketAddresses);
+            Processor processor = new Processor(endpointSocketAddresses, protocolFactory);
             executorService.execute(processor);
             return processor;
         } catch (TTransportException | SocketException e) {
@@ -235,7 +238,16 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        Arrays.stream(processors).forEach(Processor::scheduleFlush);
+        for (Processor processor : processors) {
+            processor.scheduleFlush();
+        }
+    }
+
+    // NOTE: This should only be used in tests
+    void flushNow() throws TException {
+        for (Processor processor : processors) {
+            processor.flushBuffered();
+        }
     }
 
     @Override
@@ -493,9 +505,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private final AtomicReference<ProcessorState> state = new AtomicReference<>();
         private final AtomicBoolean shouldFlush = new AtomicBoolean(false);
 
-        Processor(SocketAddress[] socketAddresses) throws TTransportException, SocketException {
-            TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
-
+        Processor(SocketAddress[] socketAddresses, TProtocolFactory protocolFactory) throws TTransportException, SocketException {
             if (socketAddresses.length > 1) {
                 transport = new TMultiUdpClient(socketAddresses);
             } else {
@@ -854,7 +864,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 metricTagSet.add(createMetricTag(HOST_TAG, getHostName()));
             }
 
-            return new M3Reporter(this);
+            return new M3Reporter(this, new TCompactProtocol.Factory());
         }
     }
 }

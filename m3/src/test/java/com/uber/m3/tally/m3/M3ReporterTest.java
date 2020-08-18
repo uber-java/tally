@@ -33,6 +33,11 @@ import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
+import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -43,6 +48,8 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -51,7 +58,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 // TODO add tests to validate proper shutdown
-// TODO add tests to validate uncaughts don't crash processor
 // TODO add tests for multi-processor setup
 public class M3ReporterTest {
 
@@ -75,6 +81,62 @@ public class M3ReporterTest {
     @BeforeClass
     public static void setup() throws UnknownHostException {
         socketAddress = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 12345);
+    }
+
+    @Test
+    public void testReporterUpkeepsProcessors() throws TException, InterruptedException {
+        class FailingTTransport extends TTransport {
+            @Override
+            public boolean isOpen() {
+                return true;
+            }
+
+            @Override
+            public void open() throws TTransportException {}
+
+            @Override
+            public void close() {}
+
+            @Override
+            public int read(byte[] buf, int off, int len) throws TTransportException {
+                throw new TTransportException("failing transport");
+            }
+
+            @Override
+            public void write(byte[] buf, int off, int len) throws TTransportException {
+                throw new TTransportException("failing transport");
+            }
+        }
+
+        // Simulating processor failure, we validate that reporter
+        // will attempt to re-bootstrap the processors detecting
+        // the failure of the previous ones. {@code CountDownLatch} is used
+        // to account for all of those invocations assuming that failed processor
+        // will be re-bootstrapped
+        CountDownLatch latch = new CountDownLatch(M3Reporter.NUM_PROCESSORS * 2);
+
+        TProtocolFactory eavesdroppingProtocolFactory =
+            (TProtocolFactory) trans -> {
+                latch.countDown();
+                return new TBinaryProtocol(new FailingTTransport());
+            };
+
+        M3Reporter.Builder reporterBuilder =
+                new M3Reporter.Builder(socketAddress)
+                        .service("test-service")
+                        .commonTags(DEFAULT_TAGS)
+                        .includeHost(true);
+
+        try (final M3Reporter reporter = new M3Reporter(reporterBuilder, eavesdroppingProtocolFactory)) {
+            reporter.reportCounter("my-counter", DEFAULT_TAGS, 10);
+            reporter.flush();
+
+            // We simply block here awaiting for reporter to re-create processors, subsequently
+            // invoking Thrift factory again
+            boolean countdown = latch.await(5, TimeUnit.SECONDS);
+
+            assertTrue(countdown);
+        }
     }
 
     @Test

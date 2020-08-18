@@ -87,6 +87,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     public static final String DEFAULT_HISTOGRAM_BUCKET_NAME = "bucket";
     public static final int DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION = 6;
 
+    /**
+     * NOTE: DO NOT CHANGE THIS NUMBER!
+     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
+     *       to how metrics are processed and eventually submitted to M3 collectors;
+     */
+    static final int NUM_PROCESSORS = 1;
+
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
     private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
@@ -101,13 +108,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final int THRIFT_METADATA_PADDING = 256;
 
     private static final int MIN_METRIC_BUCKET_ID_TAG_LENGTH = 4;
-
-    /**
-     * NOTE: DO NOT CHANGE THIS NUMBER!
-     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
-     *       to how metrics are processed and eventually submitted to M3 collectors;
-     */
-    static final int NUM_PROCESSORS = 1;
 
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);

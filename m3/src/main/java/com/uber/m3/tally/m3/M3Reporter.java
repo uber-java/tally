@@ -122,8 +122,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private final Set<MetricTag> commonTags;
 
-    // Holds metrics to be flushed
-    private final BlockingQueue<SizedMetric> metricQueue;
+    // TODO replace w/ an evicting queue
+    private final BlockingQueue<SizedMetric> queue;
 
     // Executor service running processors flushing metrics to collectors
     private final ExecutorService executorService;
@@ -155,7 +155,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         bucketValueTagKey = builder.histogramBucketName;
         bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
-        metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
+        queue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
         ThreadFactory namedThreadFactory = createThreadFactory();
 
@@ -342,7 +342,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
+        enqueue(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
     }
 
     @Override
@@ -355,7 +355,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
+        enqueue(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
     }
 
     /**
@@ -447,7 +447,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         Metric metric = newMetric(name, tags, metricValue);
 
-        queueSizedMetric(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
+        enqueue(new SizedMetric(metric, PAYLOAD_SIZE_ESTIMATOR.get().evaluateByteSize(metric)));
     }
 
     private Metric newMetric(String name, Map<String, String> tags, MetricValue metricValue) {
@@ -459,16 +459,20 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return metric;
     }
 
-    private void queueSizedMetric(SizedMetric sizedMetric) {
+    private void enqueue(SizedMetric sizedMetric) {
         // Short-circuit if already shutdown
         if (isShutdown.get()) {
             return;
         }
 
         try {
-            metricQueue.put(sizedMetric);
+            boolean enqueued = queue.offer(sizedMetric, 10, TimeUnit.MILLISECONDS);
+
+            if (!enqueued) {
+                LOG.warn("Failed to enqueue metric for emission");
+            }
         } catch (InterruptedException e) {
-            LOG.warn(String.format("Interrupted queueing metric: {}", sizedMetric.getMetric().getName()));
+            LOG.warn("Interrupted while waiting to enqueuing metric; dropping");
         }
     }
 
@@ -537,7 +541,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = metricQueue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
+                    SizedMetric sizedMetric = queue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
                     if (sizedMetric == null) {
                         // If we didn't get any new metrics after waiting the specified time,
@@ -599,7 +603,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private void drainQueue() throws TException {
             SizedMetric metrics;
 
-            while ((metrics = metricQueue.poll()) != null) {
+            while ((metrics = queue.poll()) != null) {
                 process(metrics);
             }
         }

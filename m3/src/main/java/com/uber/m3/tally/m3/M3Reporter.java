@@ -556,11 +556,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 }
             }
 
-            state.set(ProcessorState.SHUTDOWN);
-
             LOG.warn("Processor shutting down");
 
-            shutdown();
+            if (isShutdown.get()) {
+                shutdown();
+            }
+            state.set(ProcessorState.SHUTDOWN);
 
             LOG.warn("Processor shut down");
         }

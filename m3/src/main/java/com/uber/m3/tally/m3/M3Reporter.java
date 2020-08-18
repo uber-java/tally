@@ -58,6 +58,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +68,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * An M3 implementation of a {@link StatsReporter}.
@@ -120,8 +125,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // Holds metrics to be flushed
     private final BlockingQueue<SizedMetric> metricQueue;
-    // The service used to execute metric flushes
-    private final ExecutorService executor;
+
+    // Executor service running processors flushing metrics to collectors
+    private final ExecutorService executorService;
+
+    private final ScheduledExecutorService scheduledExecutorService;
 
     private final Clock clock;
 
@@ -129,7 +137,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     // is being shutdown only after all of its processor had done so
     private final CountDownLatch processorsShutdownLatch;
 
-    private final List<Processor> processors;
+    // List of socket addresses for M3 collector endpoint
+    private final SocketAddress[] collectorEndpointSockedAddresses;
+
+    private final Processor[] processors;
 
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
@@ -145,7 +156,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         metricQueue = new LinkedBlockingQueue<>(builder.maxQueueSize);
 
-        executor = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS);
+        ThreadFactory namedThreadFactory = createThreadFactory();
+
+        executorService = builder.executor != null ? builder.executor : Executors.newFixedThreadPool(NUM_PROCESSORS, namedThreadFactory);
+        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(namedThreadFactory);
 
         clock = Clock.systemUTC();
 
@@ -153,9 +167,25 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         processorsShutdownLatch = new CountDownLatch(NUM_PROCESSORS);
 
-        processors = new ArrayList<>();
+        collectorEndpointSockedAddresses = builder.endpointSocketAddresses;
+        processors = new Processor[NUM_PROCESSORS];
+
         for (int i = 0; i < NUM_PROCESSORS; ++i) {
-            processors.add(bootProcessor(builder.endpointSocketAddresses));
+            processors[i] = bootProcessor(collectorEndpointSockedAddresses);
+        }
+
+        // Schedule regular heartbeat up-keeping processors up and running
+        scheduledExecutorService.scheduleAtFixedRate(this::heartbeat, 5, 1, TimeUnit.SECONDS);
+    }
+
+    // NOTE: This method is not concurrent
+    private void heartbeat() {
+        synchronized (this) {
+            for (int i = 0; i < processors.length; ++i) {
+                if (processors[i].getState() != ProcessorState.RUNNING) {
+                    processors[i] = bootProcessor(collectorEndpointSockedAddresses);
+                }
+            }
         }
     }
 
@@ -186,7 +216,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
         try {
             Processor processor = new Processor(endpointSocketAddresses);
-            executor.execute(processor);
+            executorService.execute(processor);
             return processor;
         } catch (TTransportException | SocketException e) {
             LOG.error("Failed to boot processor", e);
@@ -205,7 +235,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        processors.forEach(Processor::scheduleFlush);
+        Arrays.stream(processors).forEach(Processor::scheduleFlush);
     }
 
     @Override
@@ -217,7 +247,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         // Important to use `shutdownNow` instead of `shutdown` to interrupt processor
         // thread(s) or else they will block forever
-        executor.shutdownNow();
+        executorService.shutdownNow();
 
         try {
             // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
@@ -438,6 +468,16 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
+    private static ThreadFactory createThreadFactory() {
+        return new ThreadFactory() {
+            private final AtomicInteger counter = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, String.format("m3-reporter-%d", counter.getAndIncrement()));
+            }
+        };
+    }
+
     private class Processor implements Runnable {
 
         private final List<Metric> metricsBuffer =
@@ -450,6 +490,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         private final M3.Client client;
         private final TTransport transport;
 
+        private final AtomicReference<ProcessorState> state = new AtomicReference<>();
         private final AtomicBoolean shouldFlush = new AtomicBoolean(false);
 
         Processor(SocketAddress[] socketAddresses) throws TTransportException, SocketException {
@@ -465,6 +506,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             transport.open();
 
             client = new M3.Client(protocolFactory.getProtocol(transport));
+
+            state.set(ProcessorState.RUNNING);
 
             LOG.info("Booted reporting processor");
         }
@@ -499,12 +542,20 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // This is fly-away guard making sure that uncaught exception
                     // will be logged
                     LOG.error("Unhandled exception in processor", t);
-                    throw new RuntimeException(t);
+                    break;
                 }
             }
 
+            state.set(ProcessorState.SHUTDOWN);
+
             LOG.warn("Processor shutting down");
 
+            shutdown();
+
+            LOG.warn("Processor shut down");
+        }
+
+        private void shutdown() {
             // Drain queue of any remaining metrics submitted prior to shutdown;
             runNoThrow(this::drainQueue);
             // Flush remaining buffers at last (best effort)
@@ -515,8 +566,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             // Count down shutdown latch to notify reporter
             processorsShutdownLatch.countDown();
-
-            LOG.warn("Processor shut down");
         }
 
         private void process(SizedMetric sizedMetric) throws TException {
@@ -569,6 +618,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         public void scheduleFlush() {
             shouldFlush.set(true);
         }
+
+        public ProcessorState getState() {
+            return state.get();
+        }
+    }
+
+    enum ProcessorState {
+        RUNNING,
+        SHUTDOWN
     }
 
     @FunctionalInterface

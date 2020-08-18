@@ -243,13 +243,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
     }
 
-    // NOTE: This should only be used in tests
-    void flushNow() throws TException {
-        for (Processor processor : processors) {
-            processor.flushBuffered();
-        }
-    }
-
     @Override
     public void close() {
         if (!isShutdown.compareAndSet(false, true)) {

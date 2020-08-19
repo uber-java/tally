@@ -558,30 +558,29 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
             LOG.warn("Processor shutting down");
 
-            if (isShutdown.get()) {
-                // If the processor hit an exception, another processor will be created to resume work on the queue,
-                // so leave the queue as is.
-                drainAndFlush();
-            }
             shutdown();
             state.set(ProcessorState.SHUTDOWN);
 
             LOG.warn("Processor shut down");
         }
 
-        private void drainAndFlush() {
-            // Drain queue of any remaining metrics submitted prior to shutdown;
-            runNoThrow(this::drainQueue);
-            // Flush remaining buffers at last (best effort)
-            runNoThrow(this::flushBuffered);
-        }
-
         private void shutdown() {
+            if (isShutdown.get()) {
+                // If the processor hit an exception, another processor will be created to resume work on the queue,
+                // so leave the queue as is.
+                // Drain queue of any remaining metrics submitted prior to shutdown;
+                runNoThrow(this::drainQueue);
+                // Flush remaining buffers at last (best effort)
+                runNoThrow(this::flushBuffered);
+            }
+
             // Close transport
             transport.close();
 
-            // Count down shutdown latch to notify reporter
-            processorsShutdownLatch.countDown();
+            if (isShutdown.get()) {
+                // Count down shutdown latch to notify reporter
+                processorsShutdownLatch.countDown();
+            }
         }
 
         private void process(SizedMetric sizedMetric) throws TException {

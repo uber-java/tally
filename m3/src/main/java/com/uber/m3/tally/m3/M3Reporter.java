@@ -519,10 +519,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         @Override
         public void run() {
+            try {
+                processorsShutdownSema.acquire();
+            } catch (InterruptedException e) {
+                // No-op: we may get interrupted if the reporter is closed, in which case
+                // we just proceed with shutdown tasks.
+            }
+
             while (!isShutdown.get()) {
                 try {
-                    processorsShutdownSema.acquire();
-
                     // Check whether flush has been requested by the reporter
                     if (shouldFlush.compareAndSet(true, false)) {
                         flushBuffered();

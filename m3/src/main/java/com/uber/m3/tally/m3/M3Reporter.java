@@ -519,13 +519,13 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         @Override
         public void run() {
-            boolean semaphoreAcquired = true;
             try {
                 processorsSemaphore.acquire();
             } catch (InterruptedException e) {
                 // We may get interrupted if the reporter is closed, in which case
                 // we proceed with shutdown tasks.
-                semaphoreAcquired = false;
+                shutdown();
+                return;
             }
 
             try {
@@ -564,9 +564,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                 shutdown();
             } finally {
                 // Release shutdown semaphore to notify reporter
-                if (semaphoreAcquired) {
-                    processorsSemaphore.release();
-                }
+                processorsSemaphore.release();
             }
         }
 
@@ -574,8 +572,10 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             LOG.warn("Processor shutting down");
 
             if (isShutdown.get()) {
-                // If the processor hit an exception, another processor will be created to resume work on the queue,
-                // so leave the queue as is.
+                // Only drain the queue if the entire reporter is shutting down. If the
+                // processor hit an exception instead, another processor will be created
+                // to resume work on the queue, so leave the queue as is.
+
                 // Drain queue of any remaining metrics submitted prior to shutdown.
                 runNoThrow(this::drainQueue);
                 // Flush remaining buffers at last (best effort)

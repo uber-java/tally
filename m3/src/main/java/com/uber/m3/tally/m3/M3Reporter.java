@@ -220,6 +220,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
         try {
+            System.out.println("NEWPROCESSOR BOOTED UP");
             Processor processor = new Processor(endpointSocketAddresses, protocolFactory);
             executorService.execute(processor);
             return processor;

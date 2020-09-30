@@ -1,7 +1,7 @@
 package com.uber.m3.tally.m3;
 
 import com.uber.m3.tally.Counter;
-import com.uber.m3.tally.Gauge;
+import com.uber.m3.tally.Timer;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Scope;
@@ -34,7 +34,7 @@ public class SocketCloseTest {
         } catch(SocketException e) {
             e.printStackTrace();
         }
-        new EchoServer(socket).start();
+        new UDPServer(socket).start();
     }
 
     @Test
@@ -50,12 +50,9 @@ public class SocketCloseTest {
             .reporter(reporter)
             .reportEvery(Duration.ofMillis(1000));
 
-        Counter reqCounter = scope.counter("requests");
-        reqCounter.inc(1);
-
         Runnable emitter = new MetricsEmitter(scope);
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        scheduler.scheduleAtFixedRate(emitter, 0, 10, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(emitter, 0, 200, TimeUnit.MILLISECONDS);
 
         try {
             Thread.sleep(10_000);
@@ -64,7 +61,7 @@ public class SocketCloseTest {
             socket.close();
             System.out.println("socket closed!");
 
-            Thread.sleep(2_000_0000);
+            Thread.sleep(120_000);
         } catch(InterruptedException e) {
             System.out.println("Interrupted");
         }
@@ -78,17 +75,18 @@ public class SocketCloseTest {
         }
 
         public void run() {
-            Gauge g = scope.gauge(String.format("gauge-%d", System.currentTimeMillis()));
-            g.update(1);
+            String timerName = String.format("timer-%d", System.currentTimeMillis());
+            Timer g = scope.timer(timerName);
+            g.record(Duration.ofMillis(1234));
+            System.out.println(String.format("Recorded %s", timerName));
         }
     }
 
-    public class EchoServer extends Thread {
+    public class UDPServer extends Thread {
         private DatagramSocket socket;
-        private boolean running;
         private byte[] buf = new byte[MAX_PACKET_SIZE];
 
-        EchoServer(DatagramSocket socket) {
+        UDPServer(DatagramSocket socket) {
             this.socket = socket;
         }
 
@@ -98,13 +96,13 @@ public class SocketCloseTest {
                 try {
                     socket.receive(packet);
 
-                    InetAddress address = packet.getAddress();
-                    int port = packet.getPort();
-                    packet = new DatagramPacket(buf, buf.length, address, port);
-                    String received = new String(packet.getData(), 0, packet.getLength());
-                    System.out.println(String.format("Received: %s", received));
+//                    InetAddress address = packet.getAddress();
+//                    int port = packet.getPort();
+//                    packet = new DatagramPacket(buf, buf.length, address, port);
+//                    String received = new String(packet.getData(), 0, packet.getLength());
+//                    System.out.println(String.format("Received: %s", received));
                 } catch(IOException e) {
-//                    e.printStackTrace();
+                    break;
                 }
             }
         }

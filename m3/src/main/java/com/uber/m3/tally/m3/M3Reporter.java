@@ -193,6 +193,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void addAndRunProcessor(Set<MetricTag> commonTags) {
+        System.out.println("NEWPROCESSOR BOOTED UP");
         phaser.register();
 
         executor.execute(new Processor(commonTags));

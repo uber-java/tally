@@ -79,7 +79,9 @@ public class SocketCloseTest {
             socket.close();
             System.out.println("socket closed!");
 
-            Thread.sleep(120_000);
+            Thread.sleep(30_000);
+
+            System.out.println(">>>>>>>TEST COMPLETED<<<<<<<");
         } catch (InterruptedException e) {
             System.out.println("Interrupted");
         }

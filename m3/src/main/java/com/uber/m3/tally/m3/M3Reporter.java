@@ -186,6 +186,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private Processor bootProcessor(SocketAddress[] endpointSocketAddresses) {
         try {
+            System.out.println("NEWPROCESSOR");
             Processor processor = new Processor(endpointSocketAddresses);
             executor.execute(processor);
             return processor;

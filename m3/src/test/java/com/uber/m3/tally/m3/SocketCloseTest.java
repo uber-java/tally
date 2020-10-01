@@ -29,6 +29,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -36,6 +39,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 public class SocketCloseTest {
@@ -69,7 +73,7 @@ public class SocketCloseTest {
             .reportEvery(Duration.ofMillis(1000));
 
         Runnable emitter = new MetricsEmitter(scope);
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, new EmitterThreadFact());
         scheduler.scheduleAtFixedRate(emitter, 0, 200, TimeUnit.MILLISECONDS);
 
         try {
@@ -82,9 +86,26 @@ public class SocketCloseTest {
             Thread.sleep(30_000);
 
             System.out.println(">>>>>>>TEST COMPLETED<<<<<<<");
+
+            System.out.println(threadDump(true, true));
         } catch (InterruptedException e) {
             System.out.println("Interrupted");
         }
+    }
+
+    class EmitterThreadFact implements ThreadFactory {
+        public Thread newThread(Runnable r) {
+            return new Thread(r, "EMITTER THREAD");
+        }
+    }
+
+    private static String threadDump(boolean lockedMonitors, boolean lockedSynchronizers) {
+        StringBuffer threadDump = new StringBuffer(System.lineSeparator());
+        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+        for(ThreadInfo threadInfo : threadMXBean.dumpAllThreads(lockedMonitors, lockedSynchronizers)) {
+            threadDump.append(threadInfo.toString());
+        }
+        return threadDump.toString();
     }
 
     public class MetricsEmitter extends Thread {

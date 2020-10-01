@@ -32,5 +32,8 @@ cache:
 before_install:
   - ./ci/before_install.sh
 
+script:
+  - ./gradlew -i check
+
 after_success:
   - ./ci/after_success.sh

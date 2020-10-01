@@ -166,6 +166,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             commonTags = builder.metricTagSet;
 
             for (int i = 0; i < NUM_PROCESSORS; ++i) {
+                System.out.println("NEWPROCESSOR");
                 addAndRunProcessor();
             }
         } catch (TTransportException | SocketException e) {

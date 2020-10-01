@@ -200,6 +200,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private void addAndRunProcessor() {
+        System.out.println("NEWPROCESSOR");
         executor.execute(new Processor());
     }
 

@@ -80,8 +80,10 @@ public class TUdpClientTest {
         );
     }
 
-    private static TUdpClient createUdpClient(DatagramSocket mockedSocket) {
-        return new TUdpClient(InetSocketAddress.createUnresolved("0.0.0.0", 0), mockedSocket);
+    private static TUdpClient createUdpClient(DatagramSocket mockedSocket) throws TTransportException {
+        TUdpClient client = new TUdpClient(InetSocketAddress.createUnresolved("0.0.0.0", 0), mockedSocket);
+        client.open();
+        return client;
     }
 
 }

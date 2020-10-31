@@ -50,6 +50,10 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     protected final SocketAddress socketAddress;
     protected final DatagramSocket socket;
 
+    // NOTE: We're using dedicated boolean flag to avoid invoking {@link DatagramSocket#isOpen} directly
+    //       on the hot-path which is checking the state of the socket under lock.
+    protected volatile boolean open;
+
     @GuardedBy("sendLock")
     protected ByteBuffer writeBuffer;
 
@@ -69,6 +73,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
         // Resets receiving buffer to 0, to make sure it isn't readable
         // until it would be first written
         this.receiveBuffer.limit(0);
+        this.open = false;
     }
 
     protected TUdpTransport(SocketAddress socketAddress) throws SocketException {
@@ -77,7 +82,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
 
     @Override
     public boolean isOpen() {
-        return !socket.isClosed();
+        return open;
     }
 
     @Override
@@ -86,6 +91,7 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     @Override
     public void close() {
         socket.close();
+        open = false;
 
         logger.info("UDP socket has been closed");
     }

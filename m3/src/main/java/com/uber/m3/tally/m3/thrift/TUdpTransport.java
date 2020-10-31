@@ -50,6 +50,8 @@ public abstract class TUdpTransport extends TTransport implements AutoCloseable 
     protected final SocketAddress socketAddress;
     protected final DatagramSocket socket;
 
+    // NOTE: We're using dedicated boolean flag to avoid invoking {@link DatagramSocket#isOpen} directly
+    //       on the hot-path which is checking the state of the socket under lock.
     protected volatile boolean open;
 
     @GuardedBy("sendLock")

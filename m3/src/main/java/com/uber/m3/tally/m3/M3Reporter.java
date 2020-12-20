@@ -63,11 +63,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -87,11 +87,6 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     public static final String DEFAULT_HISTOGRAM_BUCKET_NAME = "bucket";
     public static final int DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION = 6;
 
-    /**
-     * NOTE: DO NOT CHANGE THIS NUMBER!
-     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
-     *       to how metrics are processed and eventually submitted to M3 collectors;
-     */
     static final int NUM_PROCESSORS = 1;
 
     static final Duration HEARTBEAT_PERIOD = Duration.ofSeconds(10);
@@ -136,7 +131,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // This is a synchronization barrier to make sure that reporter
     // is being shutdown only after all of its processor had done so
-    private final CountDownLatch processorsShutdownLatch;
+    private final Semaphore processorsSemaphore;
 
     // List of socket addresses for M3 collector endpoint
     private final SocketAddress[] collectorEndpointSockedAddresses;
@@ -170,7 +165,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         protocolFactory = thriftProtocolFactory;
 
-        processorsShutdownLatch = new CountDownLatch(NUM_PROCESSORS);
+        processorsSemaphore = new Semaphore(NUM_PROCESSORS);
 
         collectorEndpointSockedAddresses = builder.endpointSocketAddresses;
         processors = new Processor[NUM_PROCESSORS];
@@ -260,7 +255,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         try {
             // Wait a maximum of `MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS` for all processors
             // to complete
-            if (!processorsShutdownLatch.await(MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
+            if (!processorsSemaphore.tryAcquire(NUM_PROCESSORS, MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS, TimeUnit.MILLISECONDS)) {
                 LOG.warn(
                         "M3Reporter closing before Processors complete after waiting timeout of {}ms!",
                         MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS
@@ -524,58 +519,75 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         @Override
         public void run() {
-            while (!isShutdown.get()) {
-                try {
-                    // Check whether flush has been requested by the reporter
-                    if (shouldFlush.compareAndSet(true, false)) {
-                        flushBuffered();
-                    }
-
-                    // This `poll` call will block for at most the specified duration to take an item
-                    // off the queue. If we get an item, we append it to the queue to be flushed,
-                    // otherwise we flush what we have so far.
-                    // When this reporter is closed, shutdownNow will be called on the executor,
-                    // which will interrupt this thread and proceed to the `InterruptedException`
-                    // catch block.
-                    SizedMetric sizedMetric = queue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
-
-                    if (sizedMetric == null) {
-                        // If we didn't get any new metrics after waiting the specified time,
-                        // flush what we have so far.
-                        flushBuffered();
-                    } else {
-                        process(sizedMetric);
-                    }
-                } catch (InterruptedException t) {
-                    // no-op
-                } catch (Throwable t) {
-                    // This is fly-away guard making sure that uncaught exception
-                    // will be logged
-                    LOG.error("Unhandled exception in processor", t);
-                    break;
-                }
+            try {
+                processorsSemaphore.acquire();
+            } catch (InterruptedException e) {
+                // We may get interrupted if the reporter is closed, in which case
+                // we proceed with shutdown tasks.
+                shutdown();
+                return;
             }
 
-            state.set(ProcessorState.SHUTDOWN);
+            try {
+                while (!isShutdown.get()) {
+                    try {
+                        // Check whether flush has been requested by the reporter
+                        if (shouldFlush.compareAndSet(true, false)) {
+                            flushBuffered();
+                        }
 
-            LOG.warn("Processor shutting down");
+                        // This `poll` call will block for at most the specified duration to take an item
+                        // off the queue. If we get an item, we append it to the queue to be flushed,
+                        // otherwise we flush what we have so far.
+                        // When this reporter is closed, shutdownNow will be called on the executor,
+                        // which will interrupt this thread and proceed to the `InterruptedException`
+                        // catch block.
+                        SizedMetric sizedMetric = queue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
 
-            shutdown();
+                        if (sizedMetric == null) {
+                            // If we didn't get any new metrics after waiting the specified time,
+                            // flush what we have so far.
+                            flushBuffered();
+                        } else {
+                            process(sizedMetric);
+                        }
+                    } catch (InterruptedException t) {
+                        // no-op
+                    } catch (Throwable t) {
+                        // This is fly-away guard making sure that uncaught exception
+                        // will be logged
+                        LOG.error("Unhandled exception in processor", t);
+                        break;
+                    }
+                }
 
-            LOG.warn("Processor shut down");
+                shutdown();
+            } finally {
+                // Release shutdown semaphore to notify reporter
+                processorsSemaphore.release();
+            }
         }
 
         private void shutdown() {
-            // Drain queue of any remaining metrics submitted prior to shutdown;
-            runNoThrow(this::drainQueue);
-            // Flush remaining buffers at last (best effort)
-            runNoThrow(this::flushBuffered);
+            LOG.warn("Processor shutting down");
+
+            if (isShutdown.get()) {
+                // Only drain the queue if the entire reporter is shutting down. If the
+                // processor hit an exception instead, another processor will be created
+                // to resume work on the queue, so leave the queue as is.
+
+                // Drain queue of any remaining metrics submitted prior to shutdown.
+                runNoThrow(this::drainQueue);
+                // Flush remaining buffers at last (best effort)
+                runNoThrow(this::flushBuffered);
+            }
 
             // Close transport
             transport.close();
 
-            // Count down shutdown latch to notify reporter
-            processorsShutdownLatch.countDown();
+            state.set(ProcessorState.SHUTDOWN);
+
+            LOG.warn("Processor shut down");
         }
 
         private void process(SizedMetric sizedMetric) throws TException {

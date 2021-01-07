@@ -20,6 +20,7 @@
 //
 package com.uber.m3.tally.prometheus;
 
+import com.uber.m3.util.Duration;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.Assert;
 import org.junit.Before;
@@ -192,7 +193,7 @@ public class PrometheusReporterTest {
                     collectionToStringArray(tags.values())
             );
             Assert.assertThat(metricValue, is(0d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -215,7 +216,7 @@ public class PrometheusReporterTest {
 
             Assert.assertThat(metricValue1, is(23d));
             Assert.assertThat(metricValue2, is(42d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -240,10 +241,10 @@ public class PrometheusReporterTest {
                     collectionToStringArray(tags.values())
             );
             Assert.assertThat(metricValue, is(42d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Matchers.any());
 
-            // make sure that counter with the same tag keys but different tags values registered only ones but report
+            // make sure that gauge with the same tag keys but different tags values registered only ones but report
             // separate metrics.
             tags.put("a", "2");
             reporter.reportGauge("test", tags, 13);
@@ -284,6 +285,139 @@ public class PrometheusReporterTest {
                     collectionToStringArray(tags.values())
             );
             Assert.assertThat(metricValue2, is(42d));
+            Mockito.verify(registry, times(2)).register(Mockito.any());
+        }
+    }
+
+    @RunWith(JUnit4.class)
+    public static class TimerTest {
+        private CollectorRegistry registry;
+        private PrometheusReporter reporterSummary;
+
+        @Before
+        public void init() {
+            registry = Mockito.spy(new CollectorRegistry(true));
+            reporterSummary = new PrometheusReporter(TimerType.SUMMARY, registry);
+        }
+
+        @Test
+        public void reportTimerNoTags() {
+            PrometheusReporter reporter = new PrometheusReporter(registry);
+            reporter.reportTimer("test", null, Duration.ofSeconds(42));
+            Double metricValue = registry.getSampleValue("test_count");
+            Assert.assertThat(metricValue, is(1d));
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportTimerWithTags() {
+            Map<String, String> tags = Collections.singletonMap("key", "value");
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(42));
+            Double metricValue = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue, is(1d));
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(19));
+            metricValue = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue, is(2d));
+            // make sure that timer with the same tag keys registered only ones
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportTimerWithDifferentTagsValues() {
+            Map<String, String> tags1 = Collections.singletonMap("key", "value1");
+            reporterSummary.reportTimer("test", tags1, Duration.ofSeconds(23));
+            Map<String, String> tags2 = Collections.singletonMap("key", "value2");
+            reporterSummary.reportTimer("test", tags2, Duration.ofSeconds(42));
+            Double metricValue1 = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags1.keySet()),
+                    collectionToStringArray(tags1.values())
+            );
+            Double metricValue2 = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags2.keySet()),
+                    collectionToStringArray(tags2.values())
+            );
+
+            Assert.assertThat(metricValue1, is(1d));
+            Assert.assertThat(metricValue2, is(1d));
+            // make sure that timer with the same tag keys registered only ones
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportTimerWithMultipleTags() {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("a", "1");
+            tags.put("b", "1");
+            tags.put("c", "1");
+            tags.put("d", "1");
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(23));
+            Double metricValue = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue, is(1d));
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(42));
+            metricValue = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue, is(2d));
+            // make sure that timer with the same tag keys registered only ones
+            Mockito.verify(registry, times(1)).register(Matchers.any());
+
+            // make sure that timer with the same tag keys but different tags values registered only ones but report
+            // separate metrics.
+            tags.put("a", "2");
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(23));
+            metricValue = registry.getSampleValue(
+                    "test_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue, is(1d));
+        }
+
+        @Test(expected = IllegalArgumentException.class)
+        public void registeringTimerWithSameNameButDifferentTagsShouldFail() {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("a", "1");
+            tags.put("b", "1");
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(1));
+            tags.put("c", "1");
+            reporterSummary.reportTimer("test", tags, Duration.ofSeconds(1));
+        }
+
+        @Test
+        public void timersWithDifferentNamesAndSameTagsRegisteredSeparately() {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("a", "1");
+            tags.put("b", "1");
+            reporterSummary.reportTimer("test1", tags, Duration.ofSeconds(23));
+            reporterSummary.reportTimer("test2", tags, Duration.ofSeconds(42));
+            Double metricValue1 = registry.getSampleValue(
+                    "test1_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue1, is(1d));
+            Double metricValue2 = registry.getSampleValue(
+                    "test2_count",
+                    collectionToStringArray(tags.keySet()),
+                    collectionToStringArray(tags.values())
+            );
+            Assert.assertThat(metricValue2, is(1d));
             Mockito.verify(registry, times(2)).register(Mockito.any());
         }
     }

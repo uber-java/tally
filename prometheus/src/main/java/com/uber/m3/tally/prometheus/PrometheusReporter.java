@@ -48,21 +48,30 @@ public class PrometheusReporter implements StatsReporter {
     private static final String KEY_PAIR_SPLITTER = ",";
     private static final String KEY_NAME_SPLITTER = "=";
     private static final String KEY_PAIR_TEMPLATE = "%s" + KEY_NAME_SPLITTER + "%s";
-    static final String METRIC_ID_KEY_VALUE = "1";
     private static final TimerType DEFAULT_TIMER_TYPE = TimerType.SUMMARY;
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
+    static final String METRIC_ID_KEY_VALUE = "1";
 
     private final CollectorRegistry registry;
     private final TimerType timerType;
-    // TODO: 07/01/2021 add default buckets
+    private final Map<Double, Double> defaultQuantiles;
+    private final double[] defaultBuckets;
     private ConcurrentMap<String, Counter> registeredCounters;
     private ConcurrentMap<String, Gauge> registeredGauges;
     private ConcurrentMap<String, Histogram> registeredHistograms;
     private ConcurrentMap<String, Summary> registeredSummaries;
 
-
-    public PrometheusReporter(TimerType defaultTimerType, CollectorRegistry registry) {
+    // TODO: 07/01/2021 maybe create builder?
+    public PrometheusReporter(
+            Map<Double, Double> defaultQuantiles,
+            double[] defaultBuckets,
+            TimerType defaultTimerType,
+            CollectorRegistry registry
+    ) {
         this.registry = registry;
         this.timerType = defaultTimerType;
+        this.defaultBuckets = defaultBuckets;
+        this.defaultQuantiles = defaultQuantiles;
         this.registeredCounters = new ConcurrentHashMap<>();
         this.registeredGauges = new ConcurrentHashMap<>();
         this.registeredSummaries = new ConcurrentHashMap<>();
@@ -70,7 +79,11 @@ public class PrometheusReporter implements StatsReporter {
     }
 
     public PrometheusReporter(CollectorRegistry registry) {
-        this(DEFAULT_TIMER_TYPE, registry);
+        this(defaultQuantiles(), defaultBuckets(), DEFAULT_TIMER_TYPE, registry);
+    }
+
+    public PrometheusReporter(TimerType defaultTimerType, CollectorRegistry registry) {
+        this(defaultQuantiles(), defaultBuckets(), defaultTimerType, registry);
     }
 
     public PrometheusReporter() {
@@ -140,10 +153,11 @@ public class PrometheusReporter implements StatsReporter {
         }
         String collectorName = canonicalMetricId(name, ttags.keySet());
         if (!registeredHistograms.containsKey(collectorName)) {
+            double[] b = buckets.getValueUpperBounds().stream().mapToDouble(a -> a).toArray();
             Histogram histogram = Histogram.build()
                     .name(name)
-                    .help(String.format("%s gauge", name))
-                    // TODO: 07/01/2021 add buckets
+                    .help(String.format("%s histogram", name))
+                    .buckets(b)
                     .labelNames(collectionToStringArray(ttags.keySet()))
                     .register(registry);
             registeredHistograms.put(collectorName, histogram);
@@ -169,10 +183,11 @@ public class PrometheusReporter implements StatsReporter {
         }
         String collectorName = canonicalMetricId(name, ttags.keySet());
         if (!registeredHistograms.containsKey(collectorName)) {
+            double[] b = buckets.getDurationUpperBounds().stream().mapToDouble(Duration::getSeconds).toArray();
             Histogram histogram = Histogram.build()
                     .name(name)
-                    .help(String.format("%s gauge", name))
-                    // TODO: 07/01/2021 add buckets
+                    .help(String.format("%s histogram", name))
+                    .buckets(b)
                     .labelNames(collectionToStringArray(ttags.keySet()))
                     .register(registry);
             registeredHistograms.put(collectorName, histogram);
@@ -207,12 +222,13 @@ public class PrometheusReporter implements StatsReporter {
         }
         String collectorName = canonicalMetricId(name, ttags.keySet());
         if (!registeredSummaries.containsKey(collectorName)) {
-            Summary summary = Summary.build()
+            Summary.Builder builder = Summary.build()
                     .name(name)
                     .help(String.format("%s summary", name))
-                    // TODO: 07/01/2021 add quantiles and ageBuckets
-                    .labelNames(collectionToStringArray(ttags.keySet()))
-                    .register(registry);
+                    // TODO: 07/01/2021 add ageBuckets
+                    .labelNames(collectionToStringArray(ttags.keySet()));
+            defaultQuantiles.forEach(builder::quantile);
+            Summary summary = builder.register(registry);
             registeredSummaries.put(collectorName, summary);
         }
         registeredSummaries.get(collectorName)
@@ -230,7 +246,7 @@ public class PrometheusReporter implements StatsReporter {
             Histogram histogram = Histogram.build()
                     .name(name)
                     .help(String.format("%s histogram", name))
-                    // TODO: 07/01/2021 add buckets
+                    .buckets(defaultBuckets)
                     .labelNames(collectionToStringArray(ttags.keySet()))
                     .register(registry);
             registeredHistograms.put(collectorName, histogram);
@@ -308,6 +324,26 @@ public class PrometheusReporter implements StatsReporter {
      * @return an array of {@link String}s.
      */
     static String[] collectionToStringArray(Collection<String> values) {
-        return values.stream().toArray(String[]::new);
+        return values.toArray(EMPTY_STRING_ARRAY);
+    }
+
+    /**
+     * Default quantiles when creating a new Summary.
+     */
+    private static Map<Double, Double> defaultQuantiles() {
+        Map<Double, Double> quantiles = new HashMap<>(5);
+        quantiles.put(0.5, 0.01);
+        quantiles.put(0.75, 0.001);
+        quantiles.put(0.95, 0.001);
+        quantiles.put(0.99, 0.001);
+        quantiles.put(0.999, 0.0001);
+        return Collections.unmodifiableMap(quantiles);
+    }
+
+    /**
+     * Default buckets when creating a new Summary.
+     */
+    private static double[] defaultBuckets() {
+        return new double[]{.005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, 10};
     }
 }

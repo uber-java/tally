@@ -49,21 +49,32 @@ public class PrometheusReporter implements StatsReporter {
     private static final String KEY_NAME_SPLITTER = "=";
     private static final String KEY_PAIR_TEMPLATE = "%s" + KEY_NAME_SPLITTER + "%s";
     static final String METRIC_ID_KEY_VALUE = "1";
+    private static final TimerType DEFAULT_TIMER_TYPE = TimerType.SUMMARY;
 
     private final CollectorRegistry registry;
+    private final TimerType timerType;
+    // TODO: 07/01/2021 add default buckets
     private ConcurrentMap<String, Counter> registeredCounters;
     private ConcurrentMap<String, Gauge> registeredGauges;
-    // TODO: 25/12/2020 users should be able to chose how to emmit m3 timers as histogram or summary.
     private ConcurrentMap<String, Histogram> registeredHistograms;
     private ConcurrentMap<String, Summary> registeredSummaries;
 
 
-    public PrometheusReporter(CollectorRegistry registry) {
+    public PrometheusReporter(TimerType defaultTimerType, CollectorRegistry registry) {
         this.registry = registry;
+        this.timerType = defaultTimerType;
         this.registeredCounters = new ConcurrentHashMap<>();
         this.registeredGauges = new ConcurrentHashMap<>();
         this.registeredSummaries = new ConcurrentHashMap<>();
         this.registeredHistograms = new ConcurrentHashMap<>();
+    }
+
+    public PrometheusReporter(CollectorRegistry registry) {
+        this(DEFAULT_TIMER_TYPE, registry);
+    }
+
+    public PrometheusReporter() {
+        this(CollectorRegistry.defaultRegistry);
     }
 
     @Override
@@ -86,22 +97,92 @@ public class PrometheusReporter implements StatsReporter {
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-
+        Map<String, String> ttags = tags;
+        if (tags == null) {
+            ttags = Collections.emptyMap();
+        }
+        String collectorName = canonicalMetricId(name, ttags.keySet());
+        if (!registeredGauges.containsKey(collectorName)) {
+            Gauge gauge = Gauge.build()
+                    .name(name)
+                    .help(String.format("%s gauge", name))
+                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .register(registry);
+            registeredGauges.put(collectorName, gauge);
+        }
+        registeredGauges.get(collectorName).labels(collectionToStringArray(ttags.values())).set(value);
     }
 
     @Override
     public void reportTimer(String name, Map<String, String> tags, Duration interval) {
-
+        switch (timerType) {
+            case HISTOGRAM:
+                reportTimerHistogram(name, tags, interval);
+                break;
+            case SUMMARY:
+            default:
+                reportTimerSummary(name, tags, interval);
+        }
     }
 
     @Override
-    public void reportHistogramValueSamples(String name, Map<String, String> tags, Buckets buckets, double bucketLowerBound, double bucketUpperBound, long samples) {
-
+    public void reportHistogramValueSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            double bucketLowerBound,
+            double bucketUpperBound,
+            long samples
+    ) {
+        Map<String, String> ttags = tags;
+        if (tags == null) {
+            ttags = Collections.emptyMap();
+        }
+        String collectorName = canonicalMetricId(name, ttags.keySet());
+        if (!registeredHistograms.containsKey(collectorName)) {
+            Histogram histogram = Histogram.build()
+                    .name(name)
+                    .help(String.format("%s gauge", name))
+                    // TODO: 07/01/2021 add buckets
+                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .register(registry);
+            registeredHistograms.put(collectorName, histogram);
+        }
+        Histogram.Child histogram = registeredHistograms.get(collectorName).labels(collectionToStringArray(ttags.values()));
+        for (int i = 0; i < samples; i++) {
+            histogram.observe(bucketUpperBound);
+        }
     }
 
     @Override
-    public void reportHistogramDurationSamples(String name, Map<String, String> tags, Buckets buckets, Duration bucketLowerBound, Duration bucketUpperBound, long samples) {
-
+    public void reportHistogramDurationSamples(
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            Duration bucketLowerBound,
+            Duration bucketUpperBound,
+            long samples
+    ) {
+        Map<String, String> ttags = tags;
+        if (tags == null) {
+            ttags = Collections.emptyMap();
+        }
+        String collectorName = canonicalMetricId(name, ttags.keySet());
+        if (!registeredHistograms.containsKey(collectorName)) {
+            Histogram histogram = Histogram.build()
+                    .name(name)
+                    .help(String.format("%s gauge", name))
+                    // TODO: 07/01/2021 add buckets
+                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .register(registry);
+            registeredHistograms.put(collectorName, histogram);
+        }
+        Histogram.Child histogram = registeredHistograms.get(collectorName)
+                .labels(collectionToStringArray(ttags.values()));
+        double bucketUpperBoundValue = bucketUpperBound.getSeconds();
+        for (int i = 0; i < samples; i++) {
+            histogram.observe(bucketUpperBoundValue);
+        }
     }
 
     @Override
@@ -116,7 +197,47 @@ public class PrometheusReporter implements StatsReporter {
 
     @Override
     public void close() {
+        // TODO: 07/01/2021 deregister collectors from {@code registry}.
+    }
 
+    private void reportTimerSummary(String name, Map<String, String> tags, Duration interval) {
+        Map<String, String> ttags = tags;
+        if (tags == null) {
+            ttags = Collections.emptyMap();
+        }
+        String collectorName = canonicalMetricId(name, ttags.keySet());
+        if (!registeredSummaries.containsKey(collectorName)) {
+            Summary summary = Summary.build()
+                    .name(name)
+                    .help(String.format("%s summary", name))
+                    // TODO: 07/01/2021 add quantiles and ageBuckets
+                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .register(registry);
+            registeredSummaries.put(collectorName, summary);
+        }
+        registeredSummaries.get(collectorName)
+                .labels(collectionToStringArray(ttags.values()))
+                .observe(interval.getSeconds());
+    }
+
+    private void reportTimerHistogram(String name, Map<String, String> tags, Duration interval) {
+        Map<String, String> ttags = tags;
+        if (tags == null) {
+            ttags = Collections.emptyMap();
+        }
+        String collectorName = canonicalMetricId(name, ttags.keySet());
+        if (!registeredHistograms.containsKey(collectorName)) {
+            Histogram histogram = Histogram.build()
+                    .name(name)
+                    .help(String.format("%s histogram", name))
+                    // TODO: 07/01/2021 add buckets
+                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .register(registry);
+            registeredHistograms.put(collectorName, histogram);
+        }
+        registeredHistograms.get(collectorName)
+                .labels(collectionToStringArray(ttags.values()))
+                .observe(interval.getSeconds());
     }
 
     /**

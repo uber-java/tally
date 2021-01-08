@@ -66,7 +66,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = new PrometheusReporter(registry);
+            reporter = PrometheusReporter.build().registry(registry).build();
         }
 
         @Test
@@ -164,7 +164,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = new PrometheusReporter(registry);
+            reporter = PrometheusReporter.build().registry(registry).build();
         }
 
         @Test
@@ -267,13 +267,15 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporterSummary = new PrometheusReporter(TimerType.SUMMARY, registry);
+            reporterSummary = PrometheusReporter.build()
+                    .registry(registry)
+                    .timerType(TimerType.SUMMARY)
+                    .build();
         }
 
         @Test
         public void reportTimerNoTags() {
-            PrometheusReporter reporter = new PrometheusReporter(registry);
-            reporter.reportTimer("test", null, Duration.ofSeconds(42));
+            reporterSummary.reportTimer("test", null, Duration.ofSeconds(42));
             Double metricValue = getMetricSample(registry, "test_count", null, null);
             Assert.assertThat(metricValue, is(1d));
             Mockito.verify(registry, times(1)).register(Mockito.any());
@@ -300,7 +302,8 @@ public class PrometheusReporterTest {
             reporterSummary.reportTimer("test", tags1, Duration.ofSeconds(23));
             reporterSummary.reportTimer("test", tags2, Duration.ofSeconds(42));
             Double metricValue1 = getMetricSample(registry, "test_count", tags1, null);
-            Double metricValue2 = getMetricSample(registry, "test_count", tags2, null);;
+            Double metricValue2 = getMetricSample(registry, "test_count", tags2, null);
+            ;
 
             Assert.assertThat(metricValue1, is(1d));
             Assert.assertThat(metricValue2, is(1d));
@@ -403,7 +406,10 @@ public class PrometheusReporterTest {
             tags.put("a", "1");
             tags.put("b", "1");
             Map<Double, Double> quantiles = singletonMap(0.1, 0.0001);
-            PrometheusReporter reporter = new PrometheusReporter(quantiles, null, TimerType.SUMMARY, registry);
+            PrometheusReporter reporter = PrometheusReporter.build()
+                    .registry(registry)
+                    .defaultQuantiles(quantiles)
+                    .build();
             for (int i = 0; i < 100; i++) {
                 reporter.reportTimer("test", tags, Duration.ofSeconds(i));
             }
@@ -420,7 +426,10 @@ public class PrometheusReporterTest {
 
         @Test
         public void reportTimerHistogramDefaultBuckets() {
-            PrometheusReporter reporterHistogram = new PrometheusReporter(TimerType.HISTOGRAM, registry);
+            PrometheusReporter reporterHistogram = PrometheusReporter.build()
+                    .registry(registry)
+                    .timerType(TimerType.HISTOGRAM)
+                    .build();
             Map<String, String> tags1 = new HashMap<>();
             tags1.put("foo", "1");
             tags1.put("bar", "1");
@@ -472,7 +481,11 @@ public class PrometheusReporterTest {
         @Test
         public void reportTimerHistogramCustomBuckets() {
             double[] buckets = {1, 10, 100};
-            PrometheusReporter reporterHistogram = new PrometheusReporter(null, buckets, TimerType.HISTOGRAM, registry);
+            PrometheusReporter reporterHistogram = PrometheusReporter.build()
+                    .registry(registry)
+                    .timerType(TimerType.HISTOGRAM)
+                    .defaultBuckets(buckets)
+                    .build();
             Map<String, String> tags1 = new HashMap<>();
             tags1.put("foo", "1");
             tags1.put("bar", "1");
@@ -526,7 +539,8 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = new PrometheusReporter(registry);
+            reporter = PrometheusReporter.build().registry(registry).build();
+            ;
         }
 
         @Test
@@ -770,7 +784,7 @@ public class PrometheusReporterTest {
         @Test
         public void closeShouldRemoveOnlyTallyCollector() {
             CollectorRegistry registry = new CollectorRegistry(true);
-            PrometheusReporter reporter = new PrometheusReporter(registry);
+            PrometheusReporter reporter = PrometheusReporter.build().registry(registry).build();
             reporter.reportCounter("counter", null, 42);
             reporter.reportTimer("timer", null, Duration.ofSeconds(42));
             reporter.reportGauge("gauge", null, 42);

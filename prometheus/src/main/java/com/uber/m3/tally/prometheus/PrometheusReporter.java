@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class PrometheusReporter implements StatsReporter {
@@ -56,38 +57,81 @@ public class PrometheusReporter implements StatsReporter {
     private final TimerType timerType;
     private final Map<Double, Double> defaultQuantiles;
     private final double[] defaultBuckets;
+    private final int ageBuckets;
+    private final long maxAgeSeconds;
     private final ConcurrentMap<String, Counter> registeredCounters;
     private final ConcurrentMap<String, Gauge> registeredGauges;
     private final ConcurrentMap<String, Histogram> registeredHistograms;
     private final ConcurrentMap<String, Summary> registeredSummaries;
 
-    // TODO: 07/01/2021 maybe create builder?
-    public PrometheusReporter(
+    private PrometheusReporter(
             Map<Double, Double> defaultQuantiles,
             double[] defaultBuckets,
             TimerType defaultTimerType,
-            CollectorRegistry registry
+            CollectorRegistry registry,
+            int ageBuckets,
+            long maxAgeSeconds
     ) {
         this.registry = registry;
         this.timerType = defaultTimerType;
         this.defaultBuckets = defaultBuckets;
         this.defaultQuantiles = defaultQuantiles;
+        this.ageBuckets = ageBuckets;
+        this.maxAgeSeconds = maxAgeSeconds;
         this.registeredCounters = new ConcurrentHashMap<>();
         this.registeredGauges = new ConcurrentHashMap<>();
         this.registeredSummaries = new ConcurrentHashMap<>();
         this.registeredHistograms = new ConcurrentHashMap<>();
     }
 
-    public PrometheusReporter(CollectorRegistry registry) {
-        this(defaultQuantiles(), defaultBuckets(), DEFAULT_TIMER_TYPE, registry);
+    public static class Builder {
+
+        private CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+        private TimerType timerType = DEFAULT_TIMER_TYPE;
+        private Map<Double, Double> defaultQuantiles = PrometheusReporter.defaultQuantiles();
+        private double[] defaultBuckets = PrometheusReporter.defaultBuckets();
+        private int ageBuckets = 5;
+        private long maxAgeSeconds = TimeUnit.MINUTES.toSeconds(10);
+
+        public Builder registry(CollectorRegistry registry) {
+            this.registry = registry;
+            return this;
+        }
+
+        public Builder defaultQuantiles(Map<Double, Double> defaultQuantiles) {
+            this.defaultQuantiles = defaultQuantiles;
+            return this;
+        }
+
+        public Builder defaultBuckets(double[] defaultBuckets) {
+            this.defaultBuckets = defaultBuckets;
+            return this;
+        }
+
+        public Builder timerType(TimerType timerType) {
+            this.timerType = timerType;
+            return this;
+        }
+
+        public Builder ageBuckets(int ageBuckets) {
+            this.ageBuckets = ageBuckets;
+            return this;
+        }
+
+        public Builder maxAgeSeconds(long maxAgeSeconds) {
+            this.maxAgeSeconds = maxAgeSeconds;
+            return this;
+        }
+
+        public PrometheusReporter build() {
+            return new PrometheusReporter(
+                    defaultQuantiles, defaultBuckets, timerType, registry, ageBuckets, maxAgeSeconds
+            );
+        }
     }
 
-    public PrometheusReporter(TimerType defaultTimerType, CollectorRegistry registry) {
-        this(defaultQuantiles(), defaultBuckets(), defaultTimerType, registry);
-    }
-
-    public PrometheusReporter() {
-        this(CollectorRegistry.defaultRegistry);
+    public static Builder build() {
+        return new Builder();
     }
 
     @Override
@@ -230,7 +274,8 @@ public class PrometheusReporter implements StatsReporter {
             Summary.Builder builder = Summary.build()
                     .name(name)
                     .help(String.format("%s summary", name))
-                    // TODO: 07/01/2021 add ageBuckets
+                    .ageBuckets(ageBuckets)
+                    .maxAgeSeconds(maxAgeSeconds)
                     .labelNames(collectionToStringArray(ttags.keySet()));
             defaultQuantiles.forEach(builder::quantile);
             Summary summary = builder.register(registry);

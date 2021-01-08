@@ -20,8 +20,13 @@
 //
 package com.uber.m3.tally.prometheus;
 
+import com.uber.m3.tally.Buckets;
+import com.uber.m3.tally.DurationBuckets;
+import com.uber.m3.tally.ValueBuckets;
 import com.uber.m3.util.Duration;
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,21 +45,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.uber.m3.tally.prometheus.PrometheusReporter.METRIC_ID_KEY_VALUE;
 import static com.uber.m3.tally.prometheus.PrometheusReporter.collectionToStringArray;
+import static java.util.Collections.singletonMap;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.Mockito.times;
 
-@SuppressWarnings({"StaticMethodReferencedViaSubclass", "MessageMissingOnJUnitAssertion", "OverlyBroadCatchBlock"})
 @RunWith(Enclosed.class)
 public class PrometheusReporterTest {
 
     @RunWith(JUnit4.class)
-    public static class CounterTest {
+    public static class ReportCounterTest {
         private CollectorRegistry registry;
         private PrometheusReporter reporter;
 
@@ -67,17 +72,19 @@ public class PrometheusReporterTest {
         @Test
         public void reportCounterNoTags() {
             reporter.reportCounter("test", null, 42);
-            Double metricValue = registry.getSampleValue("test");
+            Double metricValue = getMetricSample(registry, "test", null, null);
             Assert.assertThat(metricValue, is(42d));
         }
 
         @Test
         public void reportCounterWithTags() {
-            reporter.reportCounter("test", Collections.singletonMap("key", "value"), 23);
-            Double metricValue = registry.getSampleValue("test", new String[]{"key"}, new String[]{"value"});
+            Map<String, String> tags = singletonMap("key", "value");
+            reporter.reportCounter("test", tags, 23);
+            Double metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(23d));
-            reporter.reportCounter("test", Collections.singletonMap("key", "value"), 19);
-            metricValue = registry.getSampleValue("test", new String[]{"key"}, new String[]{"value"});
+
+            reporter.reportCounter("test", tags, 19);
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
             // make sure that counter with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
@@ -85,10 +92,13 @@ public class PrometheusReporterTest {
 
         @Test
         public void reportCounterWithDifferentTagsValues() {
-            reporter.reportCounter("test", Collections.singletonMap("key", "value1"), 23);
-            reporter.reportCounter("test", Collections.singletonMap("key", "value2"), 42);
-            Double metricValue1 = registry.getSampleValue("test", new String[]{"key"}, new String[]{"value1"});
-            Double metricValue2 = registry.getSampleValue("test", new String[]{"key"}, new String[]{"value2"});
+            Map<String, String> tags1 = singletonMap("key", "value1");
+            Map<String, String> tags2 = singletonMap("key", "value2");
+            reporter.reportCounter("test", tags1, 23);
+            reporter.reportCounter("test", tags2, 42);
+            Double metricValue1 = getMetricSample(registry, "test", tags1, null);
+            Double metricValue2 = getMetricSample(registry, "test", tags2, null);
+
             Assert.assertThat(metricValue1, is(23d));
             Assert.assertThat(metricValue2, is(42d));
             // make sure that counter with the same tag keys registered only ones
@@ -103,14 +113,11 @@ public class PrometheusReporterTest {
             tags.put("c", "1");
             tags.put("d", "1");
             reporter.reportCounter("test", tags, 23);
-            Double metricValue = registry.getSampleValue("test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values()));
+            Double metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(23d));
+
             reporter.reportCounter("test", tags, 19);
-            metricValue = registry.getSampleValue("test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values()));
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
             // make sure that counter with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
@@ -119,9 +126,7 @@ public class PrometheusReporterTest {
             // separate metrics.
             tags.put("a", "2");
             reporter.reportCounter("test", tags, 42);
-            metricValue = registry.getSampleValue("test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values()));
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
         }
 
@@ -142,20 +147,17 @@ public class PrometheusReporterTest {
             tags.put("b", "1");
             reporter.reportCounter("test1", tags, 23);
             reporter.reportCounter("test2", tags, 42);
-            Double metricValue1 = registry.getSampleValue("test1",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values()));
+            Double metricValue1 = getMetricSample(registry, "test1", tags, null);
             Assert.assertThat(metricValue1, is(23d));
-            Double metricValue2 = registry.getSampleValue("test2",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values()));
+
+            Double metricValue2 = getMetricSample(registry, "test2", tags, null);
             Assert.assertThat(metricValue2, is(42d));
             Mockito.verify(registry, times(2)).register(Mockito.any());
         }
     }
 
     @RunWith(JUnit4.class)
-    public static class GaugeTest {
+    public static class ReportGaugeTest {
         private CollectorRegistry registry;
         private PrometheusReporter reporter;
 
@@ -168,30 +170,24 @@ public class PrometheusReporterTest {
         @Test
         public void reportGaugeNoTags() {
             reporter.reportGauge("test", null, 23);
-            Double metricValue = registry.getSampleValue("test");
+            Double metricValue = getMetricSample(registry, "test", null, null);
             Assert.assertThat(metricValue, is(23d));
+
             reporter.reportGauge("test", null, 0);
-            metricValue = registry.getSampleValue("test");
+            metricValue = getMetricSample(registry, "test", null, null);
             Assert.assertThat(metricValue, is(0d));
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
         @Test
         public void reportGaugeWithTags() {
-            Map<String, String> tags = Collections.singletonMap("key", "value");
+            Map<String, String> tags = singletonMap("key", "value");
             reporter.reportGauge("test", tags, 23);
-            Double metricValue = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(23d));
+
             reporter.reportGauge("test", tags, 0);
-            metricValue = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(0d));
             // make sure that gauge with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
@@ -199,20 +195,12 @@ public class PrometheusReporterTest {
 
         @Test
         public void reportGaugeWithDifferentTagsValues() {
-            Map<String, String> tags1 = Collections.singletonMap("key", "value1");
+            Map<String, String> tags1 = singletonMap("key", "value1");
+            Map<String, String> tags2 = singletonMap("key", "value2");
             reporter.reportGauge("test", tags1, 23);
-            Map<String, String> tags2 = Collections.singletonMap("key", "value2");
             reporter.reportGauge("test", tags2, 42);
-            Double metricValue1 = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags1.keySet()),
-                    collectionToStringArray(tags1.values())
-            );
-            Double metricValue2 = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags2.keySet()),
-                    collectionToStringArray(tags2.values())
-            );
+            Double metricValue1 = getMetricSample(registry, "test", tags1, null);
+            Double metricValue2 = getMetricSample(registry, "test", tags2, null);
 
             Assert.assertThat(metricValue1, is(23d));
             Assert.assertThat(metricValue2, is(42d));
@@ -228,18 +216,11 @@ public class PrometheusReporterTest {
             tags.put("c", "1");
             tags.put("d", "1");
             reporter.reportGauge("test", tags, 23);
-            Double metricValue = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(23d));
+
             reporter.reportGauge("test", tags, 42);
-            metricValue = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
             // make sure that gauge with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Matchers.any());
@@ -248,11 +229,7 @@ public class PrometheusReporterTest {
             // separate metrics.
             tags.put("a", "2");
             reporter.reportGauge("test", tags, 13);
-            metricValue = registry.getSampleValue(
-                    "test",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(13d));
         }
 
@@ -273,24 +250,17 @@ public class PrometheusReporterTest {
             tags.put("b", "1");
             reporter.reportGauge("test1", tags, 23);
             reporter.reportGauge("test2", tags, 42);
-            Double metricValue1 = registry.getSampleValue(
-                    "test1",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue1 = getMetricSample(registry, "test1", tags, null);
             Assert.assertThat(metricValue1, is(23d));
-            Double metricValue2 = registry.getSampleValue(
-                    "test2",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+
+            Double metricValue2 = getMetricSample(registry, "test2", tags, null);
             Assert.assertThat(metricValue2, is(42d));
             Mockito.verify(registry, times(2)).register(Mockito.any());
         }
     }
 
     @RunWith(JUnit4.class)
-    public static class TimerTest {
+    public static class ReportTimerTest {
         private CollectorRegistry registry;
         private PrometheusReporter reporterSummary;
 
@@ -304,27 +274,20 @@ public class PrometheusReporterTest {
         public void reportTimerNoTags() {
             PrometheusReporter reporter = new PrometheusReporter(registry);
             reporter.reportTimer("test", null, Duration.ofSeconds(42));
-            Double metricValue = registry.getSampleValue("test_count");
+            Double metricValue = getMetricSample(registry, "test_count", null, null);
             Assert.assertThat(metricValue, is(1d));
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
         @Test
         public void reportTimerWithTags() {
-            Map<String, String> tags = Collections.singletonMap("key", "value");
+            Map<String, String> tags = singletonMap("key", "value");
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(42));
-            Double metricValue = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue = getMetricSample(registry, "test_count", tags, null);
+
             Assert.assertThat(metricValue, is(1d));
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(19));
-            metricValue = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(2d));
             // make sure that timer with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Mockito.any());
@@ -332,20 +295,12 @@ public class PrometheusReporterTest {
 
         @Test
         public void reportTimerWithDifferentTagsValues() {
-            Map<String, String> tags1 = Collections.singletonMap("key", "value1");
+            Map<String, String> tags1 = singletonMap("key", "value1");
+            Map<String, String> tags2 = singletonMap("key", "value2");
             reporterSummary.reportTimer("test", tags1, Duration.ofSeconds(23));
-            Map<String, String> tags2 = Collections.singletonMap("key", "value2");
             reporterSummary.reportTimer("test", tags2, Duration.ofSeconds(42));
-            Double metricValue1 = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags1.keySet()),
-                    collectionToStringArray(tags1.values())
-            );
-            Double metricValue2 = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags2.keySet()),
-                    collectionToStringArray(tags2.values())
-            );
+            Double metricValue1 = getMetricSample(registry, "test_count", tags1, null);
+            Double metricValue2 = getMetricSample(registry, "test_count", tags2, null);;
 
             Assert.assertThat(metricValue1, is(1d));
             Assert.assertThat(metricValue2, is(1d));
@@ -361,18 +316,10 @@ public class PrometheusReporterTest {
             tags.put("c", "1");
             tags.put("d", "1");
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(23));
-            Double metricValue = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(1d));
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(42));
-            metricValue = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(2d));
             // make sure that timer with the same tag keys registered only ones
             Mockito.verify(registry, times(1)).register(Matchers.any());
@@ -381,11 +328,7 @@ public class PrometheusReporterTest {
             // separate metrics.
             tags.put("a", "2");
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(23));
-            metricValue = registry.getSampleValue(
-                    "test_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(1d));
         }
 
@@ -406,121 +349,340 @@ public class PrometheusReporterTest {
             tags.put("b", "1");
             reporterSummary.reportTimer("test1", tags, Duration.ofSeconds(23));
             reporterSummary.reportTimer("test2", tags, Duration.ofSeconds(42));
-            Double metricValue1 = registry.getSampleValue(
-                    "test1_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
+            Double metricValue1 = getMetricSample(registry, "test1_count", tags, null);
+            Double metricValue2 = getMetricSample(registry, "test2_count", tags, null);
+
             Assert.assertThat(metricValue1, is(1d));
-            Double metricValue2 = registry.getSampleValue(
-                    "test2_count",
-                    collectionToStringArray(tags.keySet()),
-                    collectionToStringArray(tags.values())
-            );
             Assert.assertThat(metricValue2, is(1d));
             Mockito.verify(registry, times(2)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportTimerDefaultQuantiles() {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("a", "1");
+            tags.put("b", "1");
+            double sum = 0;
+            for (int i = 0; i < 100; i++) {
+                reporterSummary.reportTimer("test", tags, Duration.ofSeconds(i));
+                sum += i;
+            }
+            double quantile_50 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.5")
+            );
+            double quantile_75 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.75")
+            );
+            double quantile_95 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.95")
+            );
+            double quantile_99 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.99")
+            );
+            double quantile_999 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.999")
+            );
+            double count_metric = getMetricSample(
+                    registry, "test_count", tags, null
+            );
+            double sum_metric = getMetricSample(
+                    registry, "test_sum", tags, null
+            );
+            Assert.assertThat(quantile_50, is(49d));
+            Assert.assertThat(quantile_75, is(74d));
+            Assert.assertThat(quantile_95, is(94d));
+            Assert.assertThat(quantile_99, is(98d));
+            Assert.assertThat(quantile_999, is(98d));
+            Assert.assertThat(count_metric, is(100d));
+            Assert.assertThat(sum_metric, is(sum));
+        }
+
+        @Test
+        public void reportTimerCustomQuantiles() {
+            Map<String, String> tags = new HashMap<>();
+            tags.put("a", "1");
+            tags.put("b", "1");
+            Map<Double, Double> quantiles = singletonMap(0.1, 0.0001);
+            PrometheusReporter reporter = new PrometheusReporter(quantiles, null, TimerType.SUMMARY, registry);
+            for (int i = 0; i < 100; i++) {
+                reporter.reportTimer("test", tags, Duration.ofSeconds(i));
+            }
+            double quantile_10 = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.1")
+            );
+            Assert.assertThat(quantile_10, is(9d));
+            // make sure that default quantiles are not reported
+            Double default_percentile = getMetricSample(
+                    registry, "test", tags, singletonMap("quantile", "0.5")
+            );
+            Assert.assertThat(default_percentile, is(nullValue()));
+        }
+
+        @Test
+        public void reportTimerHistogramDefaultBuckets() {
+            PrometheusReporter reporterHistogram = new PrometheusReporter(TimerType.HISTOGRAM, registry);
+            Map<String, String> tags1 = new HashMap<>();
+            tags1.put("foo", "1");
+            tags1.put("bar", "1");
+
+            Map<String, String> tags2 = new HashMap<>();
+            tags2.put("foo", "2");
+            tags2.put("bar", "2");
+
+            reporterHistogram.reportTimer("test", tags1, Duration.ofMillis(10));
+            reporterHistogram.reportTimer("test", tags1, Duration.ofSeconds(1));
+            reporterHistogram.reportTimer("test", tags1, Duration.ofSeconds(42));
+
+            reporterHistogram.reportTimer("test", tags2, Duration.ofSeconds(10));
+
+            Map<Double, Double> expectedBucketsValues1 = new HashMap<>();
+            expectedBucketsValues1.put(0.005, 0d);
+            expectedBucketsValues1.put(0.01, 1d);
+            expectedBucketsValues1.put(0.025, 1d);
+            expectedBucketsValues1.put(0.05, 1d);
+            expectedBucketsValues1.put(0.1, 1d);
+            expectedBucketsValues1.put(0.25, 1d);
+            expectedBucketsValues1.put(0.5, 1d);
+            expectedBucketsValues1.put(0.75, 1d);
+            expectedBucketsValues1.put(1d, 2d);
+            expectedBucketsValues1.put(2.5, 2d);
+            expectedBucketsValues1.put(5d, 2d);
+            expectedBucketsValues1.put(7.5, 2d);
+            expectedBucketsValues1.put(10d, 2d);
+
+            Map<Double, Double> expectedBucketsValues2 = new HashMap<>();
+            expectedBucketsValues2.put(0.005, 0d);
+            expectedBucketsValues2.put(0.01, 0d);
+            expectedBucketsValues2.put(0.025, 0d);
+            expectedBucketsValues2.put(0.05, 0d);
+            expectedBucketsValues2.put(0.1, 0d);
+            expectedBucketsValues2.put(0.25, 0d);
+            expectedBucketsValues2.put(0.5, 0d);
+            expectedBucketsValues2.put(0.75, 0d);
+            expectedBucketsValues2.put(1d, 0d);
+            expectedBucketsValues2.put(2.5, 0d);
+            expectedBucketsValues2.put(5d, 0d);
+            expectedBucketsValues2.put(7.5, 0d);
+            expectedBucketsValues2.put(10d, 1d);
+
+            assertHistogram(registry, "test", tags1, expectedBucketsValues1, 3d, 43.01);
+            assertHistogram(registry, "test", tags2, expectedBucketsValues2, 1d, 10d);
+        }
+
+        @Test
+        public void reportTimerHistogramCustomBuckets() {
+            double[] buckets = {1, 10, 100};
+            PrometheusReporter reporterHistogram = new PrometheusReporter(null, buckets, TimerType.HISTOGRAM, registry);
+            Map<String, String> tags1 = new HashMap<>();
+            tags1.put("foo", "1");
+            tags1.put("bar", "1");
+
+            Map<String, String> tags2 = new HashMap<>();
+            tags2.put("foo", "2");
+            tags2.put("bar", "2");
+
+            reporterHistogram.reportTimer("test", tags1, Duration.ofMillis(10));
+            reporterHistogram.reportTimer("test", tags1, Duration.ofSeconds(5));
+            reporterHistogram.reportTimer("test", tags1, Duration.ofSeconds(42));
+
+            reporterHistogram.reportTimer("test", tags2, Duration.ofSeconds(10));
+
+            reporterHistogram.reportTimer("test2", null, Duration.ofSeconds(10));
+
+            Map<Double, Double> expectedBucketsValues1 = new HashMap<>();
+            expectedBucketsValues1.put(1d, 1d);
+            expectedBucketsValues1.put(10d, 2d);
+            expectedBucketsValues1.put(100d, 3d);
+
+            Map<Double, Double> expectedBucketsValues2 = new HashMap<>();
+            expectedBucketsValues2.put(1d, 0d);
+            expectedBucketsValues2.put(10d, 1d);
+            expectedBucketsValues2.put(100d, 1d);
+
+            assertHistogram(registry, "test", tags1, expectedBucketsValues1, 3d, 43.01);
+            assertHistogram(registry, "test", tags2, expectedBucketsValues2, 1d, 10d);
+            assertHistogram(registry, "test2", null, expectedBucketsValues2, 1d, 10d);
         }
     }
 
     @RunWith(Parameterized.class)
-    public static class KeyForPrefixedStringMapsTest {
+    public static class ReportHistogramTest {
+        private final static Buckets<Duration> defaultDuraionBuckets = new DurationBuckets(
+                new Duration[]{Duration.ofMillis(1), Duration.ofSeconds(1), Duration.ofSeconds(100)}
+        );
+        private final static Buckets<Double> defaultValueBuckets = new ValueBuckets(new Double[]{0.001, 1d, 100d});
+
+        private CollectorRegistry registry;
+        private PrometheusReporter reporter;
 
         @Parameterized.Parameter
-        public Case testCase;
+        public boolean isReportDuration;
 
-        @Parameterized.Parameters(name = "{index}: {0}}")
-        public static Collection<Case> data() {
-            return Arrays.asList(
-                    new Case(
-                            "no maps",
-                            "foo",
-                            null,
-                            "foo+",
-                            null
-                    ),
-                    new Case(
-                            "disjoint maps",
-                            "foo",
-                            Arrays.asList(
-                                    listToMap("a:foo", "b:bar"),
-                                    listToMap("c:baz", "d:qux")
-                            ),
-                            "foo+a=foo,b=bar,c=baz,d=qux",
-                            null
-                    ),
-                    new Case(
-                            "maps overlap",
-                            "foo",
-                            Arrays.asList(
-                                    listToMap("a:1", "b:1", "c:1", "d:1"),
-                                    listToMap("b:2", "c:2", "d:2")
-                            ),
-                            "foo+a=1,b=2,c=2,d=2",
-                            null
-                    ),
-                    new Case(
-                            "no metric name",
-                            null,
-                            Arrays.asList(
-                                    listToMap("a:1", "b:1", "c:1", "d:1"),
-                                    listToMap("b:2", "c:2", "d:2")
-                            ),
-                            null,
-                            new IllegalArgumentException("prefix cannot be null")
-                    )
-            );
+        @Parameterized.Parameters(name = "{index} Use duration {0}")
+        public static Collection<Boolean> data() {
+            return Arrays.asList(true, false);
+        }
+
+        @Before
+        public void init() {
+            registry = Mockito.spy(new CollectorRegistry(true));
+            reporter = new PrometheusReporter(registry);
         }
 
         @Test
-        public void test() {
-            try {
-                String res = PrometheusReporter.keyForPrefixedStringMaps(testCase.prefix, testCase.tags);
-                if (testCase.expectedResult != null) {
-                    Assert.assertThat(res, is(testCase.expectedResult));
-                }
-            } catch (Exception e) {
-                if (testCase.expectedException == null) {
-                    Assert.fail("unexpected exception");
-                } else {
-                    Assert.assertThat(e, instanceOf(testCase.expectedException.getClass()));
-                    Assert.assertThat(e.getMessage(), is(testCase.expectedException.getMessage()));
-                }
+        public void reportHistogramSamplesNoTags() {
+            if (isReportDuration) {
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        null,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        10
+                );
+            } else {
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        null,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        10
+                );
             }
+            Map<Double, Double> bucketsValues = new HashMap<>();
+            bucketsValues.put(0.001, 0d);
+            bucketsValues.put(1d, 10d);
+            bucketsValues.put(100d, 10d);
+            assertHistogram(registry, "test", null, bucketsValues, 10d, 10d);
+            Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
-        private static class Case {
-            final String testName;
-            final String prefix;
-            final List<Map<String, String>> tags;
-            final String expectedResult;
-            final Exception expectedException;
+        @Test
+        public void reportHistogramWithTags() {
+            Map<String, String> tags = Collections.singletonMap("foo", "bar");
 
-            Case(String testName,
-                 String prefix,
-                 List<Map<String, String>> tags,
-                 String expectedResult, Exception expectedException
-            ) {
-                this.testName = testName;
-                this.prefix = prefix;
-                this.tags = tags;
-                this.expectedResult = expectedResult;
-                this.expectedException = expectedException;
+            if (isReportDuration) {
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        tags,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        10
+                );
+            } else {
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        tags,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        10
+                );
             }
-
-            @Override
-            public String toString() {
-                return testName;
-            }
+            Map<Double, Double> bucketsValues = new HashMap<>();
+            bucketsValues.put(0.001, 0d);
+            bucketsValues.put(1d, 10d);
+            bucketsValues.put(100d, 10d);
+            assertHistogram(registry, "test", tags, bucketsValues, 10d, 10d);
+            Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
-        private static Map<String, String> listToMap(String... input) {
-            return Stream.of(input)
-                    .distinct()
-                    .collect(
-                            Collectors.toMap(pair -> pair.split(":")[0],
-                                    pair -> pair.split(":")[1]
-                            )
-                    );
+        @Test
+        public void reportHistogramWithDifferentTagsValues() {
+            Map<String, String> tags1 = Collections.singletonMap("foo", "bar");
+            Map<String, String> tags2 = Collections.singletonMap("foo", "bazz");
+
+            if (isReportDuration) {
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        tags1,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        10
+                );
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        tags2,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        100
+                );
+            } else {
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        tags1,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        10
+                );
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        tags2,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        100
+                );
+            }
+            Map<Double, Double> bucketsValues1 = new HashMap<>();
+            bucketsValues1.put(0.001, 0d);
+            bucketsValues1.put(1d, 10d);
+            bucketsValues1.put(100d, 10d);
+
+            Map<Double, Double> bucketsValues2 = new HashMap<>();
+            bucketsValues2.put(0.001, 0d);
+            bucketsValues2.put(1d, 100d);
+            bucketsValues2.put(100d, 100d);
+            assertHistogram(registry, "test", tags1, bucketsValues1, 10d, 10d);
+            assertHistogram(registry, "test", tags2, bucketsValues2, 100d, 100d);
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test(expected = IllegalArgumentException.class)
+        public void registeringHistogramWithSameNameButDifferentTagsShouldFail() {
+            Map<String, String> tags1 = Collections.singletonMap("foo", "bar");
+            Map<String, String> tags2 = Collections.singletonMap("foo1", "bar");
+
+            if (isReportDuration) {
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        tags1,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        10
+                );
+                reporter.reportHistogramDurationSamples(
+                        "test",
+                        tags2,
+                        defaultDuraionBuckets,
+                        Duration.ofMillis(1),
+                        Duration.ofSeconds(1),
+                        100
+                );
+            } else {
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        tags1,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        10
+                );
+                reporter.reportHistogramValueSamples(
+                        "test",
+                        tags2,
+                        defaultValueBuckets,
+                        0.001,
+                        1d,
+                        100
+                );
+            }
         }
     }
 
@@ -601,5 +763,132 @@ public class PrometheusReporterTest {
                 return testName;
             }
         }
+    }
+
+    @RunWith(JUnit4.class)
+    public static class CloseReporter {
+        @Test
+        public void closeShouldRemoveOnlyTallyCollector() {
+            CollectorRegistry registry = new CollectorRegistry(true);
+            PrometheusReporter reporter = new PrometheusReporter(registry);
+            reporter.reportCounter("counter", null, 42);
+            reporter.reportTimer("timer", null, Duration.ofSeconds(42));
+            reporter.reportGauge("gauge", null, 42);
+            reporter.reportHistogramValueSamples(
+                    "histogram", null, new ValueBuckets(new Double[]{1.0, 2.0}), 1.0, 2.0, 42
+            );
+            Counter promCounter = Counter.build("prom_counter", "help").register(registry);
+            promCounter.inc();
+            List<Collector.MetricFamilySamples> metricFamilySamples = Collections.list(registry.metricFamilySamples());
+            Assert.assertThat(metricFamilySamples.size(), is(5));
+            reporter.close();
+            metricFamilySamples = Collections.list(registry.metricFamilySamples());
+            Assert.assertThat(metricFamilySamples.size(), is(1));
+            Double promSample = getMetricSample(registry, "prom_counter", null, null);
+            Assert.assertThat(promSample, notNullValue());
+        }
+    }
+
+    /**
+     * Asserts all the time series exposed by {@link io.prometheus.client.Histogram}:
+     * - cumulative counters for the observation buckets, exposed as {@code metricName}_bucket;
+     * - the total sum of all observed values, exposed as  {@code metricName}_sum;
+     * - the count of events that have been observed, exposed as  {@code metricName}_count.
+     *
+     * @param registry      registry where to search for metric.
+     * @param metricName    base metric name to assert.
+     * @param tags          metric's tags.
+     * @param bucketsValues map of pairs bucket upper bound to its expected value. Use null to assert that the bucket
+     *                      is not reported.
+     * @param expectedCount OPTIONAL. Expected value of the count of events that have been observed.
+     * @param expectedSum   OPTIONAL. The total sum of all observed values.
+     */
+    private static void assertHistogram(
+            CollectorRegistry registry,
+            String metricName,
+            Map<String, String> tags,
+            Map<Double, Double> bucketsValues,
+            Double expectedCount,
+            Double expectedSum
+    ) {
+        bucketsValues.forEach((key, value) -> assertBucket(registry, metricName, tags, key, value));
+        if (expectedCount != null) {
+            String sampleName = String.format("%s_count", metricName);
+            Double actualCount = getMetricSample(registry, sampleName, tags, null);
+            Assert.assertThat(
+                    String.format("failed validation for %s sample", sampleName), actualCount, is(expectedCount)
+            );
+        }
+        if (expectedSum != null) {
+            String sampleName = String.format("%s_sum", metricName);
+            Double actualSum = getMetricSample(registry, sampleName, tags, null);
+            Assert.assertThat(String.format("failed validation for %s sample", sampleName), actualSum, is(actualSum));
+        }
+    }
+
+    /**
+     * Asserts that {@code metricName} metric has a bucket with upper bound equal to {@code bucketUpperBound} and is
+     * its value is equal to {@code expectedValue}.
+     * If {@code expectedValue} is set to null the method will assert that the bucket does NOT exist.
+     *
+     * @param registry         registry where to search for metric.
+     * @param metricName       base metric name to assert.
+     * @param tags             metric's tags.
+     * @param bucketUpperBound bucket's upper bound, the value which is used to register a bucket
+     *                         in {@link io.prometheus.client.Histogram.Builder#buckets(double...)}.
+     * @param expectedValue    expected bucket value or null to assert that the bucket is not reported for a metric.
+     */
+    private static void assertBucket(
+            CollectorRegistry registry,
+            String metricName,
+            final Map<String, String> tags,
+            double bucketUpperBound,
+            Double expectedValue
+    ) {
+        String sampleName = String.format("%s_bucket", metricName);
+        String bucketName = Double.toString(bucketUpperBound);
+        Double actualValue = getMetricSample(
+                registry,
+                sampleName,
+                tags,
+                singletonMap("le", bucketName)
+        );
+        Assert.assertThat(
+                String.format("failed validation for %s bucket:%s sample", sampleName, bucketName),
+                actualValue, is(expectedValue)
+        );
+    }
+
+    private static Double getMetricSample(
+            CollectorRegistry registry,
+            String metricName,
+            final Map<String, String> tags,
+            final Map<String, String> extraTags
+    ) {
+        Map<String, String> ttags = new HashMap<>();
+        if (tags != null) {
+            ttags.putAll(tags);
+        }
+        if (extraTags != null) {
+            ttags.putAll(extraTags);
+        }
+        for (Collector.MetricFamilySamples metricFamilySamples : Collections.list(registry.metricFamilySamples())) {
+            for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
+                if (sample.name.equals(metricName)
+                        && ttags.size() == sample.labelNames.size()
+                        && sample.labelNames.containsAll(ttags.keySet())
+                        && ttags.keySet().containsAll(sample.labelNames)
+                        && sample.labelValues.containsAll(ttags.values())
+                        && ttags.values().containsAll(sample.labelValues)
+                ) {
+                    return sample.value;
+                }
+            }
+        }
+        return registry.getSampleValue(
+                metricName,
+                collectionToStringArray(ttags.keySet()),
+                collectionToStringArray(ttags.values())
+        );
     }
 }

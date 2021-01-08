@@ -44,22 +44,22 @@ import java.util.stream.Collectors;
 
 public class PrometheusReporter implements StatsReporter {
 
+    static final String METRIC_ID_KEY_VALUE = "1";
     private static final String PREFIX_SPLITTER = "+";
     private static final String KEY_PAIR_SPLITTER = ",";
     private static final String KEY_NAME_SPLITTER = "=";
     private static final String KEY_PAIR_TEMPLATE = "%s" + KEY_NAME_SPLITTER + "%s";
     private static final TimerType DEFAULT_TIMER_TYPE = TimerType.SUMMARY;
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
-    static final String METRIC_ID_KEY_VALUE = "1";
 
     private final CollectorRegistry registry;
     private final TimerType timerType;
     private final Map<Double, Double> defaultQuantiles;
     private final double[] defaultBuckets;
-    private ConcurrentMap<String, Counter> registeredCounters;
-    private ConcurrentMap<String, Gauge> registeredGauges;
-    private ConcurrentMap<String, Histogram> registeredHistograms;
-    private ConcurrentMap<String, Summary> registeredSummaries;
+    private final ConcurrentMap<String, Counter> registeredCounters;
+    private final ConcurrentMap<String, Gauge> registeredGauges;
+    private final ConcurrentMap<String, Histogram> registeredHistograms;
+    private final ConcurrentMap<String, Summary> registeredSummaries;
 
     // TODO: 07/01/2021 maybe create builder?
     public PrometheusReporter(
@@ -162,7 +162,8 @@ public class PrometheusReporter implements StatsReporter {
                     .register(registry);
             registeredHistograms.put(collectorName, histogram);
         }
-        Histogram.Child histogram = registeredHistograms.get(collectorName).labels(collectionToStringArray(ttags.values()));
+        Histogram.Child histogram = registeredHistograms.get(collectorName)
+                .labels(collectionToStringArray(ttags.values()));
         for (int i = 0; i < samples; i++) {
             histogram.observe(bucketUpperBound);
         }
@@ -212,7 +213,11 @@ public class PrometheusReporter implements StatsReporter {
 
     @Override
     public void close() {
-        // TODO: 07/01/2021 deregister collectors from {@code registry}.
+        // registry#clear() should not be called, since registry might contain other non-tally collectors.
+        registeredCounters.values().forEach(registry::unregister);
+        registeredGauges.values().forEach(registry::unregister);
+        registeredSummaries.values().forEach(registry::unregister);
+        registeredHistograms.values().forEach(registry::unregister);
     }
 
     private void reportTimerSummary(String name, Map<String, String> tags, Duration interval) {
@@ -289,7 +294,7 @@ public class PrometheusReporter implements StatsReporter {
      * @return unique key in a format prefix+key1=value1,key2=value2
      * @throws IllegalArgumentException when {@code prefix} is null.
      */
-    static String keyForPrefixedStringMaps(String prefix, List<Map<String, String>> tags) {
+    private static String keyForPrefixedStringMaps(String prefix, List<Map<String, String>> tags) {
         if (prefix == null) {
             throw new IllegalArgumentException("prefix cannot be null");
         }

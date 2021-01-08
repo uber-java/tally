@@ -43,6 +43,54 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+/**
+ * An implementation of {@link StatsReporter} backed by Prometheus.
+ * Allows reporting Prometheus metrics while using tally library.
+ * The reporter is not responsible for the export of the metrics.
+ * See <a href="https://github.com/prometheus/client_java#exporting">Prometheus documentation</a>
+ * for more details on how to export Prometheus metrics.
+ * <p>
+ * By default {@link io.prometheus.client.CollectorRegistry#defaultRegistry} is used. Custom registry can be passed
+ * using {@link Builder#registry(CollectorRegistry)}.
+ * <p>
+ * {@link com.uber.m3.tally.Timer} metric does not have a direct analogy in Prometheus.
+ * {@link io.prometheus.client.Summary} or {@link io.prometheus.client.Histogram} can be used to
+ * emit {@link com.uber.m3.tally.Timer} metrics. Use {@link Builder#timerType(TimerType)} to configure it.
+ * <p>
+ * When {@link io.prometheus.client.Summary} is used the following parameters can be configured via {@link Builder}:
+ * <ul>
+ *     <li>{@link Builder#ageBuckets(int)} sets {@link io.prometheus.client.Summary.Builder#ageBuckets(int)}</li>
+ *     <li>{@link Builder#maxAgeSeconds(long)} sets {@link io.prometheus.client.Summary.Builder#maxAgeSeconds(long)}</li>
+ *     <li>{@link Builder#defaultQuantiles(Map)} sets
+ *     {@link io.prometheus.client.Summary.Builder#quantile(double, double)} for each key-value pair, where key is
+ *     set as a quantile and value as tolerated error.</li>
+ * </ul>
+ * When {@link io.prometheus.client.Histogram} is used the following parameters can be configured via {@link Builder}:
+ *   <ul>
+ *       <li>{@link Builder#defaultBuckets(double[])} sets
+ *       {@link io.prometheus.client.Histogram.Builder#buckets(double...)} </li>
+ *   </ul>
+ * Use {@link PrometheusReporter.Builder} to construct {@link PrometheusReporter}.
+ * <p>
+ * Usage example:
+ * <pre>
+ * {@code
+ *   CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+ *   HTTPServer httpServer = new HTTPServer(new InetSocketAddress(1234), registry);
+ *   PrometheusReporter reporter = PrometheusReporter.builder()
+ *                                                   .registry(registry)
+ *                                                   .build();
+ *   Scope scope = new RootScopeBuilder().reporter(reporter)
+ *                                       .reportEvery(Duration.ofSeconds(1));
+ *   Counter counter = scope.tagged(Collections.singletonMap("foo", "bar"))
+ *                          .counter("counter");
+ *   while (true) {
+ *      counter.inc(1);
+ *      Thread.sleep(500);
+ *   }
+ * }
+ * </pre>
+ */
 public class PrometheusReporter implements StatsReporter {
 
     static final String METRIC_ID_KEY_VALUE = "1";
@@ -84,7 +132,10 @@ public class PrometheusReporter implements StatsReporter {
         this.registeredHistograms = new ConcurrentHashMap<>();
     }
 
-    public static class Builder {
+    /**
+     * Builder helps to configure and create {@link PrometheusReporter}.
+     */
+    public static final class Builder {
 
         private CollectorRegistry registry = CollectorRegistry.defaultRegistry;
         private TimerType timerType = DEFAULT_TIMER_TYPE;
@@ -93,36 +144,70 @@ public class PrometheusReporter implements StatsReporter {
         private int ageBuckets = 5;
         private long maxAgeSeconds = TimeUnit.MINUTES.toSeconds(10);
 
+        /**
+         * Sets custom {@link CollectorRegistry}. Default registry is set to {@link CollectorRegistry#defaultRegistry}.
+         */
         public Builder registry(CollectorRegistry registry) {
             this.registry = registry;
             return this;
         }
 
+        /**
+         * Sets custom default quantiles, which are used when {@link com.uber.m3.tally.Timer} is emitted as a
+         * {@link io.prometheus.client.Summary}. For each key-value pair, the key is set as a quantile and the value is
+         * set as a tolerated error using {@link io.prometheus.client.Summary.Builder#quantile(double, double)}.
+         * Default value is set to:
+         * <ul>
+         *     <li>0.5, 0.01</li>
+         *     <li>0.75, 0.001</li>
+         *     <li>0.95, 0.001</li>
+         *     <li>0.99, 0.001</li>
+         *     <li>0.999, 0.0001</li>
+         * </ul>
+         */
         public Builder defaultQuantiles(Map<Double, Double> defaultQuantiles) {
             this.defaultQuantiles = defaultQuantiles;
             return this;
         }
 
+        /**
+         * Sets custom default buckets, which are used when {@link com.uber.m3.tally.Timer} is emitted as a
+         * {@link io.prometheus.client.Histogram}.
+         * Default value is set to: [.005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, 10]
+         */
         public Builder defaultBuckets(double[] defaultBuckets) {
             this.defaultBuckets = defaultBuckets;
             return this;
         }
 
+        /**
+         * Sets default representation of {@link com.uber.m3.tally.Timer}. It can be either emitted as
+         * {@link io.prometheus.client.Summary} or {@link io.prometheus.client.Histogram}.
+         */
         public Builder timerType(TimerType timerType) {
             this.timerType = timerType;
             return this;
         }
 
+        /**
+         * Sets {@link io.prometheus.client.Summary.Builder#ageBuckets(int)}
+         */
         public Builder ageBuckets(int ageBuckets) {
             this.ageBuckets = ageBuckets;
             return this;
         }
 
+        /**
+         * Sets {@link io.prometheus.client.Summary.Builder#maxAgeSeconds(long)}
+         */
         public Builder maxAgeSeconds(long maxAgeSeconds) {
             this.maxAgeSeconds = maxAgeSeconds;
             return this;
         }
 
+        /**
+         * Builds {@link PrometheusReporter} from Builder.
+         */
         public PrometheusReporter build() {
             return new PrometheusReporter(
                     defaultQuantiles, defaultBuckets, timerType, registry, ageBuckets, maxAgeSeconds
@@ -130,7 +215,7 @@ public class PrometheusReporter implements StatsReporter {
         }
     }
 
-    public static Builder build() {
+    public static Builder builder() {
         return new Builder();
     }
 

@@ -66,7 +66,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = PrometheusReporter.build().registry(registry).build();
+            reporter = PrometheusReporter.builder().registry(registry).build();
         }
 
         @Test
@@ -164,7 +164,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = PrometheusReporter.build().registry(registry).build();
+            reporter = PrometheusReporter.builder().registry(registry).build();
         }
 
         @Test
@@ -267,7 +267,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporterSummary = PrometheusReporter.build()
+            reporterSummary = PrometheusReporter.builder()
                     .registry(registry)
                     .timerType(TimerType.SUMMARY)
                     .build();
@@ -406,7 +406,7 @@ public class PrometheusReporterTest {
             tags.put("a", "1");
             tags.put("b", "1");
             Map<Double, Double> quantiles = singletonMap(0.1, 0.0001);
-            PrometheusReporter reporter = PrometheusReporter.build()
+            PrometheusReporter reporter = PrometheusReporter.builder()
                     .registry(registry)
                     .defaultQuantiles(quantiles)
                     .build();
@@ -426,7 +426,7 @@ public class PrometheusReporterTest {
 
         @Test
         public void reportTimerHistogramDefaultBuckets() {
-            PrometheusReporter reporterHistogram = PrometheusReporter.build()
+            PrometheusReporter reporterHistogram = PrometheusReporter.builder()
                     .registry(registry)
                     .timerType(TimerType.HISTOGRAM)
                     .build();
@@ -481,7 +481,7 @@ public class PrometheusReporterTest {
         @Test
         public void reportTimerHistogramCustomBuckets() {
             double[] buckets = {1, 10, 100};
-            PrometheusReporter reporterHistogram = PrometheusReporter.build()
+            PrometheusReporter reporterHistogram = PrometheusReporter.builder()
                     .registry(registry)
                     .timerType(TimerType.HISTOGRAM)
                     .defaultBuckets(buckets)
@@ -539,7 +539,7 @@ public class PrometheusReporterTest {
         @Before
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
-            reporter = PrometheusReporter.build().registry(registry).build();
+            reporter = PrometheusReporter.builder().registry(registry).build();
             ;
         }
 
@@ -784,7 +784,7 @@ public class PrometheusReporterTest {
         @Test
         public void closeShouldRemoveOnlyTallyCollector() {
             CollectorRegistry registry = new CollectorRegistry(true);
-            PrometheusReporter reporter = PrometheusReporter.build().registry(registry).build();
+            PrometheusReporter reporter = PrometheusReporter.builder().registry(registry).build();
             reporter.reportCounter("counter", null, 42);
             reporter.reportTimer("timer", null, Duration.ofSeconds(42));
             reporter.reportGauge("gauge", null, 42);

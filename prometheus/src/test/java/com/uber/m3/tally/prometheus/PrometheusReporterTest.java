@@ -58,6 +58,109 @@ import static org.mockito.Mockito.times;
 @RunWith(Enclosed.class)
 public class PrometheusReporterTest {
 
+    /**
+     * Asserts all the time series exposed by {@link io.prometheus.client.Histogram}:
+     * - cumulative counters for the observation buckets, exposed as {@code metricName}_bucket;
+     * - the total sum of all observed values, exposed as  {@code metricName}_sum;
+     * - the count of events that have been observed, exposed as  {@code metricName}_count.
+     *
+     * @param registry      registry where to search for metric.
+     * @param metricName    base metric name to assert.
+     * @param tags          metric's tags.
+     * @param bucketsValues map of pairs bucket upper bound to its expected value. Use null to assert that the bucket
+     *                      is not reported.
+     * @param expectedCount OPTIONAL. Expected value of the count of events that have been observed.
+     * @param expectedSum   OPTIONAL. The total sum of all observed values.
+     */
+    private static void assertHistogram(
+            CollectorRegistry registry,
+            String metricName,
+            Map<String, String> tags,
+            Map<Double, Double> bucketsValues,
+            Double expectedCount,
+            Double expectedSum
+    ) {
+        bucketsValues.forEach((key, value) -> assertBucket(registry, metricName, tags, key, value));
+        if (expectedCount != null) {
+            String sampleName = String.format("%s_count", metricName);
+            Double actualCount = getMetricSample(registry, sampleName, tags, null);
+            Assert.assertThat(
+                    String.format("failed validation for %s sample", sampleName), actualCount, is(expectedCount)
+            );
+        }
+        if (expectedSum != null) {
+            String sampleName = String.format("%s_sum", metricName);
+            Double actualSum = getMetricSample(registry, sampleName, tags, null);
+            Assert.assertThat(String.format("failed validation for %s sample", sampleName), actualSum, is(actualSum));
+        }
+    }
+
+    /**
+     * Asserts that {@code metricName} metric has a bucket with upper bound equal to {@code bucketUpperBound} and is
+     * its value is equal to {@code expectedValue}.
+     * If {@code expectedValue} is set to null the method will assert that the bucket does NOT exist.
+     *
+     * @param registry         registry where to search for metric.
+     * @param metricName       base metric name to assert.
+     * @param tags             metric's tags.
+     * @param bucketUpperBound bucket's upper bound, the value which is used to register a bucket
+     *                         in {@link io.prometheus.client.Histogram.Builder#buckets(double...)}.
+     * @param expectedValue    expected bucket value or null to assert that the bucket is not reported for a metric.
+     */
+    private static void assertBucket(
+            CollectorRegistry registry,
+            String metricName,
+            final Map<String, String> tags,
+            double bucketUpperBound,
+            Double expectedValue
+    ) {
+        String sampleName = String.format("%s_bucket", metricName);
+        String bucketName = Double.toString(bucketUpperBound);
+        Double actualValue = getMetricSample(
+                registry,
+                sampleName,
+                tags,
+                singletonMap("le", bucketName)
+        );
+        Assert.assertThat(
+                String.format("failed validation for %s bucket:%s sample", sampleName, bucketName),
+                actualValue, is(expectedValue)
+        );
+    }
+
+    private static Double getMetricSample(
+            CollectorRegistry registry,
+            String metricName,
+            final Map<String, String> tags,
+            final Map<String, String> extraTags
+    ) {
+        Map<String, String> ttags = new HashMap<>();
+        if (tags != null) {
+            ttags.putAll(tags);
+        }
+        if (extraTags != null) {
+            ttags.putAll(extraTags);
+        }
+        for (Collector.MetricFamilySamples metricFamilySamples : Collections.list(registry.metricFamilySamples())) {
+            for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
+                if (sample.name.equals(metricName)
+                        && ttags.size() == sample.labelNames.size()
+                        && sample.labelNames.containsAll(ttags.keySet())
+                        && ttags.keySet().containsAll(sample.labelNames)
+                        && sample.labelValues.containsAll(ttags.values())
+                        && ttags.values().containsAll(sample.labelValues)
+                ) {
+                    return sample.value;
+                }
+            }
+        }
+        return registry.getSampleValue(
+                metricName,
+                collectionToStringArray(ttags.keySet()),
+                collectionToStringArray(ttags.values())
+        );
+    }
+
     @RunWith(JUnit4.class)
     public static class ReportCounterTest {
         private CollectorRegistry registry;
@@ -303,7 +406,6 @@ public class PrometheusReporterTest {
             reporterSummary.reportTimer("test", tags2, Duration.ofSeconds(42));
             Double metricValue1 = getMetricSample(registry, "test_count", tags1, null);
             Double metricValue2 = getMetricSample(registry, "test_count", tags2, null);
-            ;
 
             Assert.assertThat(metricValue1, is(1d));
             Assert.assertThat(metricValue2, is(1d));
@@ -520,16 +622,16 @@ public class PrometheusReporterTest {
 
     @RunWith(Parameterized.class)
     public static class ReportHistogramTest {
-        private final static Buckets<Duration> defaultDuraionBuckets = new DurationBuckets(
+        private static final Buckets<Duration> defaultDuraionBuckets = new DurationBuckets(
                 new Duration[]{Duration.ofMillis(1), Duration.ofSeconds(1), Duration.ofSeconds(100)}
         );
-        private final static Buckets<Double> defaultValueBuckets = new ValueBuckets(new Double[]{0.001, 1d, 100d});
-
-        private CollectorRegistry registry;
-        private PrometheusReporter reporter;
+        private static final Buckets<Double> defaultValueBuckets = new ValueBuckets(new Double[]{0.001, 1d, 100d});
 
         @Parameterized.Parameter
         public boolean isReportDuration;
+
+        private CollectorRegistry registry;
+        private PrometheusReporter reporter;
 
         @Parameterized.Parameters(name = "{index} Use duration {0}")
         public static Collection<Boolean> data() {
@@ -540,7 +642,6 @@ public class PrometheusReporterTest {
         public void init() {
             registry = Mockito.spy(new CollectorRegistry(true));
             reporter = PrometheusReporter.builder().registry(registry).build();
-            ;
         }
 
         @Test
@@ -801,108 +902,5 @@ public class PrometheusReporterTest {
             Double promSample = getMetricSample(registry, "prom_counter", null, null);
             Assert.assertThat(promSample, notNullValue());
         }
-    }
-
-    /**
-     * Asserts all the time series exposed by {@link io.prometheus.client.Histogram}:
-     * - cumulative counters for the observation buckets, exposed as {@code metricName}_bucket;
-     * - the total sum of all observed values, exposed as  {@code metricName}_sum;
-     * - the count of events that have been observed, exposed as  {@code metricName}_count.
-     *
-     * @param registry      registry where to search for metric.
-     * @param metricName    base metric name to assert.
-     * @param tags          metric's tags.
-     * @param bucketsValues map of pairs bucket upper bound to its expected value. Use null to assert that the bucket
-     *                      is not reported.
-     * @param expectedCount OPTIONAL. Expected value of the count of events that have been observed.
-     * @param expectedSum   OPTIONAL. The total sum of all observed values.
-     */
-    private static void assertHistogram(
-            CollectorRegistry registry,
-            String metricName,
-            Map<String, String> tags,
-            Map<Double, Double> bucketsValues,
-            Double expectedCount,
-            Double expectedSum
-    ) {
-        bucketsValues.forEach((key, value) -> assertBucket(registry, metricName, tags, key, value));
-        if (expectedCount != null) {
-            String sampleName = String.format("%s_count", metricName);
-            Double actualCount = getMetricSample(registry, sampleName, tags, null);
-            Assert.assertThat(
-                    String.format("failed validation for %s sample", sampleName), actualCount, is(expectedCount)
-            );
-        }
-        if (expectedSum != null) {
-            String sampleName = String.format("%s_sum", metricName);
-            Double actualSum = getMetricSample(registry, sampleName, tags, null);
-            Assert.assertThat(String.format("failed validation for %s sample", sampleName), actualSum, is(actualSum));
-        }
-    }
-
-    /**
-     * Asserts that {@code metricName} metric has a bucket with upper bound equal to {@code bucketUpperBound} and is
-     * its value is equal to {@code expectedValue}.
-     * If {@code expectedValue} is set to null the method will assert that the bucket does NOT exist.
-     *
-     * @param registry         registry where to search for metric.
-     * @param metricName       base metric name to assert.
-     * @param tags             metric's tags.
-     * @param bucketUpperBound bucket's upper bound, the value which is used to register a bucket
-     *                         in {@link io.prometheus.client.Histogram.Builder#buckets(double...)}.
-     * @param expectedValue    expected bucket value or null to assert that the bucket is not reported for a metric.
-     */
-    private static void assertBucket(
-            CollectorRegistry registry,
-            String metricName,
-            final Map<String, String> tags,
-            double bucketUpperBound,
-            Double expectedValue
-    ) {
-        String sampleName = String.format("%s_bucket", metricName);
-        String bucketName = Double.toString(bucketUpperBound);
-        Double actualValue = getMetricSample(
-                registry,
-                sampleName,
-                tags,
-                singletonMap("le", bucketName)
-        );
-        Assert.assertThat(
-                String.format("failed validation for %s bucket:%s sample", sampleName, bucketName),
-                actualValue, is(expectedValue)
-        );
-    }
-
-    private static Double getMetricSample(
-            CollectorRegistry registry,
-            String metricName,
-            final Map<String, String> tags,
-            final Map<String, String> extraTags
-    ) {
-        Map<String, String> ttags = new HashMap<>();
-        if (tags != null) {
-            ttags.putAll(tags);
-        }
-        if (extraTags != null) {
-            ttags.putAll(extraTags);
-        }
-        for (Collector.MetricFamilySamples metricFamilySamples : Collections.list(registry.metricFamilySamples())) {
-            for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
-                if (sample.name.equals(metricName)
-                        && ttags.size() == sample.labelNames.size()
-                        && sample.labelNames.containsAll(ttags.keySet())
-                        && ttags.keySet().containsAll(sample.labelNames)
-                        && sample.labelValues.containsAll(ttags.values())
-                        && ttags.values().containsAll(sample.labelValues)
-                ) {
-                    return sample.value;
-                }
-            }
-        }
-        return registry.getSampleValue(
-                metricName,
-                collectionToStringArray(ttags.keySet()),
-                collectionToStringArray(ttags.values())
-        );
     }
 }

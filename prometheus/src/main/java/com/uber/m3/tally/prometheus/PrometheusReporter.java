@@ -34,8 +34,6 @@ import io.prometheus.client.Summary;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -138,37 +136,25 @@ public class PrometheusReporter implements StatsReporter {
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredCounters.containsKey(collectorName)) {
-            Counter counter = Counter.build()
-                    .name(name)
-                    .help(String.format("%s counter", name))
-                    .labelNames(collectionToStringArray(ttags.keySet()))
-                    .register(registry);
-            registeredCounters.put(collectorName, counter);
-        }
+        registeredCounters.computeIfAbsent(collectorName, key -> Counter.build()
+                .name(name)
+                .help(String.format("%s counter", name))
+                .labelNames(collectionToStringArray(ttags.keySet()))
+                .register(registry));
         registeredCounters.get(collectorName).labels(collectionToStringArray(ttags.values())).inc(value);
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredGauges.containsKey(collectorName)) {
-            Gauge gauge = Gauge.build()
-                    .name(name)
-                    .help(String.format("%s gauge", name))
-                    .labelNames(collectionToStringArray(ttags.keySet()))
-                    .register(registry);
-            registeredGauges.put(collectorName, gauge);
-        }
+        registeredGauges.computeIfAbsent(collectorName, key -> Gauge.build()
+                .name(name)
+                .help(String.format("%s gauge", name))
+                .labelNames(collectionToStringArray(ttags.keySet()))
+                .register(registry));
         registeredGauges.get(collectorName).labels(collectionToStringArray(ttags.values())).set(value);
     }
 
@@ -193,21 +179,17 @@ public class PrometheusReporter implements StatsReporter {
             double bucketUpperBound,
             long samples
     ) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredHistograms.containsKey(collectorName)) {
+        registeredHistograms.computeIfAbsent(collectorName, key -> {
             double[] b = buckets.getValueUpperBounds().stream().mapToDouble(a -> a).toArray();
-            Histogram histogram = Histogram.build()
+            return Histogram.build()
                     .name(name)
                     .help(String.format("%s histogram", name))
                     .buckets(b)
                     .labelNames(collectionToStringArray(ttags.keySet()))
                     .register(registry);
-            registeredHistograms.put(collectorName, histogram);
-        }
+        });
         Histogram.Child histogram = registeredHistograms.get(collectorName)
                 .labels(collectionToStringArray(ttags.values()));
         for (int i = 0; i < samples; i++) {
@@ -224,21 +206,17 @@ public class PrometheusReporter implements StatsReporter {
             Duration bucketUpperBound,
             long samples
     ) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredHistograms.containsKey(collectorName)) {
+        registeredHistograms.computeIfAbsent(collectorName, key -> {
             double[] b = buckets.getDurationUpperBounds().stream().mapToDouble(Duration::getSeconds).toArray();
-            Histogram histogram = Histogram.build()
+            return Histogram.build()
                     .name(name)
                     .help(String.format("%s histogram", name))
                     .buckets(b)
                     .labelNames(collectionToStringArray(ttags.keySet()))
                     .register(registry);
-            registeredHistograms.put(collectorName, histogram);
-        }
+        });
         Histogram.Child histogram = registeredHistograms.get(collectorName)
                 .labels(collectionToStringArray(ttags.values()));
         double bucketUpperBoundValue = bucketUpperBound.getSeconds();
@@ -267,12 +245,9 @@ public class PrometheusReporter implements StatsReporter {
     }
 
     private void reportTimerSummary(String name, Map<String, String> tags, Duration interval) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredSummaries.containsKey(collectorName)) {
+        registeredSummaries.computeIfAbsent(collectorName, key -> {
             Summary.Builder builder = Summary.build()
                     .name(name)
                     .help(String.format("%s summary", name))
@@ -280,29 +255,22 @@ public class PrometheusReporter implements StatsReporter {
                     .maxAgeSeconds(maxAgeSeconds)
                     .labelNames(collectionToStringArray(ttags.keySet()));
             defaultQuantiles.forEach(builder::quantile);
-            Summary summary = builder.register(registry);
-            registeredSummaries.put(collectorName, summary);
-        }
+            return builder.register(registry);
+        });
         registeredSummaries.get(collectorName)
                 .labels(collectionToStringArray(ttags.values()))
                 .observe(interval.getSeconds());
     }
 
     private void reportTimerHistogram(String name, Map<String, String> tags, Duration interval) {
-        Map<String, String> ttags = tags;
-        if (tags == null) {
-            ttags = Collections.emptyMap();
-        }
+        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, ttags.keySet());
-        if (!registeredHistograms.containsKey(collectorName)) {
-            Histogram histogram = Histogram.build()
-                    .name(name)
-                    .help(String.format("%s histogram", name))
-                    .buckets(defaultBuckets)
-                    .labelNames(collectionToStringArray(ttags.keySet()))
-                    .register(registry);
-            registeredHistograms.put(collectorName, histogram);
-        }
+        registeredHistograms.computeIfAbsent(collectorName, key -> Histogram.build()
+                .name(name)
+                .help(String.format("%s histogram", name))
+                .buckets(defaultBuckets)
+                .labelNames(collectionToStringArray(ttags.keySet()))
+                .register(registry));
         registeredHistograms.get(collectorName)
                 .labels(collectionToStringArray(ttags.values()))
                 .observe(interval.getSeconds());
@@ -328,11 +296,11 @@ public class PrometheusReporter implements StatsReporter {
                 tags.put(key, METRIC_ID_KEY_VALUE);
             }
         }
-        return keyForPrefixedStringMaps(name, Collections.singletonList(tags));
+        return keyForPrefixedStringMaps(name, tags);
     }
 
     /**
-     * Generates a unique key for a prefix and a list of maps containing tags.
+     * Generates a unique key for a prefix and a map of tags.
      * <p>
      * If a key occurs in multiple maps, keys on the right take precedence.
      *
@@ -341,31 +309,21 @@ public class PrometheusReporter implements StatsReporter {
      * @return unique key in a format prefix+key1=value1,key2=value2
      * @throws IllegalArgumentException when {@code prefix} is null.
      */
-    private static String keyForPrefixedStringMaps(String prefix, List<Map<String, String>> tags) {
+    private static String keyForPrefixedStringMaps(String prefix, Map<String, String> tags) {
         if (prefix == null) {
             throw new IllegalArgumentException("prefix cannot be null");
         }
         StringBuilder sb = new StringBuilder();
         sb.append(prefix).append(PREFIX_SPLITTER);
-        if (tags != null) {
-            Set<String> keys = new HashSet<>();
-            for (Map<String, String> curTags : tags) {
-                keys.addAll(curTags.keySet());
-            }
-            String tagsString = keys.stream()
-                    .sorted()
-                    .map(key -> {
-                        for (int i = tags.size() - 1; i >= 0; i--) {
-                            if (tags.get(i).containsKey(key)) {
-                                return String.format(KEY_PAIR_TEMPLATE, key, tags.get(i).get(key));
-                            }
-                        }
-                        // should never happen
-                        return "";
-                    })
-                    .collect(Collectors.joining(KEY_PAIR_SPLITTER));
-            sb.append(tagsString);
+        if (tags == null) {
+            return sb.toString();
         }
+        String tagsString = tags.keySet()
+                .stream()
+                .sorted()
+                .map(key -> String.format(KEY_PAIR_TEMPLATE, key, tags.get(key)))
+                .collect(Collectors.joining(KEY_PAIR_SPLITTER));
+        sb.append(tagsString);
         return sb.toString();
     }
 

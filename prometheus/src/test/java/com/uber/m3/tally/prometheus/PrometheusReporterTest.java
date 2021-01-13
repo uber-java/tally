@@ -189,7 +189,7 @@ public class PrometheusReporterTest {
             reporter.reportCounter("test", tags, 19);
             metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that counter with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -204,7 +204,7 @@ public class PrometheusReporterTest {
 
             Assert.assertThat(metricValue1, is(23d));
             Assert.assertThat(metricValue2, is(42d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that counter with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -222,10 +222,10 @@ public class PrometheusReporterTest {
             reporter.reportCounter("test", tags, 19);
             metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
-            // make sure that counter with the same tag keys registered only ones
+            // make sure that counter with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
 
-            // make sure that counter with the same tag keys but different tags values registered only ones but report
+            // make sure that counter with the same tag keys but different tags values registered only once but report
             // separate metrics.
             tags.put("a", "2");
             reporter.reportCounter("test", tags, 42);
@@ -292,7 +292,7 @@ public class PrometheusReporterTest {
             reporter.reportGauge("test", tags, 0);
             metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(0d));
-            // make sure that gauge with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -307,7 +307,7 @@ public class PrometheusReporterTest {
 
             Assert.assertThat(metricValue1, is(23d));
             Assert.assertThat(metricValue2, is(42d));
-            // make sure that gauge with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -325,10 +325,10 @@ public class PrometheusReporterTest {
             reporter.reportGauge("test", tags, 42);
             metricValue = getMetricSample(registry, "test", tags, null);
             Assert.assertThat(metricValue, is(42d));
-            // make sure that gauge with the same tag keys registered only ones
+            // make sure that gauge with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Matchers.any());
 
-            // make sure that gauge with the same tag keys but different tags values registered only ones but report
+            // make sure that gauge with the same tag keys but different tags values registered only once but report
             // separate metrics.
             tags.put("a", "2");
             reporter.reportGauge("test", tags, 13);
@@ -394,7 +394,7 @@ public class PrometheusReporterTest {
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(19));
             metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(2d));
-            // make sure that timer with the same tag keys registered only ones
+            // make sure that timer with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -409,7 +409,7 @@ public class PrometheusReporterTest {
 
             Assert.assertThat(metricValue1, is(1d));
             Assert.assertThat(metricValue2, is(1d));
-            // make sure that timer with the same tag keys registered only ones
+            // make sure that timer with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Mockito.any());
         }
 
@@ -426,10 +426,10 @@ public class PrometheusReporterTest {
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(42));
             metricValue = getMetricSample(registry, "test_count", tags, null);
             Assert.assertThat(metricValue, is(2d));
-            // make sure that timer with the same tag keys registered only ones
+            // make sure that timer with the same tag keys registered only once
             Mockito.verify(registry, times(1)).register(Matchers.any());
 
-            // make sure that timer with the same tag keys but different tags values registered only ones but report
+            // make sure that timer with the same tag keys but different tags values registered only once but report
             // separate metrics.
             tags.put("a", "2");
             reporterSummary.reportTimer("test", tags, Duration.ofSeconds(23));

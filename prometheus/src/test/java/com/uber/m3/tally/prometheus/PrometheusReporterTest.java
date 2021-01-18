@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import static com.uber.m3.tally.prometheus.PrometheusReporter.METRIC_ID_KEY_VALUE;
 import static com.uber.m3.tally.prometheus.PrometheusReporter.collectionToStringArray;
@@ -881,7 +882,7 @@ public class PrometheusReporterTest {
     }
 
     @RunWith(JUnit4.class)
-    public static class CloseReporter {
+    public static class CloseReporterTest {
         @Test
         public void closeShouldRemoveOnlyTallyCollector() {
             CollectorRegistry registry = new CollectorRegistry(true);
@@ -901,6 +902,95 @@ public class PrometheusReporterTest {
             Assert.assertThat(metricFamilySamples.size(), is(1));
             Double promSample = getMetricSample(registry, "prom_counter", null, null);
             Assert.assertThat(promSample, notNullValue());
+        }
+    }
+
+    @RunWith(JUnit4.class)
+    public static class ConcurrencyTest {
+        private CollectorRegistry registry;
+        private PrometheusReporter reporter;
+
+        @Before
+        public void init() {
+            registry = Mockito.spy(new CollectorRegistry(true));
+            reporter = PrometheusReporter.builder().registry(registry).build();
+        }
+
+        @Test
+        public void reportCounterFromMultipleThreads() throws InterruptedException {
+            int nThreads = 10;
+            CountDownLatch endGate = new CountDownLatch(nThreads);
+            runNThreadsSimultaneously(10, () -> reporter.reportCounter("test1", null, 1), endGate);
+            endGate.await();
+            Double res = getMetricSample(registry, "test1", null, null);
+            Assert.assertThat(res, is(10d));
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportGaugeFromMultipleThreads() throws InterruptedException {
+            int nThreads = 10;
+            CountDownLatch endGate = new CountDownLatch(nThreads);
+            runNThreadsSimultaneously(10, () -> reporter.reportGauge("test1", null, 1), endGate);
+            endGate.await();
+            Double res = getMetricSample(registry, "test1", null, null);
+            Assert.assertThat(res, is(1d));
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportTimerFromMultipleThreads() throws InterruptedException {
+            int nThreads = 10;
+            CountDownLatch endGate = new CountDownLatch(nThreads);
+            runNThreadsSimultaneously(10, () -> reporter.reportTimer("test1", null, Duration.ofSeconds(10)), endGate);
+            endGate.await();
+            Double res = getMetricSample(registry, "test1_count", null, null);
+            Assert.assertThat(res, is(10d));
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        @Test
+        public void reportHistogramFromMultipleThreads() throws InterruptedException {
+            Buckets<Double> defaultValueBuckets = new ValueBuckets(new Double[]{0.001, 1d, 100d});
+            int nThreads = 10;
+            CountDownLatch endGate = new CountDownLatch(nThreads);
+            runNThreadsSimultaneously(10, () -> reporter.reportHistogramValueSamples(
+                            "test1",
+                            null,
+                            defaultValueBuckets,
+                            0,
+                            100d,
+                            15
+                    ),
+                    endGate
+            );
+            endGate.await();
+            Double res = getMetricSample(registry, "test1_count", null, null);
+            Assert.assertThat(res, is(10d * 15d));
+            Mockito.verify(registry, times(1)).register(Mockito.any());
+        }
+
+        private static void runNThreadsSimultaneously(
+                int nThreads,
+                Runnable run,
+                CountDownLatch endGate
+        ) {
+            CountDownLatch startGate = new CountDownLatch(1);
+            for (int i = 0; i < nThreads; i++) {
+                Thread t = new Thread(() -> {
+                    try {
+                        startGate.await();
+                        try {
+                            run.run();
+                        } finally {
+                            endGate.countDown();
+                        }
+                    } catch (InterruptedException ignored) {
+                    }
+                });
+                t.start();
+            }
+            startGate.countDown();
         }
     }
 }

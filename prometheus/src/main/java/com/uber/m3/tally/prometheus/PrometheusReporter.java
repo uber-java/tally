@@ -136,26 +136,26 @@ public class PrometheusReporter implements StatsReporter {
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
         registeredCounters.computeIfAbsent(collectorName, key -> Counter.build()
                 .name(name)
                 .help(String.format("%s counter", name))
-                .labelNames(collectionToStringArray(ttags.keySet()))
-                .register(registry));
-        registeredCounters.get(collectorName).labels(collectionToStringArray(ttags.values())).inc(value);
+                .labelNames(collectionToStringArray(finalTags.keySet()))
+                .register(registry))
+                .labels(collectionToStringArray(finalTags.values())).inc(value);
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
         registeredGauges.computeIfAbsent(collectorName, key -> Gauge.build()
                 .name(name)
                 .help(String.format("%s gauge", name))
-                .labelNames(collectionToStringArray(ttags.keySet()))
-                .register(registry));
-        registeredGauges.get(collectorName).labels(collectionToStringArray(ttags.values())).set(value);
+                .labelNames(collectionToStringArray(finalTags.keySet()))
+                .register(registry)).
+                labels(collectionToStringArray(finalTags.values())).set(value);
     }
 
     @Override
@@ -179,19 +179,17 @@ public class PrometheusReporter implements StatsReporter {
             double bucketUpperBound,
             long samples
     ) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
-        registeredHistograms.computeIfAbsent(collectorName, key -> {
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
+        Histogram.Child histogram = registeredHistograms.computeIfAbsent(collectorName, key -> {
             double[] b = buckets.getValueUpperBounds().stream().mapToDouble(a -> a).toArray();
             return Histogram.build()
                     .name(name)
                     .help(String.format("%s histogram", name))
                     .buckets(b)
-                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .labelNames(collectionToStringArray(finalTags.keySet()))
                     .register(registry);
-        });
-        Histogram.Child histogram = registeredHistograms.get(collectorName)
-                .labels(collectionToStringArray(ttags.values()));
+        }).labels(collectionToStringArray(finalTags.values()));
         for (int i = 0; i < samples; i++) {
             histogram.observe(bucketUpperBound);
         }
@@ -206,19 +204,17 @@ public class PrometheusReporter implements StatsReporter {
             Duration bucketUpperBound,
             long samples
     ) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
-        registeredHistograms.computeIfAbsent(collectorName, key -> {
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
+        Histogram.Child histogram = registeredHistograms.computeIfAbsent(collectorName, key -> {
             double[] b = buckets.getDurationUpperBounds().stream().mapToDouble(Duration::getSeconds).toArray();
             return Histogram.build()
                     .name(name)
                     .help(String.format("%s histogram", name))
                     .buckets(b)
-                    .labelNames(collectionToStringArray(ttags.keySet()))
+                    .labelNames(collectionToStringArray(finalTags.keySet()))
                     .register(registry);
-        });
-        Histogram.Child histogram = registeredHistograms.get(collectorName)
-                .labels(collectionToStringArray(ttags.values()));
+        }).labels(collectionToStringArray(finalTags.values()));
         double bucketUpperBoundValue = bucketUpperBound.getSeconds();
         for (int i = 0; i < samples; i++) {
             histogram.observe(bucketUpperBoundValue);
@@ -245,34 +241,30 @@ public class PrometheusReporter implements StatsReporter {
     }
 
     private void reportTimerSummary(String name, Map<String, String> tags, Duration interval) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
         registeredSummaries.computeIfAbsent(collectorName, key -> {
             Summary.Builder builder = Summary.build()
                     .name(name)
                     .help(String.format("%s summary", name))
                     .ageBuckets(ageBuckets)
                     .maxAgeSeconds(maxAgeSeconds)
-                    .labelNames(collectionToStringArray(ttags.keySet()));
+                    .labelNames(collectionToStringArray(finalTags.keySet()));
             defaultQuantiles.forEach(builder::quantile);
             return builder.register(registry);
-        });
-        registeredSummaries.get(collectorName)
-                .labels(collectionToStringArray(ttags.values()))
-                .observe(interval.getSeconds());
+        }).labels(collectionToStringArray(finalTags.values())).observe(interval.getSeconds());
     }
 
     private void reportTimerHistogram(String name, Map<String, String> tags, Duration interval) {
-        final Map<String, String> ttags = (tags == null) ? Collections.emptyMap() : tags;
-        String collectorName = canonicalMetricId(name, ttags.keySet());
+        final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
+        String collectorName = canonicalMetricId(name, finalTags.keySet());
         registeredHistograms.computeIfAbsent(collectorName, key -> Histogram.build()
                 .name(name)
                 .help(String.format("%s histogram", name))
                 .buckets(defaultBuckets)
-                .labelNames(collectionToStringArray(ttags.keySet()))
-                .register(registry));
-        registeredHistograms.get(collectorName)
-                .labels(collectionToStringArray(ttags.values()))
+                .labelNames(collectionToStringArray(finalTags.keySet()))
+                .register(registry))
+                .labels(collectionToStringArray(finalTags.values()))
                 .observe(interval.getSeconds());
     }
 

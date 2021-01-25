@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-include 'core', 'example', 'statsd', 'm3', 'prometheus'
+description = 'tally Prometheus reporter'
 
-rootProject.name = 'tally'
-
-rootProject.getChildren().each {
-    it.name = rootProject.name + '-' + it.name
+dependencies {
+    compile project(':tally-core')
+    compile('io.prometheus:simpleclient:0.9.0')
 }

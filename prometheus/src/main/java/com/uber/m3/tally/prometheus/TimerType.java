@@ -18,10 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-include 'core', 'example', 'statsd', 'm3', 'prometheus'
+package com.uber.m3.tally.prometheus;
 
-rootProject.name = 'tally'
-
-rootProject.getChildren().each {
-    it.name = rootProject.name + '-' + it.name
+/**
+ * {@link com.uber.m3.tally.Timer} metric can be represented as {@link io.prometheus.client.Summary} or
+ * {@link io.prometheus.client.Histogram}.
+ *
+ * @see <a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>
+ * @see <a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>
+ */
+public enum TimerType {
+    SUMMARY, HISTOGRAM
 }

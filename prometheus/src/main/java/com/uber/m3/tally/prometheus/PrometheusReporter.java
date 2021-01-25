@@ -138,24 +138,24 @@ public class PrometheusReporter implements StatsReporter {
     public void reportCounter(String name, Map<String, String> tags, long value) {
         final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, finalTags.keySet());
-        registeredCounters.computeIfAbsent(collectorName, key -> Counter.build()
+        Counter counter = registeredCounters.computeIfAbsent(collectorName, key -> Counter.build()
                 .name(name)
                 .help(String.format("%s counter", name))
                 .labelNames(collectionToStringArray(finalTags.keySet()))
-                .register(registry))
-                .labels(collectionToStringArray(finalTags.values())).inc(value);
+                .register(registry));
+        counter.labels(collectionToStringArray(finalTags.values())).inc(value);
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
         final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, finalTags.keySet());
-        registeredGauges.computeIfAbsent(collectorName, key -> Gauge.build()
+        Gauge gauge = registeredGauges.computeIfAbsent(collectorName, key -> Gauge.build()
                 .name(name)
                 .help(String.format("%s gauge", name))
                 .labelNames(collectionToStringArray(finalTags.keySet()))
-                .register(registry)).
-                labels(collectionToStringArray(finalTags.values())).set(value);
+                .register(registry));
+        gauge.labels(collectionToStringArray(finalTags.values())).set(value);
     }
 
     @Override
@@ -243,7 +243,7 @@ public class PrometheusReporter implements StatsReporter {
     private void reportTimerSummary(String name, Map<String, String> tags, Duration interval) {
         final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, finalTags.keySet());
-        registeredSummaries.computeIfAbsent(collectorName, key -> {
+        Summary summary = registeredSummaries.computeIfAbsent(collectorName, key -> {
             Summary.Builder builder = Summary.build()
                     .name(name)
                     .help(String.format("%s summary", name))
@@ -252,24 +252,28 @@ public class PrometheusReporter implements StatsReporter {
                     .labelNames(collectionToStringArray(finalTags.keySet()));
             defaultQuantiles.forEach(builder::quantile);
             return builder.register(registry);
-        }).labels(collectionToStringArray(finalTags.values())).observe(interval.getSeconds());
+        });
+        summary.labels(collectionToStringArray(finalTags.values())).observe(interval.getSeconds());
     }
 
     private void reportTimerHistogram(String name, Map<String, String> tags, Duration interval) {
         final Map<String, String> finalTags = (tags == null) ? Collections.emptyMap() : tags;
         String collectorName = canonicalMetricId(name, finalTags.keySet());
-        registeredHistograms.computeIfAbsent(collectorName, key -> Histogram.build()
+        Histogram histogram = registeredHistograms.computeIfAbsent(collectorName, key -> Histogram.build()
                 .name(name)
                 .help(String.format("%s histogram", name))
                 .buckets(defaultBuckets)
                 .labelNames(collectionToStringArray(finalTags.keySet()))
-                .register(registry))
-                .labels(collectionToStringArray(finalTags.values()))
+                .register(registry));
+        histogram.labels(collectionToStringArray(finalTags.values()))
                 .observe(interval.getSeconds());
     }
 
     /**
      * Generates a canonical MetricID for a given name+label keys, not values.
+     * This method is needed due to the specifics of Prometheus collectors implementations:
+     * High level reporter implementation, e.g. {@link Histogram} doesn not use labels' values during initialization,
+     * but accepts an array of labels' values at the time of metric's observation {@link Histogram#labels(String...)}.
      *
      * @param name    metric name.
      * @param tagKeys label keys.
@@ -288,7 +292,7 @@ public class PrometheusReporter implements StatsReporter {
                 tags.put(key, METRIC_ID_KEY_VALUE);
             }
         }
-        return keyForPrefixedStringMaps(name, tags);
+        return keyForPrefixedStringMap(name, tags);
     }
 
     /**
@@ -301,7 +305,7 @@ public class PrometheusReporter implements StatsReporter {
      * @return unique key in a format prefix+key1=value1,key2=value2
      * @throws IllegalArgumentException when {@code prefix} is null.
      */
-    private static String keyForPrefixedStringMaps(String prefix, Map<String, String> tags) {
+    static String keyForPrefixedStringMap(String prefix, Map<String, String> tags) {
         if (prefix == null) {
             throw new IllegalArgumentException("prefix cannot be null");
         }

@@ -850,11 +850,10 @@ public class PrometheusReporterTest {
                 }
             } catch (Exception e) {
                 if (testCase.expectedException == null) {
-                    Assert.fail("unexpected exception");
-                } else {
-                    Assert.assertThat(e, instanceOf(testCase.expectedException.getClass()));
-                    Assert.assertThat(e.getMessage(), is(testCase.expectedException.getMessage()));
+                    throw e;
                 }
+                Assert.assertThat(e, instanceOf(testCase.expectedException.getClass()));
+                Assert.assertThat(e.getMessage(), is(testCase.expectedException.getMessage()));
             }
         }
 
@@ -866,6 +865,99 @@ public class PrometheusReporterTest {
             final Exception expectedException;
 
             Case(String testName, String prefix, Set<String> tags, String expectedResult, Exception expectedException) {
+                this.testName = testName;
+                this.prefix = prefix;
+                this.tags = tags;
+                this.expectedResult = expectedResult;
+                this.expectedException = expectedException;
+            }
+
+            @Override
+            public String toString() {
+                return testName;
+            }
+        }
+    }
+    @SuppressWarnings({"ClassExtendsConcreteCollection", "DoubleBraceInitialization"})
+    @RunWith(Parameterized.class)
+    public static class KeyForPrefixedStringMapTest {
+
+        @Parameterized.Parameter
+        public Case testCase;
+
+        @Parameterized.Parameters(name = "{index}: {0}}")
+        public static Collection<Case> data() {
+            return Arrays.asList(
+                    new Case(
+                            "no tags keys",
+                            "foo",
+                            null,
+                            "foo+",
+                            null
+                    ),
+                    new Case(
+                            "tags names",
+                            "foo",
+                            new HashMap<String, String>() {{
+                                put("a", "1");
+                                put("b", "2");
+                                put("c", "3");
+                            }},
+                            "foo+a=1,b=2,c=3",
+                            null
+                    ),
+                    new Case(
+                            "tags are ordered",
+                            "foo",
+                            new HashMap<String, String>() {{
+                                put("c", "3");
+                                put("a", "1");
+                                put("b", "2");
+                            }},
+                            "foo+a=1,b=2,c=3",
+                            null
+                    ),
+                    new Case(
+                            "empty tags names",
+                            "foo",
+                            Collections.emptyMap(),
+                            "foo+",
+                            null
+                    ),
+                    new Case(
+                            "no metric name",
+                            null,
+                            Collections.emptyMap(),
+                            null,
+                            new IllegalArgumentException("prefix cannot be null")
+                    )
+            );
+        }
+
+        @Test
+        public void test() {
+            try {
+                String res = PrometheusReporter.keyForPrefixedStringMap(testCase.prefix, testCase.tags);
+                if (testCase.expectedResult != null) {
+                    Assert.assertThat(res, is(testCase.expectedResult));
+                }
+            } catch (Exception e) {
+                if (testCase.expectedException == null) {
+                    throw e;
+                }
+                Assert.assertThat(e, instanceOf(testCase.expectedException.getClass()));
+                Assert.assertThat(e.getMessage(), is(testCase.expectedException.getMessage()));
+            }
+        }
+
+        private static class Case {
+            final String testName;
+            final String prefix;
+            final Map<String, String> tags;
+            final String expectedResult;
+            final Exception expectedException;
+
+            Case(String testName, String prefix, Map<String, String> tags, String expectedResult, Exception expectedException) {
                 this.testName = testName;
                 this.prefix = prefix;
                 this.tags = tags;
@@ -954,12 +1046,12 @@ public class PrometheusReporterTest {
             int nThreads = 10;
             CountDownLatch endGate = new CountDownLatch(nThreads);
             runNThreadsSimultaneously(10, () -> reporter.reportHistogramValueSamples(
-                            "test1",
-                            null,
-                            defaultValueBuckets,
-                            0,
-                            100d,
-                            15
+                    "test1",
+                    null,
+                    defaultValueBuckets,
+                    0,
+                    100d,
+                    15
                     ),
                     endGate
             );

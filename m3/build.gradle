@@ -28,7 +28,25 @@ dependencies {
     compile('org.apache.thrift:libthrift:0.9.3')
 
     compile project(':tally-core')
+    compile('org.openjdk.jmh:jmh-core:1.27')
+    compile('org.openjdk.jmh:jmh-generator-annprocess:1.27')
 }
+
+sourceSets {
+    jmh {
+        java.srcDirs = ['src/jmh/java']
+        resources.srcDirs = ['src/jmh/resources']
+        compileClasspath += sourceSets.main.runtimeClasspath
+        compileClasspath += sourceSets.test.runtimeClasspath
+    }
+}
+
+task jmh(type: JavaExec, dependsOn: jmhClasses) {
+    main = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+}
+
+classes.finalizedBy(jmhClasses)
 
 compileThrift {
     generator 'java', 'private-members'

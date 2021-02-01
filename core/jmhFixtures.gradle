@@ -18,41 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-plugins {
-    id "org.jruyi.thrift" version "0.4.0"
-}
+description = 'Script plugin to add jmh dependencies to other modules'
+apply plugin: 'java'
 
-description = 'tally M3 reporter'
+configurations {
+    outputDirs
 
-dependencies {
-    compile('org.apache.thrift:libthrift:0.9.3')
-    compile project(path: ':tally-core', configuration: 'jmhFixturesUsageCompile')
+    // This configuration holds dependencies to libraries or another projects
+    // and will be placed on jmhFixtures source set's classpath.
+    jmhFixturesCompile.extendsFrom compile
+    jmhFixturesRuntime.extendsFrom runtime, jmhFixturesCompile
+
+    // Following two configurations adds compiled jmhFixtures classes to the
+    // jmhFixtures* source sets so it can be used by other projects as a
+    // dependency target.
+    jmhFixturesUsageCompile.extendsFrom jmhFixturesCompile, outputDirs
+    jmhFixturesUsageRuntime.extendsFrom jmhFixturesRuntime, jmhFixturesUsageCompile
 }
 
 sourceSets {
     jmh {
         java.srcDirs = ['src/jmh/java']
+        java.exclude('**/ScopeImplBenchmark.java')
         resources.srcDirs = ['src/jmh/resources']
+        compileClasspath += sourceSets.main.output
+        compileClasspath += configurations.jmhFixturesCompile
         compileClasspath += sourceSets.main.runtimeClasspath
         compileClasspath += sourceSets.test.runtimeClasspath
+        runtimeClasspath = output + compileClasspath + configurations.jmhFixturesRuntime
     }
+
 }
 
-task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
-    main = 'org.openjdk.jmh.Main'
-    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-}
-
-classes.finalizedBy(jmhClasses)
-
-compileThrift {
-    generator 'java', 'private-members'
-
-    outputDir "${projectDir}/src/generated/java"
-
-    createGenFolder false
-
-    onlyIf {
-        project.hasProperty('genThrift')
-    }
+dependencies {
+    outputDirs sourceSets.jmh.output
+    jmhFixturesUsageCompile project(project.path)
+    jmhFixturesCompile('org.openjdk.jmh:jmh-core:1.27')
+    jmhFixturesCompile('org.openjdk.jmh:jmh-generator-annprocess:1.27')
 }

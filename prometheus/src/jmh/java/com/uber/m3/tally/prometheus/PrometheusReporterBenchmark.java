@@ -20,7 +20,7 @@
 
 package com.uber.m3.tally.prometheus;
 
-import com.uber.m3.jmh.AbstractReporterBenchmark;
+import com.uber.m3.tally.AbstractReporterBenchmark;
 import com.uber.m3.tally.StatsReporter;
 import io.prometheus.client.CollectorRegistry;
 import org.openjdk.jmh.annotations.BenchmarkMode;

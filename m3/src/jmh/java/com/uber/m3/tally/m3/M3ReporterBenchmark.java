@@ -20,8 +20,9 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.jmh.AbstractReporterBenchmark;
+import com.uber.m3.tally.AbstractReporterBenchmark;
 import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.util.ImmutableMap;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Mode;
@@ -41,6 +42,7 @@ public class M3ReporterBenchmark extends AbstractReporterBenchmark {
         SocketAddress socketAddress = new InetSocketAddress("127.0.0.1", 12345);
         return new M3Reporter.Builder(socketAddress)
                 .service("test-service")
+                .commonTags(ImmutableMap.of("env", "test"))
                 .build();
     }
 }

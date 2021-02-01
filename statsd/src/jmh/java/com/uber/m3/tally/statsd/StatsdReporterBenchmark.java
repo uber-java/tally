@@ -22,7 +22,7 @@ package com.uber.m3.tally.statsd;
 
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
-import com.uber.m3.jmh.AbstractReporterBenchmark;
+import com.uber.m3.tally.AbstractReporterBenchmark;
 import com.uber.m3.tally.StatsReporter;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;

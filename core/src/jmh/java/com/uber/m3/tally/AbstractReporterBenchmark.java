@@ -18,11 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.jmh;
+package com.uber.m3.tally;
 
-import com.uber.m3.tally.DurationBuckets;
-import com.uber.m3.tally.StatsReporter;
-import com.uber.m3.tally.ValueBuckets;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.openjdk.jmh.annotations.Benchmark;

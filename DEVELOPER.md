@@ -20,6 +20,20 @@ To run the project's tests:
 ./gradlew check
 ```
 
+To run the JMH benchmark tests:
+```bash
+./gradlew runJmhTests
+```
+
+By default, the benchmark test results are writen to `build/reports/jmh/result.json`.
+Use `output` input parameter to configure the output path.
+E.g. the following command will run the benchmark tests for `tally-prometheus` sun-project and store 
+the results to `custom/path/result.json`.  
+```bash
+./gradlew :tally-prometheus:runJmhTests -Poutput="custom/path/result.json"
+``` 
+
+
 By default, the build does *not* compile Thrift files to generate sources. If you make changes to Thrift files and need
 regenerate sources, make sure you have thrift 0.9.x installed and build with the `genThrift` property set, e.g.
 ```bash

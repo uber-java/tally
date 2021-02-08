@@ -23,12 +23,25 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 
-// TODO: 31/01/2021 add descrition and readme how to use.
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Abstract class for {@link StatsReporter} benchmark tests.
+ * If you're adding a new implementation of {@link StatsReporter} you should include benchmark tests in your code.
+ * See `com.uber.m3.tally.m3.M3ReporterBenchmark` for an example.
+ */
+@BenchmarkMode(Mode.Throughput)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 @State(Scope.Benchmark)
 public abstract class AbstractReporterBenchmark {
     private static final ImmutableMap<String, String> DEFAULT_TAGS = new ImmutableMap.Builder<String, String>(5)

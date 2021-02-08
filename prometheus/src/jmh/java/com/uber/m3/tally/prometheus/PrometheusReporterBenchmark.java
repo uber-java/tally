@@ -23,16 +23,7 @@ package com.uber.m3.tally.prometheus;
 import com.uber.m3.tally.AbstractReporterBenchmark;
 import com.uber.m3.tally.StatsReporter;
 import io.prometheus.client.CollectorRegistry;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
 
-import java.util.concurrent.TimeUnit;
-
-@BenchmarkMode(Mode.Throughput)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 public class PrometheusReporterBenchmark extends AbstractReporterBenchmark {
 
     @Override

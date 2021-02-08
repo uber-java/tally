@@ -24,8 +24,6 @@ apply from: 'jmhFixtures.gradle'
 sourceSets {
     jmh {
         java.srcDirs = ['src/jmh/java']
-//      explicitly disable excludes so that JMH tests from core module can be run
-        java.setExcludes([])
         resources.srcDirs = ['src/jmh/resources']
         compileClasspath += sourceSets.main.runtimeClasspath
         compileClasspath += sourceSets.test.runtimeClasspath
@@ -35,6 +33,12 @@ sourceSets {
 task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     main = 'org.openjdk.jmh.Main'
     classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+    def resultFilePath = project.properties.get('output', 'build/reports/jmh/result.json');
+    def resultFile = file(resultFilePath)
+    resultFile.parentFile.mkdirs()
+
+    args '-rf', 'json'
+    args '-rff', resultFile
 }
 
 classes.finalizedBy(jmhClasses)

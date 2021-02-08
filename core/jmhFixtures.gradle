@@ -39,7 +39,6 @@ configurations {
 sourceSets {
     jmh {
         java.srcDirs = ['src/jmh/java']
-        java.exclude('**/ScopeImplBenchmark.java')
         resources.srcDirs = ['src/jmh/resources']
         compileClasspath += sourceSets.main.output
         compileClasspath += configurations.jmhFixturesCompile

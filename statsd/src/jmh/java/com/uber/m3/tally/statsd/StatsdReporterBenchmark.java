@@ -24,16 +24,7 @@ import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.uber.m3.tally.AbstractReporterBenchmark;
 import com.uber.m3.tally.StatsReporter;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
 
-import java.util.concurrent.TimeUnit;
-
-@BenchmarkMode(Mode.Throughput)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 public class StatsdReporterBenchmark extends AbstractReporterBenchmark {
     @Override
     public StatsReporter initReporter() {

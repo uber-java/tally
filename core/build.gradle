@@ -33,11 +33,11 @@ sourceSets {
 task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     main = 'org.openjdk.jmh.Main'
     classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-    def resultFilePath = project.properties.get('output', 'build/reports/jmh/result.json');
+    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
     def resultFile = file(resultFilePath)
     resultFile.parentFile.mkdirs()
 
-    args '-rf', 'json'
+    args '-rf', 'text'
     args '-rff', resultFile
 }
 

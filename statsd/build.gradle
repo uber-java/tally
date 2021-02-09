@@ -37,14 +37,15 @@ sourceSets {
 task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     main = 'org.openjdk.jmh.Main'
     classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-    def resultFilePath = project.properties.get('output', 'build/reports/jmh/result.json');
+    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
     def resultFile = file(resultFilePath)
     resultFile.parentFile.mkdirs()
 
     // ScopeImplBenchmark is shipped as a part of jmh source-set from :tally-core. Explicitly exclude it from running.
     args '-e', '.*ScopeImplBenchmark.*'
-    args '-rf', 'json'
+    args '-rf', 'text'
     args '-rff', resultFile
+    args '-prof', 'gc'
 }
 
 classes.finalizedBy(jmhClasses)

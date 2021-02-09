@@ -25,12 +25,12 @@ To run the JMH benchmark tests:
 ./gradlew runJmhTests
 ```
 
-By default, the benchmark test results are writen to `build/reports/jmh/result.json`.
+By default, the benchmark test results are writen to `benchmark-tests.txt`.
 Use `output` input parameter to configure the output path.
-E.g. the following command will run the benchmark tests for `tally-prometheus` sun-project and store 
-the results to `custom/path/result.json`.  
+E.g. the following command will run the benchmark tests for `tally-prometheus` sub-project and store 
+the results to `custom/path/result.txt`.  
 ```bash
-./gradlew :tally-prometheus:runJmhTests -Poutput="custom/path/result.json"
+./gradlew :tally-prometheus:runJmhTests -Poutput="custom/path/result.txt"
 ``` 
 
 

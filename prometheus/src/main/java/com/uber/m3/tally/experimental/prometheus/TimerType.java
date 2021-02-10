@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally.prometheus;
+package com.uber.m3.tally.experimental.prometheus;
 
 /**
  * {@link com.uber.m3.tally.Timer} metric can be represented as {@link io.prometheus.client.Summary} or

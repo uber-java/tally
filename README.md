@@ -59,7 +59,7 @@ All artifacts are published under the group `com.uber.m3`.
 1. `tally-statsd`: The tally StatsD reporter
 1. `tally-core`: tally core functionality that includes interfaces and utilities to report metrics to M3
 1. `tally-example`: Example usages with different reporters
-1. `tally-prometheus`: The tally Prometheus reporter
+1. `tally-prometheus`: The tally Prometheus reporter (experimental; see prometheus/README.md)
 
 ## Versioning
 We follow semantic versioning outlined [here](http://semver.org/spec/v2.0.0.html). In summary,

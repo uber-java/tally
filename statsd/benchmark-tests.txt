@@ -1,0 +1,46 @@
+Benchmark                                                                                      Mode  Cnt     Score     Error   Units
+StatsdReporterBenchmark.reportCounterBenchmark                                                thrpt   10   549.550 ±  62.916  ops/ms
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate                                 thrpt   10  1263.308 ± 232.626  MB/sec
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate.norm                            thrpt   10  2568.898 ± 188.826    B/op
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space                        thrpt   10  1291.770 ± 171.529  MB/sec
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space.norm                   thrpt   10  2633.801 ±  37.553    B/op
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen                           thrpt   10     0.005 ±   0.002  MB/sec
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen.norm                      thrpt   10     0.010 ±   0.002    B/op
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.count                                      thrpt   10   454.000            counts
+StatsdReporterBenchmark.reportCounterBenchmark:·gc.time                                       thrpt   10   373.000                ms
+StatsdReporterBenchmark.reportGaugeBenchmark                                                  thrpt   10   531.119 ±  39.766  ops/ms
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate                                   thrpt   10  1219.281 ± 179.957  MB/sec
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate.norm                              thrpt   10  2568.862 ± 191.394    B/op
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10  1247.889 ± 128.563  MB/sec
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10  2632.824 ±  57.977    B/op
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10     0.005 ±   0.001  MB/sec
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10     0.010 ±   0.003    B/op
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.count                                        thrpt   10   439.000            counts
+StatsdReporterBenchmark.reportGaugeBenchmark:·gc.time                                         thrpt   10   379.000                ms
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark                               thrpt   10   302.625 ±  63.109  ops/ms
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate                thrpt   10  1183.288 ± 306.446  MB/sec
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate.norm           thrpt   10  4363.289 ± 252.996    B/op
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space       thrpt   10  1201.555 ± 284.875  MB/sec
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space.norm  thrpt   10  4439.922 ± 112.765    B/op
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen          thrpt   10     0.006 ±   0.002  MB/sec
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen.norm     thrpt   10     0.021 ±   0.006    B/op
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.count                     thrpt   10   422.000            counts
+StatsdReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.time                      thrpt   10   379.000                ms
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark                                  thrpt   10   222.617 ±  16.067  ops/ms
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate                   thrpt   10  1182.677 ± 126.802  MB/sec
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate.norm              thrpt   10  5954.897 ± 360.144    B/op
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space          thrpt   10  1202.325 ±  80.960  MB/sec
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space.norm     thrpt   10  6060.839 ± 274.812    B/op
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen             thrpt   10     0.006 ±   0.002  MB/sec
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen.norm        thrpt   10     0.030 ±   0.012    B/op
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.count                        thrpt   10   423.000            counts
+StatsdReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.time                         thrpt   10   368.000                ms
+StatsdReporterBenchmark.reportTimerBenchmark                                                  thrpt   10   475.146 ±  70.444  ops/ms
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate                                   thrpt   10  1109.899 ± 177.935  MB/sec
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate.norm                              thrpt   10  2621.710 ± 199.062    B/op
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10  1138.733 ± 162.365  MB/sec
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10  2689.402 ±  39.785    B/op
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10     0.005 ±   0.002  MB/sec
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10     0.011 ±   0.004    B/op
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.count                                        thrpt   10   401.000            counts
+StatsdReporterBenchmark.reportTimerBenchmark:·gc.time                                         thrpt   10   393.000                ms

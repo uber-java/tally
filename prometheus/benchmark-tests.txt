@@ -1,0 +1,44 @@
+Benchmark                                                                                          Mode  Cnt     Score       Error   Units
+PrometheusReporterBenchmark.reportCounterBenchmark                                                thrpt   10   252.565 ±     9.554  ops/ms
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate                                 thrpt   10  1467.855 ±    55.338  MB/sec
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate.norm                            thrpt   10  6400.005 ±    12.749    B/op
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space                        thrpt   10  1467.271 ±    68.426  MB/sec
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space.norm                   thrpt   10  6396.800 ±   101.919    B/op
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen                           thrpt   10     0.008 ±     0.006  MB/sec
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen.norm                      thrpt   10     0.034 ±     0.025    B/op
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.count                                      thrpt   10   507.000              counts
+PrometheusReporterBenchmark.reportCounterBenchmark:·gc.time                                       thrpt   10   498.000                  ms
+PrometheusReporterBenchmark.reportGaugeBenchmark                                                  thrpt   10   242.631 ±    25.759  ops/ms
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate                                   thrpt   10  1407.404 ±   150.312  MB/sec
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate.norm                              thrpt   10  6388.006 ±     6.374    B/op
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10  1406.450 ±   157.275  MB/sec
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10  6382.387 ±    92.561    B/op
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10     0.008 ±     0.005  MB/sec
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10     0.036 ±     0.022    B/op
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.count                                        thrpt   10   486.000              counts
+PrometheusReporterBenchmark.reportGaugeBenchmark:·gc.time                                         thrpt   10   468.000                  ms
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark                               thrpt   10     0.693 ±     0.102  ops/ms
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate                thrpt   10     4.125 ±     0.609  MB/sec
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate.norm           thrpt   10  6558.180 ±    95.845    B/op
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space       thrpt   10     5.749 ±    18.325  MB/sec
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space.norm  thrpt   10  9188.893 ± 29287.662    B/op
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.count                     thrpt   10     2.000              counts
+PrometheusReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.time                      thrpt   10     4.000                  ms
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark                                  thrpt   10     0.777 ±     0.120  ops/ms
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate                   thrpt   10     4.355 ±     0.653  MB/sec
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate.norm              thrpt   10  6177.935 ±   306.072    B/op
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space          thrpt   10     5.749 ±    18.325  MB/sec
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space.norm     thrpt   10  8003.890 ± 25510.799    B/op
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.count                        thrpt   10     2.000              counts
+PrometheusReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.time                         thrpt   10     6.000                  ms
+PrometheusReporterBenchmark.reportTimerBenchmark                                                  thrpt   10    59.245 ±     9.588  ops/ms
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate                                   thrpt   10   350.727 ±    55.822  MB/sec
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate.norm                              thrpt   10  6522.909 ±   254.978    B/op
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10   350.339 ±    60.449  MB/sec
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10  6511.451 ±   386.151    B/op
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10     0.187 ±     0.176  MB/sec
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10     3.343 ±     2.807    B/op
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space                      thrpt   10     0.228 ±     0.425  MB/sec
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space.norm                 thrpt   10     3.932 ±     7.173    B/op
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.count                                        thrpt   10   122.000              counts
+PrometheusReporterBenchmark.reportTimerBenchmark:·gc.time                                         thrpt   10   369.000                  ms

@@ -1,0 +1,52 @@
+Benchmark                                                                                  Mode  Cnt      Score     Error   Units
+M3ReporterBenchmark.reportCounterBenchmark                                                thrpt   10    392.408 ± 172.561  ops/ms
+M3ReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate                                 thrpt   10    862.566 ± 422.341  MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate.norm                            thrpt   10   2420.767 ± 497.925    B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space                        thrpt   10    920.157 ± 410.566  MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space.norm                   thrpt   10   2580.137 ±  48.527    B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen                           thrpt   10      0.981 ±   0.668  MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen.norm                      thrpt   10      2.648 ±   0.815    B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Survivor_Space                    thrpt   10      1.675 ±   0.539  MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Survivor_Space.norm               thrpt   10      4.823 ±   0.988    B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.count                                      thrpt   10    321.000            counts
+M3ReporterBenchmark.reportCounterBenchmark:·gc.time                                       thrpt   10   1332.000                ms
+M3ReporterBenchmark.reportGaugeBenchmark                                                  thrpt   10    506.871 ±  53.089  ops/ms
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate                                   thrpt   10   1102.440 ± 243.462  MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate.norm                              thrpt   10   2397.555 ± 495.228    B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10   1177.270 ± 126.442  MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10   2558.068 ±  24.291    B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10      0.994 ±   0.234  MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10      2.151 ±   0.345    B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Survivor_Space                      thrpt   10      2.779 ±   0.911  MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Survivor_Space.norm                 thrpt   10      6.003 ±   1.452    B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.count                                        thrpt   10    411.000            counts
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.time                                         thrpt   10   1279.000                ms
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark                               thrpt   10    188.096 ±   7.091  ops/ms
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate                thrpt   10   1367.823 ± 127.617  MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate.norm           thrpt   10   8010.377 ± 722.215    B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space       thrpt   10   1409.238 ±  58.465  MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space.norm  thrpt   10   8251.019 ±  77.856    B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen          thrpt   10      0.396 ±   0.061  MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen.norm     thrpt   10      2.319 ±   0.328    B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.count                     thrpt   10    487.000            counts
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.time                      thrpt   10    523.000                ms
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark                                  thrpt   10    127.358 ±  27.740  ops/ms
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate                   thrpt   10   1137.984 ± 277.276  MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate.norm              thrpt   10   9832.138 ± 746.649    B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space          thrpt   10   1165.985 ± 256.119  MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space.norm     thrpt   10  10082.318 ± 226.966    B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen             thrpt   10      0.211 ±   0.038  MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen.norm        thrpt   10      1.846 ±   0.296    B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.count                        thrpt   10    403.000            counts
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.time                         thrpt   10    542.000                ms
+M3ReporterBenchmark.reportTimerBenchmark                                                  thrpt   10    512.706 ±  21.351  ops/ms
+M3ReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate                                   thrpt   10   1120.503 ± 224.871  MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate.norm                              thrpt   10   2408.751 ± 485.159    B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space                          thrpt   10   1195.056 ±  53.874  MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space.norm                     thrpt   10   2567.682 ±  52.447    B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen                             thrpt   10      1.210 ±   0.241  MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Old_Gen.norm                        thrpt   10      2.601 ±   0.543    B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space                      thrpt   10      2.608 ±   0.744  MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space.norm                 thrpt   10      5.597 ±   1.516    B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.count                                        thrpt   10    417.000            counts
+M3ReporterBenchmark.reportTimerBenchmark:·gc.time                                         thrpt   10   1299.000                ms

@@ -21,6 +21,31 @@
 description = 'tally Prometheus reporter'
 
 dependencies {
-    compile project(':tally-core')
     compile('io.prometheus:simpleclient:0.9.0')
+    compile project(path: ':tally-core', configuration: 'jmhFixturesUsageCompile')
 }
+
+sourceSets {
+    jmh {
+        java.srcDirs = ['src/jmh/java']
+        resources.srcDirs = ['src/jmh/resources']
+        compileClasspath += sourceSets.main.runtimeClasspath
+        compileClasspath += sourceSets.test.runtimeClasspath
+    }
+}
+
+task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
+    main = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
+    def resultFile = file(resultFilePath)
+    resultFile.parentFile.mkdirs()
+
+    // ScopeImplBenchmark is shipped as a part of jmh source-set from :tally-core. Explicitly exclude it from running.
+    args '-e', '.*ScopeImplBenchmark.*'
+    args '-rf', 'text'
+    args '-rff', resultFile
+    args '-prof', 'gc'
+}
+
+classes.finalizedBy(jmhClasses)

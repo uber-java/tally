@@ -18,27 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-description = 'Interfaces and utilities to report metrics to M3'
-apply from: 'jmhFixtures.gradle'
+package com.uber.m3.tally.statsd;
 
-sourceSets {
-    jmh {
-        java.srcDirs = ['src/jmh/java']
-        resources.srcDirs = ['src/jmh/resources']
-        compileClasspath += sourceSets.main.runtimeClasspath
-        compileClasspath += sourceSets.test.runtimeClasspath
+import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.StatsDClient;
+import com.uber.m3.tally.AbstractReporterBenchmark;
+import com.uber.m3.tally.StatsReporter;
+
+public class StatsdReporterBenchmark extends AbstractReporterBenchmark {
+    @Override
+    public StatsReporter initReporter() {
+        StatsDClient statsd = new NonBlockingStatsDClient("statsd-test", "localhost", 1235);
+        return new StatsdReporter(statsd);
     }
 }
-
-task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
-    main = 'org.openjdk.jmh.Main'
-    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
-    def resultFile = file(resultFilePath)
-    resultFile.parentFile.mkdirs()
-
-    args '-rf', 'text'
-    args '-rff', resultFile
-}
-
-classes.finalizedBy(jmhClasses)

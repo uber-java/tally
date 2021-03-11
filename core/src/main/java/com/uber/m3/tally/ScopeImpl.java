@@ -22,6 +22,7 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.ImmutableMap;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -87,7 +88,7 @@ class ScopeImpl implements Scope {
     }
 
     @Override
-    public Histogram histogram(String name, Buckets buckets) {
+    public Histogram histogram(String name, @Nullable Buckets buckets) {
         return histograms.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new HistogramImpl(

@@ -22,10 +22,45 @@ description = 'tally example usage with print reporter'
 
 apply plugin: 'application'
 
+buildscript {
+    repositories {
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.6"
+    }
+}
+
+apply plugin: 'net.ltgt.errorprone'
+
 mainClassName = 'com.uber.m3.tally.example.PrintStatsReporterExample'
+
 
 dependencies {
     compile project(':tally-core')
+
+    annotationProcessor "com.uber.nullaway:nullaway:0.9.0"
+
+    // Optional, some source of nullability annotations.
+    // Not required on Android if you use the support
+    // library nullability annotations.
+    compileOnly "com.google.code.findbugs:jsr305:3.0.2"
+
+    errorprone "com.google.errorprone:error_prone_core:2.4.0"
+    errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
+}
+
+
+import net.ltgt.gradle.errorprone.CheckSeverity
+
+tasks.withType(JavaCompile) {
+    // remove the if condition if you want to run NullAway on test code
+    if (!name.toLowerCase().contains("test")) {
+        options.errorprone {
+            check("NullAway", CheckSeverity.ERROR)
+            option("NullAway:AnnotatedPackages", "com.uber")
+        }
+    }
 }
 
 jar {

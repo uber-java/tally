@@ -18,6 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+
 include 'core', 'example', 'statsd', 'm3', 'prometheus'
 
 rootProject.name = 'tally'
@@ -25,3 +32,4 @@ rootProject.name = 'tally'
 rootProject.getChildren().each {
     it.name = rootProject.name + '-' + it.name
 }
+

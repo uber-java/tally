@@ -20,14 +20,8 @@
 
 package com.uber.m3.tally.example;
 
-import com.uber.m3.tally.Counter;
-import com.uber.m3.tally.ScopeCloseException;
+import com.uber.m3.tally.*;
 import com.uber.m3.util.Duration;
-import com.uber.m3.tally.Gauge;
-import com.uber.m3.tally.RootScopeBuilder;
-import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.StatsReporter;
-import com.uber.m3.tally.Timer;
 
 /**
  * PrintStatsReporterExample usage with a PrintStatsReporter reporting synthetically emitted metrics
@@ -51,6 +45,10 @@ public class PrintStatsReporterExample {
 
             Timer exampleTimer = rootScope.timer("timings");
             exampleTimer.record(Duration.ofMillis(3200));
+
+            Histogram exampleHistogram = rootScope.histogram("histogram", null);
+            exampleHistogram.recordValue(5.0);
+
         } catch (ScopeCloseException e) {
             System.err.println("Error closing scope:\n" + e.getMessage());
         }

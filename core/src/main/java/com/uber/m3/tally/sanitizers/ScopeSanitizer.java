@@ -21,14 +21,29 @@
 package com.uber.m3.tally.sanitizers;
 
 /**
- * Sanitize returns a sanitized version of the input string value.
+ * SanitizerImpl sanitizes scope properties: name, key and value
+ * for counter/timer/histogram/gauge/tags/etc
  */
-public interface Sanitize {
+public interface ScopeSanitizer {
 
     /**
-     * Sanitize the input string value.
-     * @param value input string value
-     * @return sanitized string value
+     * Name sanitizes the provided 'name' of counter/timer/histogram/gauge/etc
+     * @param name the name string
+     * @return the sanitized name
      */
-    String sanitize(String value);
+    String sanitizeName(String name);
+
+    /**
+     * Key sanitizes the provided 'key' of a tag
+     * @param key the key string
+     * @return the sanitized key
+     */
+    String sanitizeKey(String key);
+
+    /**
+     * Value sanitizes the provided 'value' of a tag
+     * @param value the value string
+     * @return the sanitized value
+     */
+    String sanitizeValue(String value);
 }

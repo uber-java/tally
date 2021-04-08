@@ -21,28 +21,15 @@
 package com.uber.m3.tally.sanitizers;
 
 /**
- * SanitizerImpl sanitizes the provided input based on the function executed.
+ * StringSanitizer is to sanitize strings
+ * It has a Sanitize method which returns a sanitized version of the input string value.
  */
-public interface Sanitizer {
+public interface StringSanitizer {
 
     /**
-     * Name sanitizes the provided 'name' string.
-     * @param name the name string
-     * @return the sanitized name
+     * Sanitize the input string value.
+     * @param value input string value
+     * @return sanitized string value
      */
-    String name(String name);
-
-    /**
-     * Key sanitizes the provided 'key' string.
-     * @param key the key string
-     * @return the sanitized key
-     */
-    String key(String key);
-
-    /**
-     * Value sanitizes the provided 'value' string.
-     * @param value the value string
-     * @return the sanitized value
-     */
-    String value(String value);
+    String sanitize(String value);
 }

@@ -20,7 +20,7 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.tally.sanitizers.Sanitizer;
+import com.uber.m3.tally.sanitizers.ScopeSanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
@@ -42,7 +42,7 @@ class ScopeImpl implements Scope {
     private String separator;
     private ImmutableMap<String, String> tags;
     private Buckets defaultBuckets;
-    private Sanitizer sanitizer;
+    private ScopeSanitizer sanitizer;
 
     private ScheduledExecutorService scheduler;
     private Registry registry;
@@ -70,7 +70,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        name = sanitizer.name(name);
+        name = sanitizer.sanitizeName(name);
         return counters.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new CounterImpl(this, fullyQualifiedName(name))
@@ -79,7 +79,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Gauge gauge(String name) {
-        name = sanitizer.name(name);
+        name = sanitizer.sanitizeName(name);
         return gauges.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new GaugeImpl(this, fullyQualifiedName(name)));
@@ -87,7 +87,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Timer timer(String name) {
-        name = sanitizer.name(name);
+        name = sanitizer.sanitizeName(name);
         // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
         // i.e. they are not buffered
         return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
@@ -95,7 +95,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
-        name = sanitizer.name(name);
+        name = sanitizer.sanitizeName(name);
         return histograms.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new HistogramImpl(
@@ -115,7 +115,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Scope subScope(String name) {
-        name = sanitizer.name(name);
+        name = sanitizer.sanitizeName(name);
         return subScopeHelper(fullyQualifiedName(name), null);
     }
 
@@ -147,7 +147,7 @@ class ScopeImpl implements Scope {
     private Map<String, String> sanitizeTags(Map<String, String> tags) {
         boolean hasChange = false;
         for (Map.Entry<String, String> kv : tags.entrySet()) {
-            if(!sanitizer.key(kv.getKey()).equals(kv.getKey()) || !sanitizer.value(kv.getValue()).equals(kv.getValue())){
+            if(!sanitizer.sanitizeKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeValue(kv.getValue()).equals(kv.getValue())){
                 hasChange = true;
                 break;
             }
@@ -158,7 +158,7 @@ class ScopeImpl implements Scope {
 
         ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
         if (tags != null) {
-            tags.forEach((key, value) -> builder.put(sanitizer.key(key), sanitizer.value(value)));
+            tags.forEach((key, value) -> builder.put(sanitizer.sanitizeKey(key), sanitizer.sanitizeValue(value)));
         }
         return builder.build();
     }

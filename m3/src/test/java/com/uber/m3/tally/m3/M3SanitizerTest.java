@@ -20,7 +20,7 @@
 
 package com.uber.m3.tally.m3;
 
-import com.uber.m3.tally.sanitizers.Sanitizer;
+import com.uber.m3.tally.sanitizers.ScopeSanitizer;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -36,10 +36,10 @@ public class M3SanitizerTest {
 
     @Test
     public void m3Sanitizer() {
-        Sanitizer sanitizer = M3Sanitizer.create();
+        ScopeSanitizer sanitizer = M3Sanitizer.create();
         assertNotNull(sanitizer);
-        assertEquals(SANITIZED_NAME, sanitizer.name(NAME));
-        assertEquals(SANITIZED_KEY, sanitizer.key(KEY));
-        assertEquals(SANITIZED_VALUE, sanitizer.value(VALUE));
+        assertEquals(SANITIZED_NAME, sanitizer.sanitizeName(NAME));
+        assertEquals(SANITIZED_KEY, sanitizer.sanitizeKey(KEY));
+        assertEquals(SANITIZED_VALUE, sanitizer.sanitizeValue(VALUE));
     }
 }

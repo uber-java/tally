@@ -28,26 +28,26 @@ package com.uber.m3.tally.sanitizers;
  */
 public class SanitizerBuilder {
 
-    private Sanitize nameSanitizer = value -> value;
-    private Sanitize keySanitizer = value -> value;
-    private Sanitize valueSanitizer = value -> value;
+    private StringSanitizer nameSanitizer = value -> value;
+    private StringSanitizer keySanitizer = value -> value;
+    private StringSanitizer valueSanitizer = value -> value;
 
     private char repChar = ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER;
     private ValidCharacters nameCharacters;
     private ValidCharacters keyCharacters;
     private ValidCharacters valueCharacters;
 
-    public SanitizerBuilder withNameSanitizer(Sanitize nameSanitizer) {
+    public SanitizerBuilder withNameSanitizer(StringSanitizer nameSanitizer) {
         this.nameSanitizer = nameSanitizer;
         return this;
     }
 
-    public SanitizerBuilder withKeySanitizer(Sanitize keySanitizer) {
+    public SanitizerBuilder withKeySanitizer(StringSanitizer keySanitizer) {
         this.keySanitizer = keySanitizer;
         return this;
     }
 
-    public SanitizerBuilder withValueSanitizer(Sanitize valueSanitizer) {
+    public SanitizerBuilder withValueSanitizer(StringSanitizer valueSanitizer) {
         this.valueSanitizer = valueSanitizer;
         return this;
     }
@@ -72,7 +72,7 @@ public class SanitizerBuilder {
         return this;
     }
 
-    public Sanitizer build() {
+    public ScopeSanitizer build() {
         if (nameCharacters != null) {
             nameSanitizer = nameCharacters.sanitize(repChar);
         }

@@ -42,28 +42,28 @@ public class SanitizerTest {
 
     @Test
     public void noopSanitizer() {
-        Sanitizer sanitizer = new SanitizerBuilder().build();
-        assertEquals(NAME, sanitizer.name(NAME));
-        assertEquals(KEY, sanitizer.key(KEY));
-        assertEquals(VALUE, sanitizer.value(VALUE));
+        ScopeSanitizer sanitizer = new SanitizerBuilder().build();
+        assertEquals(NAME, sanitizer.sanitizeName(NAME));
+        assertEquals(KEY, sanitizer.sanitizeKey(KEY));
+        assertEquals(VALUE, sanitizer.sanitizeValue(VALUE));
     }
 
     @Test
     public void withSanitizers() {
-        Sanitizer sanitizer =
+        ScopeSanitizer sanitizer =
             new SanitizerBuilder()
                 .withNameSanitizer(value -> SANITIZED_NAME_1)
                 .withKeySanitizer(value -> SANITIZED_KEY_1)
                 .withValueSanitizer(value -> SANITIZED_VALUE_1)
                 .build();
-        assertEquals(SANITIZED_NAME_1, sanitizer.name(NAME));
-        assertEquals(SANITIZED_KEY_1, sanitizer.key(KEY));
-        assertEquals(SANITIZED_VALUE_1, sanitizer.value(VALUE));
+        assertEquals(SANITIZED_NAME_1, sanitizer.sanitizeName(NAME));
+        assertEquals(SANITIZED_KEY_1, sanitizer.sanitizeKey(KEY));
+        assertEquals(SANITIZED_VALUE_1, sanitizer.sanitizeValue(VALUE));
     }
 
     @Test
     public void withValidCharactersAndDefaultRepChar() {
-        Sanitizer sanitizer =
+        ScopeSanitizer sanitizer =
             new SanitizerBuilder()
                 .withNameCharacters(
                     ValidCharacters.of(
@@ -78,14 +78,14 @@ public class SanitizerTest {
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
                 .build();
-        assertEquals(SANITIZED_NAME_2, sanitizer.name(NAME));
-        assertEquals(SANITIZED_KEY_2, sanitizer.key(KEY));
-        assertEquals(SANITIZED_VALUE_2, sanitizer.value(VALUE));
+        assertEquals(SANITIZED_NAME_2, sanitizer.sanitizeName(NAME));
+        assertEquals(SANITIZED_KEY_2, sanitizer.sanitizeKey(KEY));
+        assertEquals(SANITIZED_VALUE_2, sanitizer.sanitizeValue(VALUE));
     }
 
     @Test
     public void withValidCharactersAndRepChar() {
-        Sanitizer sanitizer =
+        ScopeSanitizer sanitizer =
             new SanitizerBuilder()
                 .withReplacementCharacter(REPLACEMENT_CHAR)
                 .withNameCharacters(
@@ -101,8 +101,8 @@ public class SanitizerTest {
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
                 .build();
-        assertEquals(SANITIZED_NAME_3, sanitizer.name(NAME));
-        assertEquals(SANITIZED_KEY_3, sanitizer.key(KEY));
-        assertEquals(SANITIZED_VALUE_3, sanitizer.value(VALUE));
+        assertEquals(SANITIZED_NAME_3, sanitizer.sanitizeName(NAME));
+        assertEquals(SANITIZED_KEY_3, sanitizer.sanitizeKey(KEY));
+        assertEquals(SANITIZED_VALUE_3, sanitizer.sanitizeValue(VALUE));
     }
 }

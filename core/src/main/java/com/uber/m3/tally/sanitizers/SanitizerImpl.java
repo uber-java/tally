@@ -23,13 +23,13 @@ package com.uber.m3.tally.sanitizers;
 /**
  * SanitizerImpl sanitizes the provided input based on the function executed.
  */
-class SanitizerImpl implements Sanitizer {
+class SanitizerImpl implements ScopeSanitizer {
 
-    private final Sanitize nameSanitizer;
-    private final Sanitize keySanitizer;
-    private final Sanitize valueSanitizer;
+    private final StringSanitizer nameSanitizer;
+    private final StringSanitizer keySanitizer;
+    private final StringSanitizer valueSanitizer;
 
-    SanitizerImpl(Sanitize nameSanitizer, Sanitize keySanitizer, Sanitize valueSanitizer) {
+    SanitizerImpl(StringSanitizer nameSanitizer, StringSanitizer keySanitizer, StringSanitizer valueSanitizer) {
         this.nameSanitizer = nameSanitizer;
         this.keySanitizer = keySanitizer;
         this.valueSanitizer = valueSanitizer;
@@ -41,7 +41,7 @@ class SanitizerImpl implements Sanitizer {
      * @return the sanitized name
      */
     @Override
-    public String name(String name) {
+    public String sanitizeName(String name) {
         return this.nameSanitizer.sanitize(name);
     }
 
@@ -51,7 +51,7 @@ class SanitizerImpl implements Sanitizer {
      * @return the sanitized key
      */
     @Override
-    public String key(String key) {
+    public String sanitizeKey(String key) {
         return this.keySanitizer.sanitize(key);
     }
 
@@ -61,7 +61,7 @@ class SanitizerImpl implements Sanitizer {
      * @return the sanitized value
      */
     @Override
-    public String value(String value) {
+    public String sanitizeValue(String value) {
         return this.valueSanitizer.sanitize(value);
     }
 }

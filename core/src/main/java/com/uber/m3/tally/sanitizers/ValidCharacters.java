@@ -70,7 +70,7 @@ public class ValidCharacters {
         return new ValidCharacters(ranges, characters);
     }
 
-    Sanitize sanitize(char repChar) {
+    StringSanitizer sanitize(char repChar) {
         return value -> {
             StringBuilder buffer = null;
 

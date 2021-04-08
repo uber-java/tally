@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.Sanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
@@ -41,6 +42,7 @@ class ScopeImpl implements Scope {
     private String separator;
     private ImmutableMap<String, String> tags;
     private Buckets defaultBuckets;
+    private Sanitizer sanitizer;
 
     private ScheduledExecutorService scheduler;
     private Registry registry;
@@ -57,6 +59,7 @@ class ScopeImpl implements Scope {
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
         this.scheduler = scheduler;
         this.registry = registry;
+        this.sanitizer = builder.sanitizer;
 
         this.reporter = builder.reporter;
         this.prefix = builder.prefix;
@@ -67,6 +70,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
+        name = sanitizer.name(name);
         return counters.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new CounterImpl(this, fullyQualifiedName(name))
@@ -75,6 +79,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Gauge gauge(String name) {
+        name = sanitizer.name(name);
         return gauges.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new GaugeImpl(this, fullyQualifiedName(name)));
@@ -82,6 +87,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Timer timer(String name) {
+        name = sanitizer.name(name);
         // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
         // i.e. they are not buffered
         return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
@@ -89,6 +95,7 @@ class ScopeImpl implements Scope {
 
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
+        name = sanitizer.name(name);
         return histograms.computeIfAbsent(name, ignored ->
                 // NOTE: This will called at most once
                 new HistogramImpl(
@@ -103,11 +110,12 @@ class ScopeImpl implements Scope {
 
     @Override
     public Scope tagged(Map<String, String> tags) {
-        return subScopeHelper(prefix, tags);
+        return subScopeHelper(prefix, sanitizeTags(tags));
     }
 
     @Override
     public Scope subScope(String name) {
+        name = sanitizer.name(name);
         return subScopeHelper(fullyQualifiedName(name), null);
     }
 
@@ -134,6 +142,25 @@ class ScopeImpl implements Scope {
             // Now that all metrics should be known to the reporter, close the reporter
             reporter.close();
         }
+    }
+
+    private Map<String, String> sanitizeTags(Map<String, String> tags) {
+        boolean hasChange = false;
+        for (Map.Entry<String, String> kv : tags.entrySet()) {
+            if(!sanitizer.key(kv.getKey()).equals(kv.getKey()) || !sanitizer.value(kv.getValue()).equals(kv.getValue())){
+                hasChange = true;
+                break;
+            }
+        }
+        if(!hasChange){
+            return tags;
+        }
+
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
+        if (tags != null) {
+            tags.forEach((key, value) -> builder.put(sanitizer.key(key), sanitizer.value(value)));
+        }
+        return builder.build();
     }
 
     <T extends Reportable> void addToReportingQueue(T metric) {
@@ -287,6 +314,7 @@ class ScopeImpl implements Scope {
                         .prefix(prefix)
                         .separator(separator)
                         .tags(mergedTags)
+                        .sanitizer(sanitizer)
                         .defaultBuckets(defaultBuckets)
                         .build()
         );

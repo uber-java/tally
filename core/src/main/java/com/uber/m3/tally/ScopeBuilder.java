@@ -21,7 +21,7 @@
 package com.uber.m3.tally;
 
 import com.uber.m3.tally.sanitizers.ScopeSanitizer;
-import com.uber.m3.tally.sanitizers.SanitizerBuilder;
+import com.uber.m3.tally.sanitizers.ScopeSanitizerBuilder;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
@@ -57,7 +57,7 @@ public class ScopeBuilder {
     protected String separator = DEFAULT_SEPARATOR;
     protected ImmutableMap<String, String> tags;
     protected Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
-    protected ScopeSanitizer sanitizer = new SanitizerBuilder().build();
+    protected ScopeSanitizer sanitizer = new ScopeSanitizerBuilder().build();
 
     private ScheduledExecutorService scheduler;
     private ScopeImpl.Registry registry;

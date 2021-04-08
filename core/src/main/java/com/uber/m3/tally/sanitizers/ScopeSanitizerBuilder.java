@@ -26,7 +26,7 @@ package com.uber.m3.tally.sanitizers;
  * untouched. Custom name, key or value Sanitize functions or ValidCharacters
  * can be provided to override their default behaviour.
  */
-public class SanitizerBuilder {
+public class ScopeSanitizerBuilder {
 
     private StringSanitizer nameSanitizer = value -> value;
     private StringSanitizer keySanitizer = value -> value;
@@ -37,37 +37,37 @@ public class SanitizerBuilder {
     private ValidCharacters keyCharacters;
     private ValidCharacters valueCharacters;
 
-    public SanitizerBuilder withNameSanitizer(StringSanitizer nameSanitizer) {
+    public ScopeSanitizerBuilder withNameSanitizer(StringSanitizer nameSanitizer) {
         this.nameSanitizer = nameSanitizer;
         return this;
     }
 
-    public SanitizerBuilder withKeySanitizer(StringSanitizer keySanitizer) {
+    public ScopeSanitizerBuilder withKeySanitizer(StringSanitizer keySanitizer) {
         this.keySanitizer = keySanitizer;
         return this;
     }
 
-    public SanitizerBuilder withValueSanitizer(StringSanitizer valueSanitizer) {
+    public ScopeSanitizerBuilder withValueSanitizer(StringSanitizer valueSanitizer) {
         this.valueSanitizer = valueSanitizer;
         return this;
     }
 
-    public SanitizerBuilder withReplacementCharacter(char repChar) {
+    public ScopeSanitizerBuilder withReplacementCharacter(char repChar) {
         this.repChar = repChar;
         return this;
     }
 
-    public SanitizerBuilder withNameCharacters(ValidCharacters nameCharacters) {
+    public ScopeSanitizerBuilder withNameCharacters(ValidCharacters nameCharacters) {
         this.nameCharacters = nameCharacters;
         return this;
     }
 
-    public SanitizerBuilder withKeyCharacters(ValidCharacters keyCharacters) {
+    public ScopeSanitizerBuilder withKeyCharacters(ValidCharacters keyCharacters) {
         this.keyCharacters = keyCharacters;
         return this;
     }
 
-    public SanitizerBuilder withValueCharacters(ValidCharacters valueCharacters) {
+    public ScopeSanitizerBuilder withValueCharacters(ValidCharacters valueCharacters) {
         this.valueCharacters = valueCharacters;
         return this;
     }

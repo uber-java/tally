@@ -42,7 +42,7 @@ public class SanitizerTest {
 
     @Test
     public void noopSanitizer() {
-        ScopeSanitizer sanitizer = new SanitizerBuilder().build();
+        ScopeSanitizer sanitizer = new ScopeSanitizerBuilder().build();
         assertEquals(NAME, sanitizer.sanitizeName(NAME));
         assertEquals(KEY, sanitizer.sanitizeKey(KEY));
         assertEquals(VALUE, sanitizer.sanitizeValue(VALUE));
@@ -51,7 +51,7 @@ public class SanitizerTest {
     @Test
     public void withSanitizers() {
         ScopeSanitizer sanitizer =
-            new SanitizerBuilder()
+            new ScopeSanitizerBuilder()
                 .withNameSanitizer(value -> SANITIZED_NAME_1)
                 .withKeySanitizer(value -> SANITIZED_KEY_1)
                 .withValueSanitizer(value -> SANITIZED_VALUE_1)
@@ -64,7 +64,7 @@ public class SanitizerTest {
     @Test
     public void withValidCharactersAndDefaultRepChar() {
         ScopeSanitizer sanitizer =
-            new SanitizerBuilder()
+            new ScopeSanitizerBuilder()
                 .withNameCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
@@ -86,7 +86,7 @@ public class SanitizerTest {
     @Test
     public void withValidCharactersAndRepChar() {
         ScopeSanitizer sanitizer =
-            new SanitizerBuilder()
+            new ScopeSanitizerBuilder()
                 .withReplacementCharacter(REPLACEMENT_CHAR)
                 .withNameCharacters(
                     ValidCharacters.of(

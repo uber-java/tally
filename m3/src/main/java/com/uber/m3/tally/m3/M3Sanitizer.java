@@ -21,7 +21,7 @@
 package com.uber.m3.tally.m3;
 
 import com.uber.m3.tally.sanitizers.ScopeSanitizer;
-import com.uber.m3.tally.sanitizers.SanitizerBuilder;
+import com.uber.m3.tally.sanitizers.ScopeSanitizerBuilder;
 import com.uber.m3.tally.sanitizers.ValidCharacters;
 
 public class M3Sanitizer {
@@ -31,7 +31,7 @@ public class M3Sanitizer {
      * @return default M3 sanitizer
      */
     public static ScopeSanitizer create() {
-        return new SanitizerBuilder()
+        return new ScopeSanitizerBuilder()
             .withReplacementCharacter(ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER)
             .withNameCharacters(
                 ValidCharacters.of(

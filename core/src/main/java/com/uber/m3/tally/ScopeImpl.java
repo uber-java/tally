@@ -70,37 +70,37 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        name = sanitizer.sanitizeName(name);
-        return counters.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return counters.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
-                new CounterImpl(this, fullyQualifiedName(name))
+                new CounterImpl(this, fullyQualifiedName(finalName))
         );
     }
 
     @Override
     public Gauge gauge(String name) {
-        name = sanitizer.sanitizeName(name);
-        return gauges.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return gauges.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
-                new GaugeImpl(this, fullyQualifiedName(name)));
+                new GaugeImpl(this, fullyQualifiedName(finalName)));
     }
 
     @Override
     public Timer timer(String name) {
-        name = sanitizer.sanitizeName(name);
+        final String finalName = sanitizer.sanitizeName(name);
         // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
         // i.e. they are not buffered
-        return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.computeIfAbsent(finalName, ignored -> new TimerImpl(fullyQualifiedName(finalName), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
-        name = sanitizer.sanitizeName(name);
-        return histograms.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return histograms.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
                 new HistogramImpl(
                         this,
-                        fullyQualifiedName(name),
+                        fullyQualifiedName(finalName),
                         tags,
                         Optional.ofNullable(buckets)
                                 .orElse(defaultBuckets)
@@ -115,8 +115,8 @@ class ScopeImpl implements Scope {
 
     @Override
     public Scope subScope(String name) {
-        name = sanitizer.sanitizeName(name);
-        return subScopeHelper(fullyQualifiedName(name), null);
+        final String finalName = sanitizer.sanitizeName(name);
+        return subScopeHelper(fullyQualifiedName(finalName), null);
     }
 
     @Override

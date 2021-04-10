@@ -147,12 +147,12 @@ class ScopeImpl implements Scope {
     private Map<String, String> sanitizeTags(Map<String, String> tags) {
         boolean hasChange = false;
         for (Map.Entry<String, String> kv : tags.entrySet()) {
-            if(!sanitizer.sanitizeKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeValue(kv.getValue()).equals(kv.getValue())){
+            if (!sanitizer.sanitizeKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeValue(kv.getValue()).equals(kv.getValue())) {
                 hasChange = true;
                 break;
             }
         }
-        if(!hasChange){
+        if (!hasChange) {
             return tags;
         }
 
@@ -169,6 +169,7 @@ class ScopeImpl implements Scope {
 
     /**
      * Reports using the specified reporter.
+     *
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
@@ -220,6 +221,7 @@ class ScopeImpl implements Scope {
 
     /**
      * Returns a {@link Snapshot} of this {@link Scope}.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
     public Snapshot snapshot() {
@@ -308,15 +310,15 @@ class ScopeImpl implements Scope {
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
         return registry.subscopes.computeIfAbsent(
-                key,
-                (k) -> new ScopeBuilder(scheduler, registry)
-                        .reporter(reporter)
-                        .prefix(prefix)
-                        .separator(separator)
-                        .tags(mergedTags)
-                        .sanitizer(sanitizer)
-                        .defaultBuckets(defaultBuckets)
-                        .build()
+            key,
+            (k) -> new ScopeBuilder(scheduler, registry)
+                    .reporter(reporter)
+                    .prefix(prefix)
+                    .separator(separator)
+                    .tags(mergedTags)
+                    .sanitizer(sanitizer)
+                    .defaultBuckets(defaultBuckets)
+                    .build()
         );
     }
 

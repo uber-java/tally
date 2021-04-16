@@ -44,8 +44,8 @@ public class SanitizerTest {
     public void noopSanitizer() {
         ScopeSanitizer sanitizer = new ScopeSanitizerBuilder().build();
         assertEquals(NAME, sanitizer.sanitizeName(NAME));
-        assertEquals(KEY, sanitizer.sanitizeKey(KEY));
-        assertEquals(VALUE, sanitizer.sanitizeValue(VALUE));
+        assertEquals(KEY, sanitizer.sanitizeTagKey(KEY));
+        assertEquals(VALUE, sanitizer.sanitizeTagValue(VALUE));
     }
 
     @Test
@@ -57,8 +57,8 @@ public class SanitizerTest {
                 .withValueSanitizer(value -> SANITIZED_VALUE_1)
                 .build();
         assertEquals(SANITIZED_NAME_1, sanitizer.sanitizeName(NAME));
-        assertEquals(SANITIZED_KEY_1, sanitizer.sanitizeKey(KEY));
-        assertEquals(SANITIZED_VALUE_1, sanitizer.sanitizeValue(VALUE));
+        assertEquals(SANITIZED_KEY_1, sanitizer.sanitizeTagKey(KEY));
+        assertEquals(SANITIZED_VALUE_1, sanitizer.sanitizeTagValue(VALUE));
     }
 
     @Test
@@ -79,8 +79,8 @@ public class SanitizerTest {
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
                 .build();
         assertEquals(SANITIZED_NAME_2, sanitizer.sanitizeName(NAME));
-        assertEquals(SANITIZED_KEY_2, sanitizer.sanitizeKey(KEY));
-        assertEquals(SANITIZED_VALUE_2, sanitizer.sanitizeValue(VALUE));
+        assertEquals(SANITIZED_KEY_2, sanitizer.sanitizeTagKey(KEY));
+        assertEquals(SANITIZED_VALUE_2, sanitizer.sanitizeTagValue(VALUE));
     }
 
     @Test
@@ -102,7 +102,7 @@ public class SanitizerTest {
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
                 .build();
         assertEquals(SANITIZED_NAME_3, sanitizer.sanitizeName(NAME));
-        assertEquals(SANITIZED_KEY_3, sanitizer.sanitizeKey(KEY));
-        assertEquals(SANITIZED_VALUE_3, sanitizer.sanitizeValue(VALUE));
+        assertEquals(SANITIZED_KEY_3, sanitizer.sanitizeTagKey(KEY));
+        assertEquals(SANITIZED_VALUE_3, sanitizer.sanitizeTagValue(VALUE));
     }
 }

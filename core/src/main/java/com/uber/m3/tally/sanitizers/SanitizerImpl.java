@@ -51,7 +51,7 @@ class SanitizerImpl implements ScopeSanitizer {
      * @return the sanitized key
      */
     @Override
-    public String sanitizeKey(String key) {
+    public String sanitizeTagKey(String key) {
         return this.keySanitizer.sanitize(key);
     }
 
@@ -61,7 +61,7 @@ class SanitizerImpl implements ScopeSanitizer {
      * @return the sanitized value
      */
     @Override
-    public String sanitizeValue(String value) {
+    public String sanitizeTagValue(String value) {
         return this.valueSanitizer.sanitize(value);
     }
 }

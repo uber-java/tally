@@ -147,7 +147,7 @@ class ScopeImpl implements Scope {
     private Map<String, String> sanitizeTags(Map<String, String> tags) {
         boolean hasChange = false;
         for (Map.Entry<String, String> kv : tags.entrySet()) {
-            if (!sanitizer.sanitizeKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeValue(kv.getValue()).equals(kv.getValue())) {
+            if (!sanitizer.sanitizeTagKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeTagValue(kv.getValue()).equals(kv.getValue())) {
                 hasChange = true;
                 break;
             }
@@ -158,7 +158,7 @@ class ScopeImpl implements Scope {
 
         ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
         if (tags != null) {
-            tags.forEach((key, value) -> builder.put(sanitizer.sanitizeKey(key), sanitizer.sanitizeValue(value)));
+            tags.forEach((key, value) -> builder.put(sanitizer.sanitizeTagKey(key), sanitizer.sanitizeTagValue(value)));
         }
         return builder.build();
     }

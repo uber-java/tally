@@ -38,12 +38,12 @@ public interface ScopeSanitizer {
      * @param key the key string
      * @return the sanitized key
      */
-    String sanitizeKey(String key);
+    String sanitizeTagKey(String key);
 
     /**
      * Value sanitizes the provided 'value' of a tag
      * @param value the value string
      * @return the sanitized value
      */
-    String sanitizeValue(String value);
+    String sanitizeTagValue(String value);
 }

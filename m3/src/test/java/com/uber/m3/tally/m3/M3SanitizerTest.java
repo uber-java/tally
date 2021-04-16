@@ -39,7 +39,7 @@ public class M3SanitizerTest {
         ScopeSanitizer sanitizer = M3Sanitizer.create();
         assertNotNull(sanitizer);
         assertEquals(SANITIZED_NAME, sanitizer.sanitizeName(NAME));
-        assertEquals(SANITIZED_KEY, sanitizer.sanitizeKey(KEY));
-        assertEquals(SANITIZED_VALUE, sanitizer.sanitizeValue(VALUE));
+        assertEquals(SANITIZED_KEY, sanitizer.sanitizeTagKey(KEY));
+        assertEquals(SANITIZED_VALUE, sanitizer.sanitizeTagValue(VALUE));
     }
 }

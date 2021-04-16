@@ -37,11 +37,11 @@ public class ValidCharacters {
     /**
      * ALPHANUMERIC_RANGE is the range of alphanumeric characters.
      */
-    public static final List<SanitizeRange> ALPHANUMERIC_RANGE =
+    public static final List<CharRange> ALPHANUMERIC_RANGE =
         Arrays.asList(
-            SanitizeRange.of('a', 'z'),
-            SanitizeRange.of('A', 'Z'),
-            SanitizeRange.of('0', '9'));
+            CharRange.of('a', 'z'),
+            CharRange.of('A', 'Z'),
+            CharRange.of('0', '9'));
 
     /**
      * UNDERSCORE_CHARACTERS contains the underscore character.
@@ -58,15 +58,15 @@ public class ValidCharacters {
      */
     public static final List<Character> UNDERSCORE_DASH_DOT_CHARACTERS = Arrays.asList('_', '-', '.');
 
-    private final List<SanitizeRange> ranges;
+    private final List<CharRange> ranges;
     private final List<Character> characters;
 
-    private ValidCharacters(List<SanitizeRange> ranges, List<Character> characters) {
+    private ValidCharacters(List<CharRange> ranges, List<Character> characters) {
         this.ranges = ranges != null ? ranges : Collections.emptyList();
         this.characters = characters != null ? characters : Collections.emptyList();
     }
 
-    public static ValidCharacters of(List<SanitizeRange> ranges, List<Character> characters) {
+    public static ValidCharacters of(List<CharRange> ranges, List<Character> characters) {
         return new ValidCharacters(ranges, characters);
     }
 

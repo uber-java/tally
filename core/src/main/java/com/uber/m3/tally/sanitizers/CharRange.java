@@ -21,20 +21,23 @@
 package com.uber.m3.tally.sanitizers;
 
 /**
- * SanitizeRange is a range of characters (inclusive on both ends).
+ * CharRange is a range of characters (inclusive on both ends).
  */
-public class SanitizeRange {
+public class CharRange {
 
     private final char low;
     private final char high;
 
-    private SanitizeRange(char low, char high) {
+    private CharRange(char low, char high) {
+        if (low > high){
+            throw new RuntimeException("invalid CharRange");
+        }
         this.low = low;
         this.high = high;
     }
 
-    public static SanitizeRange of(char low, char high) {
-        return new SanitizeRange(low, high);
+    public static CharRange of(char low, char high) {
+        return new CharRange(low, high);
     }
 
     char low() {

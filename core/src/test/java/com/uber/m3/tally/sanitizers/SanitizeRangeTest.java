@@ -32,7 +32,7 @@ public class SanitizeRangeTest {
 
     @Test
     public void sanitizeRange() {
-        SanitizeRange range = SanitizeRange.of(LOW, HIGH);
+        CharRange range = CharRange.of(LOW, HIGH);
         assertNotNull(range);
         assertEquals(LOW, range.low());
         assertEquals(HIGH, range.high());

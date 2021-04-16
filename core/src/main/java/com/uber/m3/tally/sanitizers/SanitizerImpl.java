@@ -20,16 +20,18 @@
 
 package com.uber.m3.tally.sanitizers;
 
+import java.util.function.Function;
+
 /**
  * SanitizerImpl sanitizes the provided input based on the function executed.
  */
 class SanitizerImpl implements ScopeSanitizer {
 
-    private final StringSanitizer nameSanitizer;
-    private final StringSanitizer keySanitizer;
-    private final StringSanitizer valueSanitizer;
+    private final Function<String, String> nameSanitizer;
+    private final Function<String, String> keySanitizer;
+    private final Function<String, String> valueSanitizer;
 
-    SanitizerImpl(StringSanitizer nameSanitizer, StringSanitizer keySanitizer, StringSanitizer valueSanitizer) {
+    SanitizerImpl(Function<String, String> nameSanitizer, Function<String, String> keySanitizer, Function<String, String> valueSanitizer) {
         this.nameSanitizer = nameSanitizer;
         this.keySanitizer = keySanitizer;
         this.valueSanitizer = valueSanitizer;
@@ -42,7 +44,7 @@ class SanitizerImpl implements ScopeSanitizer {
      */
     @Override
     public String sanitizeName(String name) {
-        return this.nameSanitizer.sanitize(name);
+        return this.nameSanitizer.apply(name);
     }
 
     /**
@@ -52,7 +54,7 @@ class SanitizerImpl implements ScopeSanitizer {
      */
     @Override
     public String sanitizeTagKey(String key) {
-        return this.keySanitizer.sanitize(key);
+        return this.keySanitizer.apply(key);
     }
 
     /**
@@ -62,6 +64,6 @@ class SanitizerImpl implements ScopeSanitizer {
      */
     @Override
     public String sanitizeTagValue(String value) {
-        return this.valueSanitizer.sanitize(value);
+        return this.valueSanitizer.apply(value);
     }
 }

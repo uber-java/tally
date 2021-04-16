@@ -23,6 +23,7 @@ package com.uber.m3.tally.sanitizers;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * ValidCharacters is a collection of valid characters.
@@ -70,7 +71,7 @@ public class ValidCharacters {
         return new ValidCharacters(ranges, characters);
     }
 
-    StringSanitizer sanitize(char repChar) {
+    Function<String, String> sanitizeStringFunc(char repChar) {
         return value -> {
             StringBuilder buffer = null;
 

@@ -20,6 +20,8 @@
 
 package com.uber.m3.tally.sanitizers;
 
+import java.util.function.Function;
+
 /**
  * The SanitizerBuilder returns a Sanitizer for the name, key and value. By
  * default, the name, key and value sanitize functions returns all the input
@@ -28,26 +30,26 @@ package com.uber.m3.tally.sanitizers;
  */
 public class ScopeSanitizerBuilder {
 
-    private StringSanitizer nameSanitizer = value -> value;
-    private StringSanitizer keySanitizer = value -> value;
-    private StringSanitizer valueSanitizer = value -> value;
+    private Function<String, String> nameSanitizer = value -> value;
+    private Function<String, String> keySanitizer = value -> value;
+    private Function<String, String> valueSanitizer = value -> value;
 
     private char repChar = ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER;
     private ValidCharacters nameCharacters;
     private ValidCharacters keyCharacters;
     private ValidCharacters valueCharacters;
 
-    public ScopeSanitizerBuilder withNameSanitizer(StringSanitizer nameSanitizer) {
+    public ScopeSanitizerBuilder withNameSanitizer(Function<String, String> nameSanitizer) {
         this.nameSanitizer = nameSanitizer;
         return this;
     }
 
-    public ScopeSanitizerBuilder withKeySanitizer(StringSanitizer keySanitizer) {
+    public ScopeSanitizerBuilder withKeySanitizer(Function<String, String> keySanitizer) {
         this.keySanitizer = keySanitizer;
         return this;
     }
 
-    public ScopeSanitizerBuilder withValueSanitizer(StringSanitizer valueSanitizer) {
+    public ScopeSanitizerBuilder withValueSanitizer(Function<String, String> valueSanitizer) {
         this.valueSanitizer = valueSanitizer;
         return this;
     }
@@ -74,13 +76,13 @@ public class ScopeSanitizerBuilder {
 
     public ScopeSanitizer build() {
         if (nameCharacters != null) {
-            nameSanitizer = nameCharacters.sanitize(repChar);
+            nameSanitizer = nameCharacters.sanitizeStringFunc(repChar);
         }
         if (keyCharacters != null) {
-            keySanitizer = keyCharacters.sanitize(repChar);
+            keySanitizer = keyCharacters.sanitizeStringFunc(repChar);
         }
         if (valueCharacters != null) {
-            valueSanitizer = valueCharacters.sanitize(repChar);
+            valueSanitizer = valueCharacters.sanitizeStringFunc(repChar);
         }
         return new SanitizerImpl(nameSanitizer, keySanitizer, valueSanitizer);
     }

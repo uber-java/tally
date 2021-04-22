@@ -24,17 +24,32 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
-public class SanitizeRangeTest {
-
-    private static final char LOW = 'a';
-    private static final char HIGH = 'z';
+public class CharRangeTest {
 
     @Test
     public void sanitizeRange() {
-        CharRange range = CharRange.of(LOW, HIGH);
+        CharRange range = CharRange.of('a', 'z');
         assertNotNull(range);
-        assertEquals(LOW, range.low());
-        assertEquals(HIGH, range.high());
+        assertEquals('a', range.low());
+        assertEquals('z', range.high());
+        assertTrue(range.isWithinRange('a'));
+        assertTrue(range.isWithinRange('z'));
+        assertTrue(range.isWithinRange('b'));
+    }
+
+    @Test
+    public void sanitizeRangeSameLowHigh() {
+        CharRange range = CharRange.of('a', 'a');
+        assertNotNull(range);
+        assertEquals('a', range.low());
+        assertEquals('a', range.high());
+        assertTrue(range.isWithinRange('a'));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void sanitizeRangeWrongLowHigh() {
+        CharRange range = CharRange.of('b', 'a');
     }
 }

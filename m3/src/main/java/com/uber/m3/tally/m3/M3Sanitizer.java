@@ -36,7 +36,7 @@ public class M3Sanitizer {
             .withNameValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
-                    ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
+                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
             .withTagKeyValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
@@ -44,7 +44,7 @@ public class M3Sanitizer {
             .withTagValueValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
-                    ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
+                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
             .build();
     }
 }

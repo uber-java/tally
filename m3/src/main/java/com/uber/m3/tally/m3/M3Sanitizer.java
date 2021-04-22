@@ -33,15 +33,15 @@ public class M3Sanitizer {
     public static ScopeSanitizer create() {
         return new ScopeSanitizerBuilder()
             .withReplacementCharacter(ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER)
-            .withNameCharacters(
+            .withNameValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
                     ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
-            .withKeyCharacters(
+            .withTagKeyValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
                     ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-            .withValueCharacters(
+            .withTagValueValidCharacters(
                 ValidCharacters.of(
                     ValidCharacters.ALPHANUMERIC_RANGE,
                     ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))

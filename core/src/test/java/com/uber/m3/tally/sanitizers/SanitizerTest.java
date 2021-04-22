@@ -53,8 +53,8 @@ public class SanitizerTest {
         ScopeSanitizer sanitizer =
             new ScopeSanitizerBuilder()
                 .withNameSanitizer(value -> SANITIZED_NAME_1)
-                .withKeySanitizer(value -> SANITIZED_KEY_1)
-                .withValueSanitizer(value -> SANITIZED_VALUE_1)
+                .withTagKeySanitizer(value -> SANITIZED_KEY_1)
+                .withTagValueSanitizer(value -> SANITIZED_VALUE_1)
                 .build();
         assertEquals(SANITIZED_NAME_1, sanitizer.sanitizeName(NAME));
         assertEquals(SANITIZED_KEY_1, sanitizer.sanitizeTagKey(KEY));
@@ -65,15 +65,15 @@ public class SanitizerTest {
     public void withValidCharactersAndDefaultRepChar() {
         ScopeSanitizer sanitizer =
             new ScopeSanitizerBuilder()
-                .withNameCharacters(
+                .withNameValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_CHARACTERS))
-                .withKeyCharacters(
+                .withTagKeyValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-                .withValueCharacters(
+                .withTagValueValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))
@@ -88,15 +88,15 @@ public class SanitizerTest {
         ScopeSanitizer sanitizer =
             new ScopeSanitizerBuilder()
                 .withReplacementCharacter(REPLACEMENT_CHAR)
-                .withNameCharacters(
+                .withNameValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_CHARACTERS))
-                .withKeyCharacters(
+                .withTagKeyValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-                .withValueCharacters(
+                .withTagValueValidCharacters(
                     ValidCharacters.of(
                         ValidCharacters.ALPHANUMERIC_RANGE,
                         ValidCharacters.UNDERSCORE_DASH_DOT_CHARACTERS))

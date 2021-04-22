@@ -30,60 +30,89 @@ import java.util.function.Function;
  */
 public class ScopeSanitizerBuilder {
 
-    private Function<String, String> nameSanitizer = Function.identity();
-    private Function<String, String> keySanitizer = Function.identity();
-    private Function<String, String> valueSanitizer = Function.identity();
+    private Function<String, String> nameSanitizer;
+    private Function<String, String> tagKeySanitizer;
+    private Function<String, String> tagValueSanitizer;
 
-    private char repChar = ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER;
-    private ValidCharacters nameCharacters;
-    private ValidCharacters keyCharacters;
-    private ValidCharacters valueCharacters;
+    private char replacementChar = ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER;
+    private ValidCharacters nameValidCharacters;
+    private ValidCharacters tagKeyValidCharacters;
+    private ValidCharacters tagValueValidCharacters;
 
     public ScopeSanitizerBuilder withNameSanitizer(Function<String, String> nameSanitizer) {
+        if (nameValidCharacters != null) {
+            throw new IllegalArgumentException("only one of them can be provided: nameValidCharacters, nameSanitizer");
+        }
         this.nameSanitizer = nameSanitizer;
         return this;
     }
 
-    public ScopeSanitizerBuilder withKeySanitizer(Function<String, String> keySanitizer) {
-        this.keySanitizer = keySanitizer;
+    public ScopeSanitizerBuilder withTagKeySanitizer(Function<String, String> tagKeySanitizer) {
+        if (tagKeyValidCharacters != null) {
+            throw new IllegalArgumentException("only one of them can be provided: tagKeyValidCharacters, tagKeySanitizer");
+        }
+        this.tagKeySanitizer = tagKeySanitizer;
         return this;
     }
 
-    public ScopeSanitizerBuilder withValueSanitizer(Function<String, String> valueSanitizer) {
-        this.valueSanitizer = valueSanitizer;
+    public ScopeSanitizerBuilder withTagValueSanitizer(Function<String, String> tagValueSanitizer) {
+        if (tagValueValidCharacters != null) {
+            throw new IllegalArgumentException("only one of them can be provided: tagValueValidCharacters, tagValueSanitizer");
+        }
+        this.tagValueSanitizer = tagValueSanitizer;
         return this;
     }
 
-    public ScopeSanitizerBuilder withReplacementCharacter(char repChar) {
-        this.repChar = repChar;
+    public ScopeSanitizerBuilder withReplacementCharacter(char replacementChar) {
+        this.replacementChar = replacementChar;
         return this;
     }
 
-    public ScopeSanitizerBuilder withNameCharacters(ValidCharacters nameCharacters) {
-        this.nameCharacters = nameCharacters;
+    public ScopeSanitizerBuilder withNameValidCharacters(ValidCharacters validCharacters) {
+        if(this.nameSanitizer != null){
+            throw new IllegalArgumentException("only one of them can be provided: nameValidCharacters, nameSanitizer");
+        }
+        this.nameValidCharacters = validCharacters;
         return this;
     }
 
-    public ScopeSanitizerBuilder withKeyCharacters(ValidCharacters keyCharacters) {
-        this.keyCharacters = keyCharacters;
+    public ScopeSanitizerBuilder withTagKeyValidCharacters(ValidCharacters validCharacters) {
+        if(this.tagKeySanitizer != null){
+            throw new IllegalArgumentException("only one of them can be provided: tagKeyValidCharacters, tagKeySanitizer");
+        }
+        this.tagKeyValidCharacters = validCharacters;
         return this;
     }
 
-    public ScopeSanitizerBuilder withValueCharacters(ValidCharacters valueCharacters) {
-        this.valueCharacters = valueCharacters;
+    public ScopeSanitizerBuilder withTagValueValidCharacters(ValidCharacters validCharacters) {
+        if(this.tagValueSanitizer != null){
+            throw new IllegalArgumentException("only one of them can be provided: tagValueValidCharacters, tagValueSanitizer");
+        }
+        this.tagValueValidCharacters = validCharacters;
         return this;
     }
 
     public ScopeSanitizer build() {
-        if (nameCharacters != null) {
-            nameSanitizer = nameCharacters.sanitizeStringFunc(repChar);
+        if(nameSanitizer == null){
+            nameSanitizer = Function.identity();
         }
-        if (keyCharacters != null) {
-            keySanitizer = keyCharacters.sanitizeStringFunc(repChar);
+        if (nameValidCharacters != null) {
+            nameSanitizer = nameValidCharacters.sanitizeStringFunc(replacementChar);
         }
-        if (valueCharacters != null) {
-            valueSanitizer = valueCharacters.sanitizeStringFunc(repChar);
+
+        if (tagKeySanitizer == null){
+            tagKeySanitizer = Function.identity();
         }
-        return new SanitizerImpl(nameSanitizer, keySanitizer, valueSanitizer);
+        if (tagKeyValidCharacters != null) {
+            tagKeySanitizer = tagKeyValidCharacters.sanitizeStringFunc(replacementChar);
+        }
+
+        if (tagValueSanitizer == null){
+            tagValueSanitizer = Function.identity();
+        }
+        if (tagValueValidCharacters != null) {
+            tagValueSanitizer = tagValueValidCharacters.sanitizeStringFunc(replacementChar);
+        }
+        return new SanitizerImpl(nameSanitizer, tagKeySanitizer, tagValueSanitizer);
     }
 }

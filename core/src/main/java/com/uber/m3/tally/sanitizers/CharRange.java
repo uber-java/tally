@@ -30,7 +30,7 @@ public class CharRange {
 
     private CharRange(char low, char high) {
         if (low > high) {
-            throw new RuntimeException("invalid CharRange");
+            throw new IllegalArgumentException("invalid CharRange");
         }
         this.low = low;
         this.high = high;

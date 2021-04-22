@@ -28,13 +28,13 @@ import java.util.function.Function;
 class SanitizerImpl implements ScopeSanitizer {
 
     private final Function<String, String> nameSanitizer;
-    private final Function<String, String> keySanitizer;
-    private final Function<String, String> valueSanitizer;
+    private final Function<String, String> tagKeySanitizer;
+    private final Function<String, String> tagValueSanitizer;
 
-    SanitizerImpl(Function<String, String> nameSanitizer, Function<String, String> keySanitizer, Function<String, String> valueSanitizer) {
+    SanitizerImpl(Function<String, String> nameSanitizer, Function<String, String> tagKeySanitizer, Function<String, String> tagValueSanitizer) {
         this.nameSanitizer = nameSanitizer;
-        this.keySanitizer = keySanitizer;
-        this.valueSanitizer = valueSanitizer;
+        this.tagKeySanitizer = tagKeySanitizer;
+        this.tagValueSanitizer = tagValueSanitizer;
     }
 
     /**
@@ -54,7 +54,7 @@ class SanitizerImpl implements ScopeSanitizer {
      */
     @Override
     public String sanitizeTagKey(String key) {
-        return this.keySanitizer.apply(key);
+        return this.tagKeySanitizer.apply(key);
     }
 
     /**
@@ -64,6 +64,6 @@ class SanitizerImpl implements ScopeSanitizer {
      */
     @Override
     public String sanitizeTagValue(String value) {
-        return this.valueSanitizer.apply(value);
+        return this.tagValueSanitizer.apply(value);
     }
 }

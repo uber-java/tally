@@ -30,9 +30,9 @@ import java.util.function.Function;
  */
 public class ScopeSanitizerBuilder {
 
-    private Function<String, String> nameSanitizer = value -> value;
-    private Function<String, String> keySanitizer = value -> value;
-    private Function<String, String> valueSanitizer = value -> value;
+    private Function<String, String> nameSanitizer = Function.identity();
+    private Function<String, String> keySanitizer = Function.identity();
+    private Function<String, String> valueSanitizer = Function.identity();
 
     private char repChar = ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER;
     private ValidCharacters nameCharacters;

@@ -39,6 +39,7 @@ class SanitizerImpl implements ScopeSanitizer {
 
     /**
      * Name sanitizes the provided 'name' string.
+     *
      * @param name the name string
      * @return the sanitized name
      */
@@ -49,6 +50,7 @@ class SanitizerImpl implements ScopeSanitizer {
 
     /**
      * Key sanitizes the provided 'key' string.
+     *
      * @param key the key string
      * @return the sanitized key
      */
@@ -59,6 +61,7 @@ class SanitizerImpl implements ScopeSanitizer {
 
     /**
      * Value sanitizes the provided 'value' string.
+     *
      * @param value the value string
      * @return the sanitized value
      */

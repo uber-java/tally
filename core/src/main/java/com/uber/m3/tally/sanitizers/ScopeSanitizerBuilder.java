@@ -69,7 +69,7 @@ public class ScopeSanitizerBuilder {
     }
 
     public ScopeSanitizerBuilder withNameValidCharacters(ValidCharacters validCharacters) {
-        if(this.nameSanitizer != null){
+        if (this.nameSanitizer != null) {
             throw new IllegalArgumentException("only one of them can be provided: nameValidCharacters, nameSanitizer");
         }
         this.nameValidCharacters = validCharacters;
@@ -77,7 +77,7 @@ public class ScopeSanitizerBuilder {
     }
 
     public ScopeSanitizerBuilder withTagKeyValidCharacters(ValidCharacters validCharacters) {
-        if(this.tagKeySanitizer != null){
+        if (this.tagKeySanitizer != null) {
             throw new IllegalArgumentException("only one of them can be provided: tagKeyValidCharacters, tagKeySanitizer");
         }
         this.tagKeyValidCharacters = validCharacters;
@@ -85,7 +85,7 @@ public class ScopeSanitizerBuilder {
     }
 
     public ScopeSanitizerBuilder withTagValueValidCharacters(ValidCharacters validCharacters) {
-        if(this.tagValueSanitizer != null){
+        if (this.tagValueSanitizer != null) {
             throw new IllegalArgumentException("only one of them can be provided: tagValueValidCharacters, tagValueSanitizer");
         }
         this.tagValueValidCharacters = validCharacters;
@@ -93,21 +93,21 @@ public class ScopeSanitizerBuilder {
     }
 
     public ScopeSanitizer build() {
-        if(nameSanitizer == null){
+        if (nameSanitizer == null) {
             nameSanitizer = Function.identity();
         }
         if (nameValidCharacters != null) {
             nameSanitizer = nameValidCharacters.sanitizeStringFunc(replacementChar);
         }
 
-        if (tagKeySanitizer == null){
+        if (tagKeySanitizer == null) {
             tagKeySanitizer = Function.identity();
         }
         if (tagKeyValidCharacters != null) {
             tagKeySanitizer = tagKeyValidCharacters.sanitizeStringFunc(replacementChar);
         }
 
-        if (tagValueSanitizer == null){
+        if (tagValueSanitizer == null) {
             tagValueSanitizer = Function.identity();
         }
         if (tagValueValidCharacters != null) {

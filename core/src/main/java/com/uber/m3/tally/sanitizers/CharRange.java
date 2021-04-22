@@ -48,7 +48,7 @@ public class CharRange {
         return high;
     }
 
-    public boolean isWithinRange(char ch){
+    public boolean isWithinRange(char ch) {
         return (ch >= low) && (ch <= high);
     }
 }

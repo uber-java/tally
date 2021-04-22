@@ -41,9 +41,9 @@ public class ValidCharacters {
      */
     public static final Set<CharRange> ALPHANUMERIC_RANGE =
             new HashSet<>(Arrays.asList(
-            CharRange.of('a', 'z'),
-            CharRange.of('A', 'Z'),
-            CharRange.of('0', '9')));
+                    CharRange.of('a', 'z'),
+                    CharRange.of('A', 'Z'),
+                    CharRange.of('0', '9')));
 
     /**
      * UNDERSCORE_CHARACTERS contains the underscore character.
@@ -70,6 +70,7 @@ public class ValidCharacters {
 
     /**
      * returns an instance of ValidCharacters
+     *
      * @param ranges
      * @param characters
      * @return
@@ -81,11 +82,12 @@ public class ValidCharacters {
     /**
      * returns if a char is valid
      * a char is valid if it's within range of any range of validRanges  or within validCharacters
+     *
      * @param ch
      * @return
      */
-    private boolean isValid(char ch){
-        return  validRanges.stream().anyMatch(range -> (range.isWithinRange(ch)))
+    private boolean isValid(char ch) {
+        return validRanges.stream().anyMatch(range -> (range.isWithinRange(ch)))
                 || validCharacters.contains(ch);
     }
 

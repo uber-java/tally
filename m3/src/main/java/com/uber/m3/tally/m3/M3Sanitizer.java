@@ -28,23 +28,24 @@ public class M3Sanitizer {
 
     /**
      * Creates the default M3 sanitizer.
+     *
      * @return default M3 sanitizer
      */
     public static ScopeSanitizer create() {
         return new ScopeSanitizerBuilder()
-            .withReplacementCharacter(ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER)
-            .withNameValidCharacters(
-                ValidCharacters.of(
-                    ValidCharacters.ALPHANUMERIC_RANGE,
-                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-            .withTagKeyValidCharacters(
-                ValidCharacters.of(
-                    ValidCharacters.ALPHANUMERIC_RANGE,
-                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-            .withTagValueValidCharacters(
-                ValidCharacters.of(
-                    ValidCharacters.ALPHANUMERIC_RANGE,
-                    ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
-            .build();
+                .withReplacementCharacter(ValidCharacters.DEFAULT_REPLACEMENT_CHARACTER)
+                .withNameValidCharacters(
+                        ValidCharacters.of(
+                                ValidCharacters.ALPHANUMERIC_RANGE,
+                                ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
+                .withTagKeyValidCharacters(
+                        ValidCharacters.of(
+                                ValidCharacters.ALPHANUMERIC_RANGE,
+                                ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
+                .withTagValueValidCharacters(
+                        ValidCharacters.of(
+                                ValidCharacters.ALPHANUMERIC_RANGE,
+                                ValidCharacters.UNDERSCORE_DASH_CHARACTERS))
+                .build();
     }
 }

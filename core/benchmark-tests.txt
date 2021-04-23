@@ -1,0 +1,2 @@
+Benchmark                                    Mode  Cnt   Score   Error   Units
+ScopeImplBenchmark.sanitizingDashBenchmark  thrpt   10  52.541 ± 1.127  ops/ms

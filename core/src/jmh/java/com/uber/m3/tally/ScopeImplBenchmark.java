@@ -143,6 +143,8 @@ public class ScopeImplBenchmark {
         @TearDown
         public void teardown() {
             reportingBenchmarkScope.close();
+            recordingBenchmarkScope.close();
+            sanitizingBenchmarkScope.close();
         }
 
     }

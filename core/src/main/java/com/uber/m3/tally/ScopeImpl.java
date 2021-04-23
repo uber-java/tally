@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.ScopeSanitizer;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
@@ -41,6 +42,7 @@ class ScopeImpl implements Scope {
     private String separator;
     private ImmutableMap<String, String> tags;
     private Buckets defaultBuckets;
+    private ScopeSanitizer sanitizer;
 
     private ScheduledExecutorService scheduler;
     private Registry registry;
@@ -57,6 +59,7 @@ class ScopeImpl implements Scope {
     ScopeImpl(ScheduledExecutorService scheduler, Registry registry, ScopeBuilder builder) {
         this.scheduler = scheduler;
         this.registry = registry;
+        this.sanitizer = builder.sanitizer;
 
         this.reporter = builder.reporter;
         this.prefix = builder.prefix;
@@ -67,33 +70,37 @@ class ScopeImpl implements Scope {
 
     @Override
     public Counter counter(String name) {
-        return counters.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return counters.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
-                new CounterImpl(this, fullyQualifiedName(name))
+                new CounterImpl(this, fullyQualifiedName(finalName))
         );
     }
 
     @Override
     public Gauge gauge(String name) {
-        return gauges.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return gauges.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
-                new GaugeImpl(this, fullyQualifiedName(name)));
+                new GaugeImpl(this, fullyQualifiedName(finalName)));
     }
 
     @Override
     public Timer timer(String name) {
+        final String finalName = sanitizer.sanitizeName(name);
         // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
         // i.e. they are not buffered
-        return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.computeIfAbsent(finalName, ignored -> new TimerImpl(fullyQualifiedName(finalName), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
-        return histograms.computeIfAbsent(name, ignored ->
+        final String finalName = sanitizer.sanitizeName(name);
+        return histograms.computeIfAbsent(finalName, ignored ->
                 // NOTE: This will called at most once
                 new HistogramImpl(
                         this,
-                        fullyQualifiedName(name),
+                        fullyQualifiedName(finalName),
                         tags,
                         Optional.ofNullable(buckets)
                                 .orElse(defaultBuckets)
@@ -103,12 +110,13 @@ class ScopeImpl implements Scope {
 
     @Override
     public Scope tagged(Map<String, String> tags) {
-        return subScopeHelper(prefix, tags);
+        return subScopeHelper(prefix, sanitizeTags(tags));
     }
 
     @Override
     public Scope subScope(String name) {
-        return subScopeHelper(fullyQualifiedName(name), null);
+        final String finalName = sanitizer.sanitizeName(name);
+        return subScopeHelper(fullyQualifiedName(finalName), null);
     }
 
     @Override
@@ -136,12 +144,35 @@ class ScopeImpl implements Scope {
         }
     }
 
+    private Map<String, String> sanitizeTags(Map<String, String> tags) {
+        if (tags == null) {
+            return null;
+        }
+
+        boolean hasChange = false;
+        for (Map.Entry<String, String> kv : tags.entrySet()) {
+            if (!sanitizer.sanitizeTagKey(kv.getKey()).equals(kv.getKey()) || !sanitizer.sanitizeTagValue(kv.getValue()).equals(kv.getValue())) {
+                hasChange = true;
+                break;
+            }
+        }
+        if (!hasChange) {
+            return tags;
+        }
+
+        ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<>();
+        tags.forEach((key, value) -> builder.put(sanitizer.sanitizeTagKey(key), sanitizer.sanitizeTagValue(value)));
+
+        return builder.build();
+    }
+
     <T extends Reportable> void addToReportingQueue(T metric) {
         reportingQueue.add(metric);
     }
 
     /**
      * Reports using the specified reporter.
+     *
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
@@ -193,6 +224,7 @@ class ScopeImpl implements Scope {
 
     /**
      * Returns a {@link Snapshot} of this {@link Scope}.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
     public Snapshot snapshot() {
@@ -205,12 +237,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.counters().put(
-                    id,
-                    new CounterSnapshotImpl(
-                        name,
-                        tags,
-                        counter.getValue().snapshot()
-                    )
+                        id,
+                        new CounterSnapshotImpl(
+                                name,
+                                tags,
+                                counter.getValue().snapshot()
+                        )
                 );
             }
 
@@ -220,12 +252,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.gauges().put(
-                    id,
-                    new GaugeSnapshotImpl(
-                        name,
-                        tags,
-                        gauge.getValue().snapshot()
-                    )
+                        id,
+                        new GaugeSnapshotImpl(
+                                name,
+                                tags,
+                                gauge.getValue().snapshot()
+                        )
                 );
             }
 
@@ -235,12 +267,12 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.timers().put(
-                    id,
-                    new TimerSnapshotImpl(
-                        name,
-                        tags,
-                        timer.getValue().snapshot()
-                    )
+                        id,
+                        new TimerSnapshotImpl(
+                                name,
+                                tags,
+                                timer.getValue().snapshot()
+                        )
                 );
             }
 
@@ -250,13 +282,13 @@ class ScopeImpl implements Scope {
                 String id = keyForPrefixedStringMap(name, tags);
 
                 snap.histograms().put(
-                    id,
-                    new HistogramSnapshotImpl(
-                        name,
-                        tags,
-                        histogram.getValue().snapshotValues(),
-                        histogram.getValue().snapshotDurations()
-                    )
+                        id,
+                        new HistogramSnapshotImpl(
+                                name,
+                                tags,
+                                histogram.getValue().snapshotValues(),
+                                histogram.getValue().snapshotDurations()
+                        )
                 );
             }
         }
@@ -283,12 +315,13 @@ class ScopeImpl implements Scope {
         return registry.subscopes.computeIfAbsent(
             key,
             (k) -> new ScopeBuilder(scheduler, registry)
-                .reporter(reporter)
-                .prefix(prefix)
-                .separator(separator)
-                .tags(mergedTags)
-                .defaultBuckets(defaultBuckets)
-                .build()
+                    .reporter(reporter)
+                    .prefix(prefix)
+                    .separator(separator)
+                    .tags(mergedTags)
+                    .sanitizer(sanitizer)
+                    .defaultBuckets(defaultBuckets)
+                    .build()
         );
     }
 

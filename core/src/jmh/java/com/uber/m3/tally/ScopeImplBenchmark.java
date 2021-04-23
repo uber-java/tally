@@ -20,23 +20,18 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.tally.sanitizers.ScopeSanitizerBuilder;
+import com.uber.m3.tally.sanitizers.ValidCharacters;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.*;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(value = 2, jvmArgsAppend = { "-server", "-XX:+UseG1GC" })
+@Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 public class ScopeImplBenchmark {
 
     private static final DurationBuckets EXPONENTIAL_BUCKETS = DurationBuckets.linear(Duration.ofMillis(1), Duration.ofMillis(10), 128);
@@ -67,28 +62,56 @@ public class ScopeImplBenchmark {
 
     @Benchmark
     public void scopeReportingBenchmark(BenchmarkState state) {
-        state.scope.reportLoopIteration();
+        state.reportingBenchmarkScope.reportLoopIteration();
+    }
+
+    @Benchmark
+    public void recordingWithSanitizingDashBenchmark(BenchmarkState state) {
+        state.recordTestMetrics(state.sanitizingBenchmarkScope);
+    }
+
+    @Benchmark
+    public void recordingBenchmark(BenchmarkState state) {
+        state.recordTestMetrics(state.recordingBenchmarkScope);
     }
 
     @State(org.openjdk.jmh.annotations.Scope.Benchmark)
     public static class BenchmarkState {
 
-        private ScopeImpl scope;
+        private ScopeImpl reportingBenchmarkScope;
+        private ScopeImpl sanitizingBenchmarkScope;
+        private ScopeImpl recordingBenchmarkScope;
 
         @Setup
         public void setup() {
-            this.scope =
-                    (ScopeImpl) new RootScopeBuilder()
-                            .reporter(new TestStatsReporter())
-                            .tags(
-                                    ImmutableMap.of(
-                                            "service", "some-service",
-                                            "application", "some-application",
-                                            "instance", "some-instance"
-                                    )
-                            )
-                            .reportEvery(Duration.MAX_VALUE);
+            final ScopeBuilder scopeBuilder = new RootScopeBuilder()
+                .reporter(new TestStatsReporter())
+                .tags(
+                    ImmutableMap.of(
+                        "service", "some-service",
+                        "application", "some-application",
+                        "instance", "some-instance"
+                    )
+                );
 
+            this.reportingBenchmarkScope =
+                (ScopeImpl) scopeBuilder.reportEvery(Duration.MAX_VALUE);
+
+            this.recordTestMetrics(this.reportingBenchmarkScope);
+
+            this.recordingBenchmarkScope = (ScopeImpl) scopeBuilder.reportEvery(Duration.MAX_VALUE);
+            this.sanitizingBenchmarkScope =
+                (ScopeImpl) scopeBuilder.sanitizer(
+                    new ScopeSanitizerBuilder()
+                        .withNameValidCharacters(ValidCharacters.of(null, ValidCharacters.UNDERSCORE_CHARACTERS))
+                        .withTagKeyValidCharacters(ValidCharacters.of(null, ValidCharacters.UNDERSCORE_CHARACTERS))
+                        .withTagValueValidCharacters(ValidCharacters.of(null, ValidCharacters.UNDERSCORE_CHARACTERS))
+                        .build()
+                )
+                    .reportEvery(Duration.MAX_VALUE);
+        }
+
+        public void recordTestMetrics(final ScopeImpl scope) {
             for (String counterName : COUNTER_NAMES) {
                 scope.counter(counterName).inc(1);
             }
@@ -112,7 +135,9 @@ public class ScopeImplBenchmark {
 
         @TearDown
         public void teardown() {
-            scope.close();
+            reportingBenchmarkScope.close();
+            recordingBenchmarkScope.close();
+            sanitizingBenchmarkScope.close();
         }
 
     }

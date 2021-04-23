@@ -1,0 +1,4 @@
+Benchmark                                                 Mode  Cnt      Score     Error   Units
+ScopeImplBenchmark.recordingBenchmark                    thrpt   10     74.819 ±   4.573  ops/ms
+ScopeImplBenchmark.recordingWithSanitizingDashBenchmark  thrpt   10     49.256 ±   9.474  ops/ms
+ScopeImplBenchmark.scopeReportingBenchmark               thrpt   10  39066.800 ± 262.844  ops/ms

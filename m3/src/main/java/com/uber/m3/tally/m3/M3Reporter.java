@@ -49,7 +49,6 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -61,18 +60,20 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * An M3 implementation of a {@link StatsReporter}.
@@ -98,7 +99,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(M3Reporter.class);
 
-    private static final int MAX_DELAY_BEFORE_FLUSHING_MILLIS = 1_000;
+    private static final int MAX_PROCESSOR_WAIT_TIMEOUT_MILLIS = 1_000;
 
     private static final int MAX_PROCESSOR_WAIT_ON_CLOSE_MILLIS = 5_000;
 
@@ -124,8 +125,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private final Set<MetricTag> commonTags;
 
-    // TODO replace w/ an evicting queue
-    private final BlockingQueue<SizedMetric> queue;
+    // NOTE: Non-blocking version of the queue is used to avoid incurring the cost
+    //       of lock acquisition in a hot-path of metrics reporting
+    private final Queue<SizedMetric> queue;
 
     // Executor service running processors flushing metrics to collectors
     private final ExecutorService executorService;
@@ -140,6 +142,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     // List of socket addresses for M3 collector endpoint
     private final SocketAddress[] collectorEndpointSockedAddresses;
+
+    // Condition serving to park/un-park processors whenever queue is empty/non-empty
+    private final ReentrantLock lock = new ReentrantLock();
+
+    private final Condition condition = lock.newCondition();
 
     private final Processor[] processors;
 
@@ -157,7 +164,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         bucketValueTagKey = builder.histogramBucketName;
         bucketValFmt = String.format("%%.%df", builder.histogramBucketTagPrecision);
 
-        queue = new LinkedBlockingQueue<>(builder.maxQueueSize);
+        queue = new ConcurrentLinkedQueue<>();
 
         ThreadFactory namedThreadFactory = createThreadFactory();
 
@@ -461,14 +468,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             return;
         }
 
-        try {
-            boolean enqueued = queue.offer(sizedMetric, 10, TimeUnit.MILLISECONDS);
+        // Check whether queue was empty prior to enqueuing
+        boolean wasEmpty = queue.isEmpty();
 
-            if (!enqueued) {
-                LOG.warn("Failed to enqueue metric for emission");
-            }
-        } catch (InterruptedException e) {
-            LOG.warn("Interrupted while waiting to enqueuing metric; dropping");
+        boolean enqueued = queue.offer(sizedMetric);
+
+        if (!enqueued) {
+            LOG.warn("Failed to enqueue metric for emission");
+        } else if (wasEmpty) {
+            signalProcessors();
         }
     }
 
@@ -477,6 +485,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             r.run();
         } catch (Throwable t) {
             // no-op
+        }
+    }
+
+    private void signalProcessors() {
+        lock.lock();
+        try {
+            condition.signalAll();
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -537,14 +554,19 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = queue.poll(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
+                    SizedMetric sizedMetric = queue.poll();
 
-                    if (sizedMetric == null) {
-                        // If we didn't get any new metrics after waiting the specified time,
-                        // flush what we have so far.
-                        flushBuffered();
-                    } else {
+                    if (sizedMetric != null) {
                         process(sizedMetric);
+                    } else {
+                        // In case there's no more metrics, then
+                        //  - Flush what we have processed so far,
+                        //  - Wait (on the lock), until either
+                        //      - Signalled
+                        //      - Interrupted
+                        //      - Specified timeout elapsed
+                        flushBuffered();
+                        await();
                     }
                 } catch (InterruptedException t) {
                     // no-op
@@ -563,6 +585,15 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             shutdown();
 
             LOG.warn("Processor shut down");
+        }
+
+        private void await() throws InterruptedException {
+            lock.lock();
+            try {
+                boolean ignored = condition.await(MAX_PROCESSOR_WAIT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            } finally {
+                lock.unlock();
+            }
         }
 
         private void shutdown() {
@@ -689,9 +720,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         @SuppressWarnings("unchecked")
         protected ImmutableMap<String, String> commonTags = ImmutableMap.EMPTY;
         protected boolean includeHost = false;
-        protected int maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
         protected int maxPacketSizeBytes = DEFAULT_MAX_PACKET_SIZE;
-        protected int maxProcessorWaitUntilFlushMillis = MAX_DELAY_BEFORE_FLUSHING_MILLIS;
+        protected int maxProcessorWaitUntilFlushMillis = MAX_PROCESSOR_WAIT_TIMEOUT_MILLIS;
         protected String histogramBucketIdName = DEFAULT_HISTOGRAM_BUCKET_ID_NAME;
         protected String histogramBucketName = DEFAULT_HISTOGRAM_BUCKET_NAME;
         protected int histogramBucketTagPrecision = DEFAULT_HISTOGRAM_BUCKET_TAG_PRECISION;
@@ -777,10 +807,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
          * Configures the maximum queue size of this {@link Builder}.
          * @param maxQueueSize the value to set
          * @return this {@link Builder} with the new value set
+         *
+         * @deprecated this method has no impact anymore and will be deleted in the next release
          */
+        @Deprecated
         public Builder maxQueueSize(int maxQueueSize) {
-            this.maxQueueSize = maxQueueSize;
-
+            // No-op
             return this;
         }
 

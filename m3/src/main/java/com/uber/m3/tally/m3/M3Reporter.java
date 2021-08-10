@@ -49,6 +49,8 @@ import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -554,7 +556,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                     // When this reporter is closed, shutdownNow will be called on the executor,
                     // which will interrupt this thread and proceed to the `InterruptedException`
                     // catch block.
-                    SizedMetric sizedMetric = queue.poll();
+                    SizedMetric sizedMetric = awaitingPoll();
 
                     if (sizedMetric != null) {
                         process(sizedMetric);
@@ -566,10 +568,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
                         //      - Interrupted
                         //      - Specified timeout elapsed
                         flushBuffered();
-                        await();
                     }
-                } catch (InterruptedException t) {
-                    // no-op
                 } catch (Throwable t) {
                     // This is fly-away guard making sure that uncaught exception
                     // will be logged
@@ -587,10 +586,35 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
             LOG.warn("Processor shut down");
         }
 
-        private void await() throws InterruptedException {
+        @Nullable
+        private SizedMetric awaitingPoll() {
+            // This method closely mimics behavior of the {@code BlockingQueue}:
+            // in case there's currently no elements available in the queue it
+            // will park current thread awaiting for either it to get
+            //      - Interrupted or
+            //      - Signalled (that there are new elements)
+            //      - Specified timeout elapses
+            //
+            // Key difference is however, that this approach only takes locks
+            // upon thread parking/un-parking and doesn't take a locks on the
+            // either of the hot-paths of
+            //      - Enqueuing element into the queue (unless empty)
+            //      - Dequeuing elements from the queue (unless empty)
+            SizedMetric metric = queue.poll();
+            if (metric != null) {
+                return metric;
+            }
+
+            await();
+            return queue.poll();
+        }
+
+        private void await() {
             lock.lock();
             try {
-                boolean ignored = condition.await(MAX_PROCESSOR_WAIT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+                boolean ignored = condition.await(maxBufferingDelay.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ignored) {
+                // no-op
             } finally {
                 lock.unlock();
             }

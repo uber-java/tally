@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -49,7 +49,7 @@ class ScopeImpl implements Scope {
     private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, HistogramImpl> histograms = new ConcurrentHashMap<>();
 
-    private final ConcurrentLinkedQueue<Reportable> reportingQueue = new ConcurrentLinkedQueue<>();
+    private final CopyOnWriteArrayList<Reportable> reportingList = new CopyOnWriteArrayList<>();
 
     private final ConcurrentHashMap<String, TimerImpl> timers = new ConcurrentHashMap<>();
 
@@ -137,7 +137,7 @@ class ScopeImpl implements Scope {
     }
 
     <T extends Reportable> void addToReportingQueue(T metric) {
-        reportingQueue.add(metric);
+        reportingList.add(metric);
     }
 
     /**
@@ -145,7 +145,7 @@ class ScopeImpl implements Scope {
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
-        for (Reportable metric : reportingQueue) {
+        for (Reportable metric : reportingList) {
             metric.report(tags, reporter);
         }
     }

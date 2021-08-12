@@ -45,7 +45,22 @@ task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     args '-e', '.*ScopeImplBenchmark.*'
     args '-rf', 'text'
     args '-rff', resultFile
+
+    // Profile using GC, Threading profilers
     args '-prof', 'gc'
+    args '-prof', 'hs_thr'
+
+    // Profile using async-profiling
+    //
+    // NOTE: For this to work you need to make sure that async-profiler's library is either
+    //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
+    //          - Available in '-Djava.library.path'
+    //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
+    args '-prof', 'async:event=cpu;direction=forward;output=flamegraph'
+
+    // Force GC after every iterations, to make sure that one iteration
+    // doesn't affect the other one
+    args '-gc', 'true'
 }
 
 classes.finalizedBy(jmhClasses)

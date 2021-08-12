@@ -59,6 +59,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -289,11 +290,20 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
-        Set<MetricTag> metricTagSet = new HashSet<>();
-
-        if (tags == null) {
-            return metricTagSet;
+        if (tags == null || tags.size() == 0) {
+            return Collections.emptySet();
         }
+
+        // We're creating this surrogate structure to avoid incurring penalties
+        // associated w/ {@code HashSet}s (like computing hash-codes for every inserted element),
+        // since we aren't leveraging {@code HashSet}'s primary advantage (fast lookups)
+        class ListSet<E> extends ArrayList<E> implements Set<E> {
+            public ListSet(int initialCapacity) {
+                super(initialCapacity);
+            }
+        }
+
+        Set<MetricTag> metricTagSet = new ListSet<>(tags.size());
 
         for (Map.Entry<String, String> tag : tags.entrySet()) {
             metricTagSet.add(createMetricTag(tag.getKey(), tag.getValue()));

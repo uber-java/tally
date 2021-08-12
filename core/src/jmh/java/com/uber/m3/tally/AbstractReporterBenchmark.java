@@ -25,13 +25,20 @@ import com.uber.m3.util.ImmutableMap;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,9 +48,14 @@ import java.util.concurrent.TimeUnit;
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Warmup(iterations = 3)
+@Measurement(iterations = 5)
 @Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 @State(Scope.Benchmark)
-public abstract class AbstractReporterBenchmark {
+public abstract class AbstractReporterBenchmark<Reporter extends StatsReporter> {
+
+    private Logger logger = LoggerFactory.getLogger(getClass());
+
     private static final ImmutableMap<String, String> DEFAULT_TAGS = new ImmutableMap.Builder<String, String>(5)
             .put("tag1", "test1")
             .put("tag2", "test2")
@@ -66,25 +78,43 @@ public abstract class AbstractReporterBenchmark {
     private static final String HISTOGRAM_DURATION_NAME = "histogram_duration";
     private static final String HISTOGRAM_VALUE_NAME = "histogram_value";
 
-    private StatsReporter reporter;
+    private static final int TARGET_PARALLELISM = 4;
+
+    private Reporter reporter;
 
     @Benchmark
-    public void reportCounterBenchmark(IncrementalValueState value) {
+    public void reportCounterBenchmark(Counter value) {
         reporter.reportCounter(COUNTER_NAME, DEFAULT_TAGS, value.incrementAndGet());
     }
 
+    @Threads(TARGET_PARALLELISM)
     @Benchmark
-    public void reportGaugeBenchmark(IncrementalValueState value) {
-        reporter.reportCounter(COUNTER_NAME, DEFAULT_TAGS, value.incrementAndGet());
+    public void reportCounterParallelBenchmark(Counter value) {
+        if (isOpen()) {
+            reporter.reportCounter(COUNTER_NAME, DEFAULT_TAGS, value.incrementAndGet());
+        }
+    }
+
+    // This method is used to throttle the execution, returning
+    //  - {@code true} w/ probability equal to {@code 1 - 1 / TARGET_PARALLELISM}, and returning
+    //  - {@code false} w/ probability equal to {@code 1 / TARGET_PARALLELISM}
+    protected boolean isOpen() {
+        int dice = ThreadLocalRandom.current().nextInt(TARGET_PARALLELISM);
+        return dice == 0;
     }
 
     @Benchmark
-    public void reportTimerBenchmark(IncrementalValueState value) {
+    public void reportGaugeBenchmark(Counter value) {
+        reporter.reportGauge(GAUGE_NAME, DEFAULT_TAGS, value.incrementAndGet());
+    }
+
+    @Benchmark
+    public void reportTimerBenchmark(Counter value) {
         reporter.reportTimer(TIMER_NAME, DEFAULT_TAGS, Duration.ofSeconds(value.incrementAndGet()));
     }
 
     @Benchmark
-    public void reportHistogramDurationSamplesBenchmark(IncrementalValueState value) {
+    public void reportHistogramDurationSamplesBenchmark(Counter value) {
         reporter.reportHistogramDurationSamples(
                 HISTOGRAM_DURATION_NAME,
                 DEFAULT_TAGS,
@@ -96,7 +126,7 @@ public abstract class AbstractReporterBenchmark {
     }
 
     @Benchmark
-    public void reportHistogramValueSamplesBenchmark(IncrementalValueState value) {
+    public void reportHistogramValueSamplesBenchmark(Counter value) {
         reporter.reportHistogramValueSamples(
                 HISTOGRAM_VALUE_NAME,
                 DEFAULT_TAGS,
@@ -107,40 +137,24 @@ public abstract class AbstractReporterBenchmark {
         );
     }
 
-    @Setup
+    @Setup(Level.Iteration)
     public void setup() {
-        this.reporter = initReporter();
-
-        reporter.reportCounter(COUNTER_NAME, DEFAULT_TAGS, 1);
-        reporter.reportGauge(GAUGE_NAME, DEFAULT_TAGS, 1);
-        reporter.reportTimer(TIMER_NAME, DEFAULT_TAGS, Duration.ofSeconds(1));
-        reporter.reportHistogramValueSamples(
-                HISTOGRAM_VALUE_NAME,
-                DEFAULT_TAGS,
-                VALUE_EXPONENTIAL_BUCKETS,
-                0.1,
-                0.1,
-                1
-        );
-        reporter.reportHistogramDurationSamples(
-                HISTOGRAM_DURATION_NAME,
-                DEFAULT_TAGS,
-                DURATION_EXPONENTIAL_BUCKETS,
-                Duration.ofSeconds(1),
-                Duration.ofSeconds(1),
-                1
-        );
+        this.reporter = bootReporter();
+        logger.info("Booted reporter");
     }
 
-    @TearDown
+    @TearDown(Level.Iteration)
     public void teardown() {
-        reporter.close();
+        shutdownReporter(reporter);
+        reporter = null;
+        logger.info("Shutdown reporter");
     }
 
-    public abstract StatsReporter initReporter();
+    public abstract Reporter bootReporter();
+    public abstract void shutdownReporter(Reporter reporter);
 
     @State(Scope.Thread)
-    public static class IncrementalValueState {
+    public static class Counter {
         private long x;
 
         long incrementAndGet() {

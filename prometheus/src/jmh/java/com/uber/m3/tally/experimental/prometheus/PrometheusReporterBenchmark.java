@@ -21,15 +21,19 @@
 package com.uber.m3.tally.experimental.prometheus;
 
 import com.uber.m3.tally.AbstractReporterBenchmark;
-import com.uber.m3.tally.StatsReporter;
 import io.prometheus.client.CollectorRegistry;
 
-public class PrometheusReporterBenchmark extends AbstractReporterBenchmark {
+public class PrometheusReporterBenchmark extends AbstractReporterBenchmark<PrometheusReporter> {
 
     @Override
-    public StatsReporter initReporter() {
+    public PrometheusReporter bootReporter() {
         return PrometheusReporter.builder()
                 .registry(CollectorRegistry.defaultRegistry)
                 .build();
+    }
+
+    @Override
+    public void shutdownReporter(PrometheusReporter reporter) {
+        reporter.close();
     }
 }

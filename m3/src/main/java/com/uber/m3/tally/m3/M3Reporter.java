@@ -117,6 +117,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     private static final ThreadLocal<SerializedPayloadSizeEstimator> PAYLOAD_SIZE_ESTIMATOR =
             ThreadLocal.withInitial(SerializedPayloadSizeEstimator::new);
 
+    private static final AtomicInteger processorThreadCounter = new AtomicInteger(0);
+
     private final Duration maxBufferingDelay;
 
     private final int payloadCapacity;
@@ -278,6 +280,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         } catch (InterruptedException e) {
             LOG.warn("M3Reporter closing before Processors complete due to being interrupted!");
         }
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    void awaitTermination(Duration timeout) throws InterruptedException {
+        executorService.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        scheduledExecutorService.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
@@ -501,10 +509,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     private static ThreadFactory createThreadFactory() {
         return new ThreadFactory() {
-            private final AtomicInteger counter = new AtomicInteger(0);
             @Override
             public Thread newThread(Runnable r) {
-                return new Thread(r, String.format("m3-reporter-%d", counter.getAndIncrement()));
+                return new Thread(r, String.format("m3-reporter-%d", processorThreadCounter.getAndIncrement()));
             }
         };
     }

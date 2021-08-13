@@ -40,6 +40,7 @@ import com.uber.m3.thrift.gen.MetricValue;
 import com.uber.m3.thrift.gen.TimerValue;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import com.uber.m3.util.ListSet;
 import org.apache.http.annotation.NotThreadSafe;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TCompactProtocol;
@@ -93,8 +94,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     /**
      * NOTE: DO NOT CHANGE THIS NUMBER!
-     *       Reporter architecture is not suited for multi-processor setup and might cause some disruption
-     *       to how metrics are processed and eventually submitted to M3 collectors;
+     * Reporter architecture is not suited for multi-processor setup and might cause some disruption
+     * to how metrics are processed and eventually submitted to M3 collectors;
      */
     static final int NUM_PROCESSORS = 1;
 
@@ -289,18 +290,17 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         scheduledExecutorService.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * NOTE: This method relies on the input being a {@link Map}, therefore assuring that provided
+     *       tags set DOES NOT contain duplicates.
+     *
+     *       Internally it uses surrogate data-structure {@link ListSet} that doesn't perform any
+     *       checks regarding whether added tag-pairs are already present in the set or not, relying
+     *       on the caller to maintain this invariant
+     */
     private static Set<MetricTag> toMetricTagSet(Map<String, String> tags) {
         if (tags == null || tags.size() == 0) {
-            return Collections.emptySet();
-        }
-
-        // We're creating this surrogate structure to avoid incurring penalties
-        // associated w/ {@code HashSet}s (like computing hash-codes for every inserted element),
-        // since we aren't leveraging {@code HashSet}'s primary advantage (fast lookups)
-        class ListSet<E> extends ArrayList<E> implements Set<E> {
-            public ListSet(int initialCapacity) {
-                super(initialCapacity);
-            }
+            return new ListSet<>();
         }
 
         Set<MetricTag> metricTagSet = new ListSet<>(tags.size());
@@ -383,7 +383,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     /**
      * @deprecated DO NOT USE
-     *
+     * <p>
      * Please use {@link #reportHistogramValueSamples(String, Map, Buckets, int, long)} instead
      */
     @Deprecated
@@ -401,7 +401,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
     /**
      * @deprecated DO NOT USE
-     *
+     * <p>
      * Please use {@link #reportHistogramValueSamples(String, Map, Buckets, int, long)} instead
      */
     @Override
@@ -418,11 +418,11 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
     }
 
     public void reportHistogramValueSamples(
-        String name,
-        Map<String, String> tags,
-        Buckets buckets,
-        int bucketIndex,
-        long samples
+            String name,
+            Map<String, String> tags,
+            Buckets buckets,
+            int bucketIndex,
+            long samples
     ) {
         // Append histogram bucket-specific tags
         int bucketIdLen = String.valueOf(buckets.size()).length();
@@ -454,8 +454,8 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         }
 
         builder
-            .put(bucketIdTagKey, String.format(bucketIdFmt, bucketIndex))
-            .put(bucketValueTagKey, bucketValueTag);
+                .put(bucketIdTagKey, String.format(bucketIdFmt, bucketIndex))
+                .put(bucketValueTagKey, bucketValueTag);
 
         reportCounterInternal(name, builder.build(), samples);
     }
@@ -771,6 +771,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
+         *
          * @param endpointSocketAddresses the array of {@code SocketAddress}es for this {@link M3Reporter}
          */
         public Builder(SocketAddress[] endpointSocketAddresses) {
@@ -783,6 +784,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Constructs a {@link Builder}. Having at least one {@code SocketAddress} is required.
+         *
          * @param socketAddress the {@code SocketAddress} for this {@link M3Reporter}
          */
         public Builder(SocketAddress socketAddress) {
@@ -791,6 +793,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the service of this {@link Builder}.
+         *
          * @param service the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -802,6 +805,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the env of this {@link Builder}.
+         *
          * @param env the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -813,6 +817,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the executor of this {@link Builder}.
+         *
          * @param executor the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -824,6 +829,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the common tags of this {@link Builder}.
+         *
          * @param commonTags the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -835,6 +841,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures whether to include the host tag of this {@link Builder}.
+         *
          * @param includeHost the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -846,9 +853,9 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the maximum queue size of this {@link Builder}.
+         *
          * @param maxQueueSize the value to set
          * @return this {@link Builder} with the new value set
-         *
          * @deprecated this method has no impact anymore and will be deleted in the next release
          */
         @Deprecated
@@ -859,6 +866,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the maximum packet size in bytes of this {@link Builder}.
+         *
          * @param maxPacketSizeBytes the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -870,6 +878,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the maximum wait time in milliseconds size in bytes of this {@link Builder}.
+         *
          * @param maxProcessorWaitUntilFlushMillis the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -881,6 +890,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the histogram bucket ID name of this {@link Builder}.
+         *
          * @param histogramBucketIdName the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -892,6 +902,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the histogram bucket name of this {@link Builder}.
+         *
          * @param histogramBucketName the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -903,6 +914,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Configures the histogram bucket tag precision of this {@link Builder}.
+         *
          * @param histogramBucketTagPrecision the value to set
          * @return this {@link Builder} with the new value set
          */
@@ -913,6 +925,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
 
         /**
          * Builds and returns an {@link M3Reporter} with the configured paramters.
+         *
          * @return a new {@link M3Reporter} instance with the configured paramters
          */
         public M3Reporter build() {

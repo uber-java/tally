@@ -23,12 +23,13 @@ package com.uber.m3.tally.statsd;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.uber.m3.tally.AbstractReporterBenchmark;
-import com.uber.m3.tally.StatsReporter;
 
-public class StatsdReporterBenchmark extends AbstractReporterBenchmark {
+public class StatsdReporterBenchmark extends AbstractReporterBenchmark<StatsdReporter> {
+
     @Override
-    public StatsReporter initReporter() {
+    public StatsdReporter bootReporter() {
         StatsDClient statsd = new NonBlockingStatsDClient("statsd-test", "localhost", 1235);
         return new StatsdReporter(statsd);
     }
+
 }

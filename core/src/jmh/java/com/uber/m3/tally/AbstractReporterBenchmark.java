@@ -53,9 +53,6 @@ import java.util.concurrent.TimeUnit;
 @Fork(value = 2, jvmArgsAppend = {"-server", "-XX:+UseG1GC"})
 @State(Scope.Benchmark)
 public abstract class AbstractReporterBenchmark<Reporter extends StatsReporter> {
-
-    private Logger logger = LoggerFactory.getLogger(getClass());
-
     private static final ImmutableMap<String, String> DEFAULT_TAGS = new ImmutableMap.Builder<String, String>(5)
             .put("tag1", "test1")
             .put("tag2", "test2")
@@ -79,6 +76,8 @@ public abstract class AbstractReporterBenchmark<Reporter extends StatsReporter> 
     private static final String HISTOGRAM_VALUE_NAME = "histogram_value";
 
     private static final int TARGET_PARALLELISM = 4;
+
+    private Logger logger = LoggerFactory.getLogger(getClass());
 
     private Reporter reporter;
 

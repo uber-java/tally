@@ -151,7 +151,10 @@ public abstract class AbstractReporterBenchmark<Reporter extends StatsReporter> 
     }
 
     public abstract Reporter bootReporter();
-    public abstract void shutdownReporter(Reporter reporter);
+
+    public void shutdownReporter(Reporter reporter) {
+        reporter.close();
+    }
 
     @State(Scope.Thread)
     public static class Counter {

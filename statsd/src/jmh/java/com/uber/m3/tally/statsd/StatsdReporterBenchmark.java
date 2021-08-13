@@ -25,14 +25,11 @@ import com.timgroup.statsd.StatsDClient;
 import com.uber.m3.tally.AbstractReporterBenchmark;
 
 public class StatsdReporterBenchmark extends AbstractReporterBenchmark<StatsdReporter> {
+
     @Override
     public StatsdReporter bootReporter() {
         StatsDClient statsd = new NonBlockingStatsDClient("statsd-test", "localhost", 1235);
         return new StatsdReporter(statsd);
     }
 
-    @Override
-    public void shutdownReporter(StatsdReporter reporter) {
-        reporter.close();
-    }
 }

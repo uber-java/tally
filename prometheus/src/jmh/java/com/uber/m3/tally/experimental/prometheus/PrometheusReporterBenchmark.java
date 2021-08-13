@@ -32,8 +32,4 @@ public class PrometheusReporterBenchmark extends AbstractReporterBenchmark<Prome
                 .build();
     }
 
-    @Override
-    public void shutdownReporter(PrometheusReporter reporter) {
-        reporter.close();
-    }
 }

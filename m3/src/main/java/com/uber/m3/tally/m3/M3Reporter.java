@@ -519,7 +519,7 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
-                return new Thread(r, String.format("m3-reporter-%d", processorThreadCounter.getAndIncrement()));
+                return new Thread(r, String.format("m3-reporter-%d", processorThreadCounter.getAndIncrement())).setDaemon(true);
             }
         };
     }

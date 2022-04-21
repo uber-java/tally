@@ -22,6 +22,7 @@ package com.uber.m3.tally.statsd;
 
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClient;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.DurationBuckets;
@@ -55,7 +56,11 @@ public class StatsdReporterTest {
         Thread serverThread = new Thread(server);
         serverThread.start();
 
-        statsd = new NonBlockingStatsDClient("statsd-test", "localhost", PORT);
+        statsd = new NonBlockingStatsDClientBuilder()
+            .prefix("statsd-test")
+            .hostname("localhost")
+            .port(PORT)
+            .build();
         reporter = new StatsdReporter(statsd);
 
         reporter.reportCounter("statsd-count", null, 4);

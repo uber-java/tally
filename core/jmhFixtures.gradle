@@ -18,44 +18,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-description = 'Interfaces and utilities to report metrics to M3'
-apply from: 'jmhFixtures.gradle'
+description = 'Script plugin to add jmh dependencies to other modules'
+apply plugin: 'java'
+
+configurations {
+    outputDirs
+
+    // This configuration holds dependencies to libraries or another projects
+    // and will be placed on jmhFixtures source set's classpath.
+    jmhFixturesCompile.extendsFrom compile
+    jmhFixturesRuntime.extendsFrom runtime, jmhFixturesCompile
+
+    // Following two configurations adds compiled jmhFixtures classes to the
+    // jmhFixtures* source sets so it can be used by other projects as a
+    // dependency target.
+    jmhFixturesUsageCompile.extendsFrom jmhFixturesCompile, outputDirs
+    jmhFixturesUsageRuntime.extendsFrom jmhFixturesRuntime, jmhFixturesUsageCompile
+}
 
 sourceSets {
     jmh {
         java.srcDirs = ['src/jmh/java']
         resources.srcDirs = ['src/jmh/resources']
-
+        compileClasspath += sourceSets.main.output
+        compileClasspath += configurations.jmhFixturesCompile
         compileClasspath += sourceSets.main.runtimeClasspath
         compileClasspath += sourceSets.test.runtimeClasspath
+        runtimeClasspath = output + compileClasspath + configurations.jmhFixturesRuntime
     }
+
 }
 
-task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
-    main = 'org.openjdk.jmh.Main'
-    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
-    def resultFile = file(resultFilePath)
-    resultFile.parentFile.mkdirs()
-
-    args '-rf', 'text'
-    args '-rff', resultFile
-
-    // Profile using GC, Threading profilers
-    args '-prof', 'gc'
-    args '-prof', 'hs_thr'
-
-    // Profile using async-profiling
-    //
-    // NOTE: For this to work you need to make sure that async-profiler's library is either
-    //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
-    //          - Available in '-Djava.library.path'
-    //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
-    args '-prof', 'async:event=cpu;direction=forward;output=flamegraph'
-
-    // Force GC after every iterations, to make sure that one iteration
-    // doesn't affect the other one
-    args '-gc', 'true'
+dependencies {
+    outputDirs sourceSets.jmh.output
+    jmhFixturesUsageCompile project(project.path)
+    jmhFixturesCompile('org.openjdk.jmh:jmh-core:1.27')
+    jmhFixturesCompile('org.openjdk.jmh:jmh-generator-annprocess:1.27')
 }
-
-classes.finalizedBy(jmhClasses)

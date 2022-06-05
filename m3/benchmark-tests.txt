@@ -1,0 +1,89 @@
+Benchmark                                                                                      Mode  Cnt      Score      Error    Units
+M3ReporterBenchmark.reportCounterBenchmark                                                    thrpt   10    514.215 ±   34.242   ops/ms
+M3ReporterBenchmark.reportCounterBenchmark:·async                                             thrpt             NaN                 ---
+M3ReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate                                     thrpt   10    437.375 ±   26.826   MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.alloc.rate.norm                                thrpt   10   1116.034 ±   19.123     B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space                            thrpt   10    690.767 ±   50.821   MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Eden_Space.norm                       thrpt   10   1762.206 ±   45.887     B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen                               thrpt   10      0.019 ±    0.091   MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Old_Gen.norm                          thrpt   10      0.045 ±    0.213     B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Survivor_Space                        thrpt   10      6.706 ±    9.252   MB/sec
+M3ReporterBenchmark.reportCounterBenchmark:·gc.churn.G1_Survivor_Space.norm                   thrpt   10     16.765 ±   21.462     B/op
+M3ReporterBenchmark.reportCounterBenchmark:·gc.count                                          thrpt   10    220.000              counts
+M3ReporterBenchmark.reportCounterBenchmark:·gc.time                                           thrpt   10  30423.000                  ms
+M3ReporterBenchmark.reportCounterBenchmark:·threads.alive                                     thrpt   10      5.000 ±    0.001  threads
+M3ReporterBenchmark.reportCounterBenchmark:·threads.daemon                                    thrpt   10      4.000 ±    0.001  threads
+M3ReporterBenchmark.reportCounterBenchmark:·threads.started                                   thrpt   10     37.000             threads
+M3ReporterBenchmark.reportCounterParallelBenchmark                                            thrpt   10   2015.384 ± 2042.141   ops/ms
+M3ReporterBenchmark.reportCounterParallelBenchmark:·async                                     thrpt             NaN                 ---
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.alloc.rate                             thrpt   10    246.593 ±  275.848   MB/sec
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.alloc.rate.norm                        thrpt   10    284.050 ±    0.129     B/op
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Eden_Space                    thrpt   10    379.818 ±  418.912   MB/sec
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Eden_Space.norm               thrpt   10    440.820 ±   24.887     B/op
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Old_Gen                       thrpt   10      0.061 ±    0.055   MB/sec
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Old_Gen.norm                  thrpt   10      0.089 ±    0.083     B/op
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Survivor_Space                thrpt   10      2.739 ±    1.569   MB/sec
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.churn.G1_Survivor_Space.norm           thrpt   10      4.417 ±    3.212     B/op
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.count                                  thrpt   10    291.000              counts
+M3ReporterBenchmark.reportCounterParallelBenchmark:·gc.time                                   thrpt   10  58775.000                  ms
+M3ReporterBenchmark.reportCounterParallelBenchmark:·threads.alive                             thrpt   10      8.000 ±    0.001  threads
+M3ReporterBenchmark.reportCounterParallelBenchmark:·threads.daemon                            thrpt   10      7.000 ±    0.001  threads
+M3ReporterBenchmark.reportCounterParallelBenchmark:·threads.started                           thrpt   10     40.000             threads
+M3ReporterBenchmark.reportGaugeBenchmark                                                      thrpt   10    149.579 ±   61.457   ops/ms
+M3ReporterBenchmark.reportGaugeBenchmark:·async                                               thrpt             NaN                 ---
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate                                       thrpt   10    133.842 ±   59.667   MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.alloc.rate.norm                                  thrpt   10   1168.126 ±    0.038     B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space                              thrpt   10    216.775 ±  106.813   MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Eden_Space.norm                         thrpt   10   1880.746 ±  108.728     B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen                                 thrpt   10      0.009 ±    0.043   MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Old_Gen.norm                            thrpt   10      0.045 ±    0.214     B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Survivor_Space                          thrpt   10      1.555 ±    2.526   MB/sec
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.churn.G1_Survivor_Space.norm                     thrpt   10     11.875 ±   16.763     B/op
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.count                                            thrpt   10    161.000              counts
+M3ReporterBenchmark.reportGaugeBenchmark:·gc.time                                             thrpt   10  31911.000                  ms
+M3ReporterBenchmark.reportGaugeBenchmark:·threads.alive                                       thrpt   10      5.000 ±    0.001  threads
+M3ReporterBenchmark.reportGaugeBenchmark:·threads.daemon                                      thrpt   10      4.000 ±    0.001  threads
+M3ReporterBenchmark.reportGaugeBenchmark:·threads.started                                     thrpt   10     37.000             threads
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark                                   thrpt   10     49.933 ±   39.110   ops/ms
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·async                            thrpt             NaN                 ---
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate                    thrpt   10    270.159 ±  211.231   MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.alloc.rate.norm               thrpt   10   6064.434 ±    0.281     B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space           thrpt   10    270.268 ±  247.130   MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Eden_Space.norm      thrpt   10   5970.980 ± 1925.316     B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen              thrpt   10      0.201 ±    0.163   MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Old_Gen.norm         thrpt   10      5.936 ±    7.227     B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Survivor_Space       thrpt   10      3.305 ±    7.621   MB/sec
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.churn.G1_Survivor_Space.norm  thrpt   10     51.805 ±   85.682     B/op
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.count                         thrpt   10    132.000              counts
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·gc.time                          thrpt   10   4772.000                  ms
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·threads.alive                    thrpt   10      5.000 ±    0.001  threads
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·threads.daemon                   thrpt   10      4.000 ±    0.001  threads
+M3ReporterBenchmark.reportHistogramDurationSamplesBenchmark:·threads.started                  thrpt   10     37.000             threads
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark                                      thrpt   10     41.705 ±   45.191   ops/ms
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·async                               thrpt             NaN                 ---
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate                       thrpt   10    291.152 ±  320.494   MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.alloc.rate.norm                  thrpt   10   7788.516 ±   19.085     B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space              thrpt   10    319.512 ±  366.795   MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Eden_Space.norm         thrpt   10   8447.524 ±  577.648     B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen                 thrpt   10      0.326 ±    0.239   MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Old_Gen.norm            thrpt   10     10.611 ±    8.406     B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Survivor_Space          thrpt   10      3.568 ±    6.344   MB/sec
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.churn.G1_Survivor_Space.norm     thrpt   10     84.629 ±   77.853     B/op
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.count                            thrpt   10    165.000              counts
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·gc.time                             thrpt   10   4233.000                  ms
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·threads.alive                       thrpt   10      5.000 ±    0.001  threads
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·threads.daemon                      thrpt   10      4.000 ±    0.001  threads
+M3ReporterBenchmark.reportHistogramValueSamplesBenchmark:·threads.started                     thrpt   10     37.000             threads
+M3ReporterBenchmark.reportTimerBenchmark                                                      thrpt   10    315.832 ±  255.075   ops/ms
+M3ReporterBenchmark.reportTimerBenchmark:·async                                               thrpt             NaN                 ---
+M3ReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate                                       thrpt   10    289.650 ±  234.171   MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.alloc.rate.norm                                  thrpt   10   1168.070 ±    0.048     B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space                              thrpt   10    460.438 ±  381.392   MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Eden_Space.norm                         thrpt   10   1845.837 ±   81.841     B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space                          thrpt   10      2.953 ±    4.673   MB/sec
+M3ReporterBenchmark.reportTimerBenchmark:·gc.churn.G1_Survivor_Space.norm                     thrpt   10      9.174 ±   11.454     B/op
+M3ReporterBenchmark.reportTimerBenchmark:·gc.count                                            thrpt   10    199.000              counts
+M3ReporterBenchmark.reportTimerBenchmark:·gc.time                                             thrpt   10  30459.000                  ms
+M3ReporterBenchmark.reportTimerBenchmark:·threads.alive                                       thrpt   10      5.000 ±    0.001  threads
+M3ReporterBenchmark.reportTimerBenchmark:·threads.daemon                                      thrpt   10      4.000 ±    0.001  threads
+M3ReporterBenchmark.reportTimerBenchmark:·threads.started                                     thrpt   10     37.000             threads

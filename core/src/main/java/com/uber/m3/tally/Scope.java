@@ -20,6 +20,7 @@
 
 package com.uber.m3.tally;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
@@ -51,10 +52,10 @@ public interface Scope extends AutoCloseable {
     /**
      * Creates and returns a {@link Histogram} with specified name and buckets.
      * @param name the name of this {@link Histogram}
-     * @param buckets the buckets of this {@link Histogram}
+     * @param buckets the buckets of this {@link Histogram}. If null, default buckets will be used.
      * @return a {@link Histogram} with the specified name and buckets
      */
-    Histogram histogram(String name, Buckets buckets);
+    Histogram histogram(String name, @Nullable Buckets buckets);
 
     /**
      * Returns a child scope with the given and current tags.

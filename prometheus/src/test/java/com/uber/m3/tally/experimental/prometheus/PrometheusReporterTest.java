@@ -17,7 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-package com.uber.m3.tally.prometheus;
+package com.uber.m3.tally.experimental.prometheus;
 
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.DurationBuckets;
@@ -46,8 +46,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
-import static com.uber.m3.tally.prometheus.PrometheusReporter.METRIC_ID_KEY_VALUE;
-import static com.uber.m3.tally.prometheus.PrometheusReporter.collectionToStringArray;
+import static com.uber.m3.tally.experimental.prometheus.PrometheusReporter.METRIC_ID_KEY_VALUE;
+import static com.uber.m3.tally.experimental.prometheus.PrometheusReporter.collectionToStringArray;
 import static java.util.Collections.singletonMap;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;

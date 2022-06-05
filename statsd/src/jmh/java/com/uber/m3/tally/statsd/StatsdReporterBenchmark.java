@@ -18,15 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package com.uber.m3.tally.prometheus;
+package com.uber.m3.tally.statsd;
 
-/**
- * {@link com.uber.m3.tally.Timer} metric can be represented as {@link io.prometheus.client.Summary} or
- * {@link io.prometheus.client.Histogram}.
- *
- * @see <a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>
- * @see <a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>
- */
-public enum TimerType {
-    SUMMARY, HISTOGRAM
+import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.StatsDClient;
+import com.uber.m3.tally.AbstractReporterBenchmark;
+
+public class StatsdReporterBenchmark extends AbstractReporterBenchmark<StatsdReporter> {
+
+    @Override
+    public StatsdReporter bootReporter() {
+        StatsDClient statsd = new NonBlockingStatsDClient("statsd-test", "localhost", 1235);
+        return new StatsdReporter(statsd);
+    }
+
 }

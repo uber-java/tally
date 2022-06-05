@@ -26,9 +26,49 @@ description = 'tally M3 reporter'
 
 dependencies {
     compile('org.apache.thrift:libthrift:0.9.3')
-
-    compile project(':tally-core')
+    compile project(path: ':tally-core', configuration: 'jmhFixturesUsageCompile')
 }
+
+sourceSets {
+    jmh {
+        java.srcDirs = ['src/jmh/java']
+        resources.srcDirs = ['src/jmh/resources']
+
+        compileClasspath += sourceSets.main.runtimeClasspath
+        compileClasspath += sourceSets.test.runtimeClasspath
+    }
+}
+
+task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
+    main = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
+    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
+    def resultFile = file(resultFilePath)
+    resultFile.parentFile.mkdirs()
+
+    // ScopeImplBenchmark is shipped as a part of jmh source-set from :tally-core. Explicitly exclude it from running.
+    args '-e', '.*ScopeImplBenchmark.*'
+    args '-rf', 'text'
+    args '-rff', resultFile
+
+    // Profile using GC, Threading profilers
+    args '-prof', 'gc'
+    args '-prof', 'hs_thr'
+
+    // Profile using async-profiling
+    //
+    // NOTE: For this to work you need to make sure that async-profiler's library is either
+    //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
+    //          - Available in '-Djava.library.path'
+    //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
+    args '-prof', 'async:event=cpu;direction=forward;output=flamegraph'
+
+    // Force GC after every iterations, to make sure that one iteration
+    // doesn't affect the other one
+    args '-gc', 'true'
+}
+
+classes.finalizedBy(jmhClasses)
 
 compileThrift {
     generator 'java', 'private-members'

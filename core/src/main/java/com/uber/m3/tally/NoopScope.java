@@ -24,6 +24,8 @@ import java.util.Map;
 
 import com.uber.m3.util.Duration;
 
+import javax.annotation.Nullable;
+
 /**
  * Noop implementation of Scope.
  */
@@ -94,7 +96,7 @@ public class NoopScope implements Scope {
 
     @Override
     @SuppressWarnings("rawtypes")
-    public Histogram histogram(String name, Buckets buckets) {
+    public Histogram histogram(String name, @Nullable Buckets buckets) {
         return NOOP_HISTOGRAM;
     }
 

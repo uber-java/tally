@@ -73,6 +73,7 @@ public class BucketPairImplTest {
             expectedPairs,
             BucketPairImpl.bucketPairs(ValueBuckets.linear(0, 50, 3))
         );
+        throw new RuntimeException("amainsd: intentional");
     }
 
     @Test

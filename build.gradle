@@ -169,9 +169,10 @@ subprojects {
 
 ext."signing.secretKeyRingFile" = "ci/${ext.secretKeyRingFileName}"
 
-task wrapper(type: Wrapper) {
+
+wrapper {
     // Gradle version 4+ required for JMH benchmarking, otherwise v3.5+ is sufficient
-    gradleVersion = '4.0'
+    gradleVersion = '6.9'
 }
 
 // --------------------------------------
@@ -183,9 +184,9 @@ coveralls {
 
 task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
     dependsOn = subprojects.test
-    sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
-    classDirectories =  files(subprojects.sourceSets.main.output.classesDirs)
-    executionData = files(subprojects.jacocoTestReport.executionData)
+    sourceDirectories.setFrom(files(subprojects.sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(files(subprojects.sourceSets.main.output.classesDirs))
+    executionData.setFrom(files(subprojects.jacocoTestReport.executionData))
 
     reports {
         xml.enabled = true

@@ -101,6 +101,7 @@ class ScopeImpl implements Scope {
         );
     }
 
+
     @Override
     public Scope tagged(Map<String, String> tags) {
         return subScopeHelper(prefix, tags);
@@ -280,15 +281,25 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
+        return computeSubscopeIfAbsent(key, mergedTags);
+    }
+
+    // This method must only be called on unit tests or benchmarks
+    protected Scope computeSubscopeIfAbsent(String key, ImmutableMap<String, String> mergedTags) {
+        Scope scope = registry.subscopes.get(key);
+        if (scope != null) {
+            return scope;
+        }
+
         return registry.subscopes.computeIfAbsent(
-            key,
-            (k) -> new ScopeBuilder(scheduler, registry)
-                .reporter(reporter)
-                .prefix(prefix)
-                .separator(separator)
-                .tags(mergedTags)
-                .defaultBuckets(defaultBuckets)
-                .build()
+                key,
+                (k) -> new ScopeBuilder(scheduler, registry)
+                        .reporter(reporter)
+                        .prefix(prefix)
+                        .separator(separator)
+                        .tags(mergedTags)
+                        .defaultBuckets(defaultBuckets)
+                        .build()
         );
     }
 

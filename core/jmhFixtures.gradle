@@ -54,4 +54,8 @@ dependencies {
     jmhFixturesUsageCompile project(project.path)
     jmhFixturesCompile('org.openjdk.jmh:jmh-core:1.27')
     jmhFixturesCompile('org.openjdk.jmh:jmh-generator-annprocess:1.27')
+
+    if (project.gradle.gradleVersion > '5') {
+        jmhAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.27")
+    }
 }

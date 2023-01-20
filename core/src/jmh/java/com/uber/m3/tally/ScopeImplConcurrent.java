@@ -21,7 +21,7 @@ public class ScopeImplConcurrent {
         for (int i = 0; i < 10000; i++) {
 
             for (String key : KEYS) {
-                Scope scope = state.scope.computeSubscopeIfAbsent(key, common);
+                Scope scope = state.scope.computeSubscopeIfAbsent("prefix", key, common);
                 assert scope != null;
                 bh.consume(scope);
             }
@@ -41,7 +41,7 @@ public class ScopeImplConcurrent {
                             .reportEvery(Duration.MAX_VALUE);
 
             for (String key : KEYS) {
-                scope.computeSubscopeIfAbsent(key, new ImmutableMap.Builder<String, String>().build());
+                scope.computeSubscopeIfAbsent("prefix", key, new ImmutableMap.Builder<String, String>().build());
             }
         }
 

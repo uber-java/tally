@@ -281,11 +281,11 @@ class ScopeImpl implements Scope {
 
         String key = keyForPrefixedStringMap(prefix, mergedTags);
 
-        return computeSubscopeIfAbsent(key, mergedTags);
+        return computeSubscopeIfAbsent(prefix, key, mergedTags);
     }
 
     // This method must only be called on unit tests or benchmarks
-    protected Scope computeSubscopeIfAbsent(String key, ImmutableMap<String, String> mergedTags) {
+    protected Scope computeSubscopeIfAbsent(String prefix, String key, ImmutableMap<String, String> mergedTags) {
         Scope scope = registry.subscopes.get(key);
         if (scope != null) {
             return scope;

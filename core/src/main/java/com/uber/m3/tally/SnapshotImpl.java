@@ -27,28 +27,28 @@ import java.util.concurrent.ConcurrentHashMap;
  * Default implementation of a {@link Snapshot}.
  */
 class SnapshotImpl implements Snapshot {
-    Map<String, CounterSnapshot> counters = new ConcurrentHashMap<>();
-    Map<String, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
-    Map<String, TimerSnapshot> timers = new ConcurrentHashMap<>();
-    Map<String, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
+    Map<HashKey, CounterSnapshot> counters = new ConcurrentHashMap<>();
+    Map<HashKey, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
+    Map<HashKey, TimerSnapshot> timers = new ConcurrentHashMap<>();
+    Map<HashKey, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
 
     @Override
-    public Map<String, CounterSnapshot> counters() {
+    public Map<HashKey, CounterSnapshot> counters() {
         return counters;
     }
 
     @Override
-    public Map<String, GaugeSnapshot> gauges() {
+    public Map<HashKey, GaugeSnapshot> gauges() {
         return gauges;
     }
 
     @Override
-    public Map<String, TimerSnapshot> timers() {
+    public Map<HashKey, TimerSnapshot> timers() {
         return timers;
     }
 
     @Override
-    public Map<String, HistogramSnapshot> histograms() {
+    public Map<HashKey, HistogramSnapshot> histograms() {
         return histograms;
     }
 }

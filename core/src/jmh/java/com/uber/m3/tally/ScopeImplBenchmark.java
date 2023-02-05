@@ -30,6 +30,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 public class ScopeImplBenchmark {
 
     private static final DurationBuckets EXPONENTIAL_BUCKETS = DurationBuckets.linear(Duration.ofMillis(1), Duration.ofMillis(10), 128);
+
+    private static final ImmutableMap<String, String> TAGS_STRING_MAP = ImmutableMap.of("tag1", "value1", "tag2", "value2", "tag3", "value3");
 
     private static final String[] COUNTER_NAMES = {
         "first-counter",
@@ -64,10 +67,17 @@ public class ScopeImplBenchmark {
         "fourth-histogram",
         "fifth-histogram",
     };
+    private static final ImmutableMap<String, String> stringMap = ImmutableMap.of("tag1",
+            "value1", "tag2", "value2", "tag3", "value3");
 
-    @Benchmark
+    //@Benchmark
     public void scopeReportingBenchmark(BenchmarkState state) {
         state.scope.reportLoopIteration();
+    }
+
+    @Benchmark
+    public void scopeTaggedBenchmark(Blackhole blackhole, BenchmarkState state) {
+        blackhole.consume(state.scope.tagged(TAGS_STRING_MAP));
     }
 
     @State(org.openjdk.jmh.annotations.Scope.Benchmark)

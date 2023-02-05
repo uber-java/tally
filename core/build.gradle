@@ -34,7 +34,7 @@ sourceSets {
 task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     main = 'org.openjdk.jmh.Main'
     classpath = sourceSets.jmh.compileClasspath + sourceSets.jmh.runtimeClasspath
-    def resultFilePath = project.properties.get('output', 'benchmark-tests.txt')
+    def resultFilePath = project.properties.get('output', 'benchmark-after-key.txt')
     def resultFile = file(resultFilePath)
     resultFile.parentFile.mkdirs()
 
@@ -58,11 +58,10 @@ task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
     //          - Available in '-Djava.library.path'
     //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
-    args '-prof', project.properties.get('bprof', 'async:event=cpu;direction=forward;output=flamegraph')
-
-    args '-bm', project.properties.get('bm', 'thrpt')
-    args '-t', project.properties.get('bthreads', '1')
-    args 'com.uber.m3.tally.' + project.properties.get('benchclass', '')
+//    args '-prof', project.properties.get('bprof', 'async:event=cpu;direction=forward;output=flamegraph')
+//    args '-bm', project.properties.get('bm', 'thrpt')
+//    args '-t', project.properties.get('bthreads', '1')
+//    args 'com.uber.m3.tally.' + project.properties.get('benchclass', '')
 }
 
 classes.finalizedBy(jmhClasses)

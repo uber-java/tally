@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * If you're adding a new implementation of {@link StatsReporter} you should include benchmark tests in your code.
  * See `com.uber.m3.tally.m3.M3ReporterBenchmark` for an example.
  */
-@BenchmarkMode(Mode.Throughput)
+//@BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Warmup(iterations = 3)
 @Measurement(iterations = 5)

@@ -1,9 +1,9 @@
-Benchmark                                                        Mode  Cnt     Score     Error    Units
-ScopeImplBenchmark.scopeReportingBenchmark                      thrpt   10  1443.821 ± 155.208   ops/ms
-ScopeImplBenchmark.scopeReportingBenchmark:·async               thrpt            NaN                ---
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate       thrpt   10    ≈ 10⁻⁴             MB/sec
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm  thrpt   10    ≈ 10⁻⁴               B/op
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.count            thrpt   10       ≈ 0             counts
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive       thrpt   10     7.800 ±   0.637  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon      thrpt   10     6.000 ±   0.001  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.started     thrpt   10    28.000            threads
+Benchmark                                                        Mode  Cnt     Score    Error    Units
+ScopeImplBenchmark.scopeReportingBenchmark                      thrpt   10  1385.711 ± 55.291   ops/ms
+ScopeImplBenchmark.scopeReportingBenchmark:·async               thrpt            NaN               ---
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate       thrpt   10    ≈ 10⁻⁴            MB/sec
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm  thrpt   10    ≈ 10⁻⁴              B/op
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.count            thrpt   10       ≈ 0            counts
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive       thrpt   10     5.800 ±  0.637  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon      thrpt   10     4.000 ±  0.001  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.started     thrpt   10    26.000           threads

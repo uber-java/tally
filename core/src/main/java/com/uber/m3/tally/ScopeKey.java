@@ -4,11 +4,14 @@ import com.uber.m3.util.ImmutableMap;
 
 import java.util.Objects;
 
-class HashKey {
+/**
+ * ScopeKey encapsulates the data to uniquely identify the {@link Scope}
+ */
+final class ScopeKey {
     private final String prefix;
     private final ImmutableMap<String, String> tags;
 
-    public HashKey(String prefix, ImmutableMap<String, String> tags) {
+    public ScopeKey(String prefix, ImmutableMap<String, String> tags) {
         this.prefix = prefix;
         this.tags = tags;
     }
@@ -26,7 +29,7 @@ class HashKey {
             return false;
         if (getClass() != otherObj.getClass())
             return false;
-        HashKey other = (HashKey) otherObj;
+        ScopeKey other = (ScopeKey) otherObj;
         return Objects.equals(this.prefix, other.prefix) && Objects.equals(this.tags, other.tags);
     }
 

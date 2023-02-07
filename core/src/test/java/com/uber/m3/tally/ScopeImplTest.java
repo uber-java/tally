@@ -226,13 +226,13 @@ public class ScopeImplTest {
 
         Snapshot snapshot = ((ScopeImpl) rootScope).snapshot();
 
-        Map<HashKey, CounterSnapshot> counters = snapshot.counters();
+        Map<ScopeKey, CounterSnapshot> counters = snapshot.counters();
         assertEquals(1, counters.size());
         CounterSnapshot counterSnapshotActual = counters.get(ScopeImpl.keyForPrefixedStringMap("snapshot-counter", null));
         assertEquals("snapshot-counter", counterSnapshotActual.name());
         assertEquals(null, counterSnapshotActual.tags());
 
-        Map<HashKey, GaugeSnapshot> gauges = snapshot.gauges();
+        Map<ScopeKey, GaugeSnapshot> gauges = snapshot.gauges();
         assertEquals(3, gauges.size());
         GaugeSnapshot gaugeSnapshotActual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge", null));
         assertEquals("snapshot-gauge", gaugeSnapshotActual.name());
@@ -249,7 +249,7 @@ public class ScopeImplTest {
         assertEquals(null, gaugeSnapshot3Actual.tags());
         assertEquals(320, gaugeSnapshot3Actual.value(), EPSILON);
 
-        Map<HashKey, TimerSnapshot> timers = snapshot.timers();
+        Map<ScopeKey, TimerSnapshot> timers = snapshot.timers();
         assertEquals(1, timers.size());
         TimerSnapshot timerSnapshotActual = timers.get(ScopeImpl.keyForPrefixedStringMap("snapshot-timer", null));
         assertEquals("snapshot-timer", timerSnapshotActual.name());

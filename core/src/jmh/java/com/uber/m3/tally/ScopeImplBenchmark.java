@@ -67,8 +67,6 @@ public class ScopeImplBenchmark {
         "fourth-histogram",
         "fifth-histogram",
     };
-    private static final ImmutableMap<String, String> stringMap = ImmutableMap.of("tag1",
-            "value1", "tag2", "value2", "tag3", "value3");
 
     @Benchmark
     public void scopeReportingBenchmark(BenchmarkState state) {

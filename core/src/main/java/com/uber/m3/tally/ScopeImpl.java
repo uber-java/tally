@@ -150,8 +150,8 @@ class ScopeImpl implements Scope {
 
     // Serializes a map to generate a key for a prefix/map combination
     // Non-generic EMPTY ImmutableMap will never contain any elements
-    static HashKey keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
-       return new HashKey(prefix, stringMap);
+    static ScopeKey keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
+       return new ScopeKey(prefix, stringMap);
     }
 
     String fullyQualifiedName(String name) {
@@ -173,10 +173,10 @@ class ScopeImpl implements Scope {
             for (Map.Entry<String, CounterImpl> counter : subscope.counters.entrySet()) {
                 String name = subscope.fullyQualifiedName(counter.getKey());
 
-                HashKey hashKey = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.counters().put(
-                    hashKey,
+                        scopeKey,
                     new CounterSnapshotImpl(
                         name,
                         tags,
@@ -188,10 +188,10 @@ class ScopeImpl implements Scope {
             for (Map.Entry<String, GaugeImpl> gauge : subscope.gauges.entrySet()) {
                 String name = subscope.fullyQualifiedName(gauge.getKey());
 
-                HashKey hashKey = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.gauges().put(
-                    hashKey,
+                        scopeKey,
                     new GaugeSnapshotImpl(
                         name,
                         tags,
@@ -203,10 +203,10 @@ class ScopeImpl implements Scope {
             for (Map.Entry<String, TimerImpl> timer : subscope.timers.entrySet()) {
                 String name = subscope.fullyQualifiedName(timer.getKey());
 
-                HashKey hashKey = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.timers().put(
-                    hashKey,
+                        scopeKey,
                     new TimerSnapshotImpl(
                         name,
                         tags,
@@ -218,10 +218,10 @@ class ScopeImpl implements Scope {
             for (Map.Entry<String, HistogramImpl> histogram : subscope.histograms.entrySet()) {
                 String name = subscope.fullyQualifiedName(histogram.getKey());
 
-                HashKey hashKey = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.histograms().put(
-                    hashKey,
+                        scopeKey,
                     new HistogramSnapshotImpl(
                         name,
                         tags,
@@ -249,13 +249,13 @@ class ScopeImpl implements Scope {
 
         ImmutableMap<String, String> mergedTags = mapBuilder.build();
 
-        HashKey key = keyForPrefixedStringMap(prefix, mergedTags);
+        ScopeKey key = keyForPrefixedStringMap(prefix, mergedTags);
 
         return computeSubscopeIfAbsent(prefix, key, mergedTags);
     }
 
     // This method must only be called on unit tests or benchmarks
-    protected Scope computeSubscopeIfAbsent(String prefix, HashKey key, ImmutableMap<String, String> mergedTags) {
+    protected Scope computeSubscopeIfAbsent(String prefix, ScopeKey key, ImmutableMap<String, String> mergedTags) {
         Scope scope = registry.subscopes.get(key);
         if (scope != null) {
             return scope;
@@ -313,7 +313,7 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        Map<HashKey, ScopeImpl> subscopes = new ConcurrentHashMap<>();
+        Map<ScopeKey, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 
 }

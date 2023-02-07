@@ -177,11 +177,11 @@ class ScopeImpl implements Scope {
 
                 snap.counters().put(
                         scopeKey,
-                    new CounterSnapshotImpl(
-                        name,
-                        tags,
-                        counter.getValue().snapshot()
-                    )
+                        new CounterSnapshotImpl(
+                                name,
+                                tags,
+                                counter.getValue().snapshot()
+                        )
                 );
             }
 
@@ -192,11 +192,11 @@ class ScopeImpl implements Scope {
 
                 snap.gauges().put(
                         scopeKey,
-                    new GaugeSnapshotImpl(
-                        name,
-                        tags,
-                        gauge.getValue().snapshot()
-                    )
+                        new GaugeSnapshotImpl(
+                                name,
+                                tags,
+                                gauge.getValue().snapshot()
+                        )
                 );
             }
 
@@ -207,11 +207,11 @@ class ScopeImpl implements Scope {
 
                 snap.timers().put(
                         scopeKey,
-                    new TimerSnapshotImpl(
-                        name,
-                        tags,
-                        timer.getValue().snapshot()
-                    )
+                        new TimerSnapshotImpl(
+                                name,
+                                tags,
+                                timer.getValue().snapshot()
+                        )
                 );
             }
 
@@ -222,12 +222,12 @@ class ScopeImpl implements Scope {
 
                 snap.histograms().put(
                         scopeKey,
-                    new HistogramSnapshotImpl(
-                        name,
-                        tags,
-                        histogram.getValue().snapshotValues(),
-                        histogram.getValue().snapshotDurations()
-                    )
+                        new HistogramSnapshotImpl(
+                                name,
+                                tags,
+                                histogram.getValue().snapshotValues(),
+                                histogram.getValue().snapshotDurations()
+                        )
                 );
             }
         }

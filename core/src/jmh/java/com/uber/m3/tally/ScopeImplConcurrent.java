@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-//@BenchmarkMode(Mode.Throughput)
+@BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 2, jvmArgsAppend = { "-server", "-XX:+UseG1GC" })
 public class ScopeImplConcurrent {

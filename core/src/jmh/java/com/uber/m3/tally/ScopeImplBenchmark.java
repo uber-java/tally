@@ -70,7 +70,7 @@ public class ScopeImplBenchmark {
     private static final ImmutableMap<String, String> stringMap = ImmutableMap.of("tag1",
             "value1", "tag2", "value2", "tag3", "value3");
 
-    //@Benchmark
+    @Benchmark
     public void scopeReportingBenchmark(BenchmarkState state) {
         state.scope.reportLoopIteration();
     }

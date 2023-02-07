@@ -57,7 +57,7 @@ task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     // NOTE: For this to work you need to make sure that async-profiler's library is either
     //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
     //          - Available in '-Djava.library.path'
-    //          - Explicitly specify pprof arg with 'async:libPath=</path/libasyncProfiler.so>'
+    //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
     args '-prof', project.properties.get('bprof', 'async:event=cpu;direction=forward;output=flamegraph')
 
     args '-bm', project.properties.get('bm', 'thrpt')

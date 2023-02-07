@@ -1,20 +1,9 @@
-Benchmark                                                               Mode  Cnt     Score     Error    Units
-ScopeImplBenchmark.scopeReportingBenchmark                             thrpt   10  1202.032 ± 384.327   ops/ms
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate              thrpt   10    ≈ 10⁻⁴             MB/sec
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm         thrpt   10    ≈ 10⁻⁴               B/op
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.count                   thrpt   10       ≈ 0             counts
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive              thrpt   10     5.800 ±   0.637  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon             thrpt   10     4.000 ±   0.001  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.started            thrpt   10    26.000            threads
-ScopeImplConcurrent.hotkeyLockContention                               thrpt   10     3.536 ±   0.014   ops/ms
-ScopeImplConcurrent.hotkeyLockContention:·gc.alloc.rate                thrpt   10     0.462 ±   0.002   MB/sec
-ScopeImplConcurrent.hotkeyLockContention:·gc.alloc.rate.norm           thrpt   10   144.015 ±   0.006     B/op
-ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Eden_Space       thrpt   10     0.380 ±   0.001   MB/sec
-ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Eden_Space.norm  thrpt   10   118.551 ±   0.498     B/op
-ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Old_Gen          thrpt   10     0.159 ±   0.001   MB/sec
-ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Old_Gen.norm     thrpt   10    49.559 ±   0.299     B/op
-ScopeImplConcurrent.hotkeyLockContention:·gc.count                     thrpt   10    10.000             counts
-ScopeImplConcurrent.hotkeyLockContention:·gc.time                      thrpt   10    26.000                 ms
-ScopeImplConcurrent.hotkeyLockContention:·threads.alive                thrpt   10     5.800 ±   0.637  threads
-ScopeImplConcurrent.hotkeyLockContention:·threads.daemon               thrpt   10     4.000 ±   0.001  threads
-ScopeImplConcurrent.hotkeyLockContention:·threads.started              thrpt   10    26.000            threads
+Benchmark                                                        Mode  Cnt     Score    Error    Units
+ScopeImplBenchmark.scopeReportingBenchmark                      thrpt   10  1385.711 ± 55.291   ops/ms
+ScopeImplBenchmark.scopeReportingBenchmark:·async               thrpt            NaN               ---
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate       thrpt   10    ≈ 10⁻⁴            MB/sec
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm  thrpt   10    ≈ 10⁻⁴              B/op
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.count            thrpt   10       ≈ 0            counts
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive       thrpt   10     5.800 ±  0.637  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon      thrpt   10     4.000 ±  0.001  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.started     thrpt   10    26.000           threads

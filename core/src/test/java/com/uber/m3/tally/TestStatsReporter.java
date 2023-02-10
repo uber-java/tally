@@ -168,8 +168,8 @@ public class TestStatsReporter implements StatsReporter {
             if (otherObj == null || getClass() != otherObj.getClass()) {
                 return false;
             }
-            MetricStruct<?> that = (MetricStruct<?>) otherObj;
-            return Objects.equals(name, that.name) && Objects.equals(tags, that.tags) && Objects.equals(value, that.value);
+            MetricStruct<?> other = (MetricStruct<?>) otherObj;
+            return Objects.equals(name, other.name) && Objects.equals(tags, other.tags) && Objects.equals(value, other.value);
         }
 
         @Override

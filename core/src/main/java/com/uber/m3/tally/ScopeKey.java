@@ -26,7 +26,7 @@ import java.util.Objects;
 
 /**
  * ScopeKey encapsulates the data to uniquely identify the {@link Scope}.
- * This object overrides {@link #equals(Object)} and {@link #hashCode()} methods, so it can be used in Hash based {@link java.util.Map} implementations, to retrieve the corresponding {@link Scope}
+ * This object overrides {@link #equals(Object)} and {@link #hashCode()} methods, so it can be used in Hash based {@link java.util.Map} implementations, to retrieve the corresponding {@link Scope}.
  */
 public final class ScopeKey {
     private final String prefix;

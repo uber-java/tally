@@ -151,7 +151,7 @@ class ScopeImpl implements Scope {
     // Serializes a map to generate a key for a prefix/map combination
     // Non-generic EMPTY ImmutableMap will never contain any elements
     static ScopeKey keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
-       return new ScopeKey(prefix, stringMap);
+        return new ScopeKey(prefix, stringMap);
     }
 
     String fullyQualifiedName(String name) {

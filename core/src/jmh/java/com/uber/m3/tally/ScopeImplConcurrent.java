@@ -25,23 +25,25 @@ import com.uber.m3.util.ImmutableMap;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 2, jvmArgsAppend = { "-server", "-XX:+UseG1GC" })
 public class ScopeImplConcurrent {
-    private static final String[] KEYS = new String[]{
-        " ", "0", "@", "P",
-    };
+    private static final List<ScopeKey> SCOPE_KEYS =
+            Stream.of(" ", "0", "@", "P").map(prefix -> new ScopeKey(prefix, null)).collect(Collectors.toList());
 
     @Benchmark
     public void hotkeyLockContention(Blackhole bh, BenchmarkState state) {
         ImmutableMap<String, String> common = new ImmutableMap.Builder<String, String>().build();
         for (int i = 0; i < 10000; i++) {
 
-            for (String key : KEYS) {
-                Scope scope = state.scope.computeSubscopeIfAbsent("prefix", key, common);
+            for (ScopeKey scopeKey : SCOPE_KEYS) {
+                Scope scope = state.scope.computeSubscopeIfAbsent("prefix", scopeKey, common);
                 assert scope != null;
                 bh.consume(scope);
             }
@@ -60,8 +62,8 @@ public class ScopeImplConcurrent {
                             .reporter(new TestStatsReporter())
                             .reportEvery(Duration.MAX_VALUE);
 
-            for (String key : KEYS) {
-                scope.computeSubscopeIfAbsent("prefix", key, new ImmutableMap.Builder<String, String>().build());
+            for (ScopeKey scopeKey : SCOPE_KEYS) {
+                scope.computeSubscopeIfAbsent("prefix", scopeKey, new ImmutableMap.Builder<String, String>().build());
             }
         }
 

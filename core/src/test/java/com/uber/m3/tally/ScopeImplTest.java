@@ -20,19 +20,19 @@
 
 package com.uber.m3.tally;
 
-import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.Test;
-
-import com.uber.m3.util.Duration;
-import com.uber.m3.util.ImmutableMap;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
+import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableMap;
+import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Test;
 
 public class ScopeImplTest {
     private static final double EPSILON = 1e-10;
@@ -170,14 +170,15 @@ public class ScopeImplTest {
         } catch (InterruptedException e) {
             System.err.println("Interrupted while sleeping! Let's continue anyway...");
         }
+        final Set<TestStatsReporter.MetricStruct<Long>> actualCounters = new HashSet<>();
+        actualCounters.add(reporter.nextCounter());
+        actualCounters.add(reporter.nextCounter());
 
-        TestStatsReporter.MetricStruct<Long> counter = reporter.nextCounter();
-        assertEquals("root_counter", counter.getName());
-        assertEquals(tags, counter.getTags());
+        final Set<TestStatsReporter.MetricStruct<Long>> expectedCounters = new HashSet<>();
+        expectedCounters.add(new TestStatsReporter.MetricStruct<>("root_counter", tags, 20L));
+        expectedCounters.add(new TestStatsReporter.MetricStruct<>("inner.sub_counter", tags, 25L));
 
-        counter = reporter.nextCounter();
-        assertEquals("inner.sub_counter", counter.getName());
-        assertEquals(tags, counter.getTags());
+        assertEquals(expectedCounters, actualCounters);
 
         TestStatsReporter.MetricStruct<Double> gauge = reporter.nextGauge();
         assertEquals("inner.deeper.sub_sub_gauge", gauge.getName());
@@ -226,27 +227,34 @@ public class ScopeImplTest {
 
         Snapshot snapshot = ((ScopeImpl) rootScope).snapshot();
 
-        Map<String, CounterSnapshot> counters = snapshot.counters();
+        Map<ScopeKey, CounterSnapshot> counters = snapshot.counters();
         assertEquals(1, counters.size());
-        assertEquals("snapshot-counter", counters.get("snapshot-counter+").name());
-        assertEquals(null, counters.get("snapshot-counter+").tags());
+        CounterSnapshot counterSnapshotActual = counters.get(ScopeImpl.keyForPrefixedStringMap("snapshot-counter", null));
+        assertEquals("snapshot-counter", counterSnapshotActual.name());
+        assertEquals(null, counterSnapshotActual.tags());
 
-        Map<String, GaugeSnapshot> gauges = snapshot.gauges();
+        Map<ScopeKey, GaugeSnapshot> gauges = snapshot.gauges();
         assertEquals(3, gauges.size());
-        assertEquals("snapshot-gauge", gauges.get("snapshot-gauge+").name());
-        assertEquals(null, gauges.get("snapshot-gauge+").tags());
-        assertEquals(120, gauges.get("snapshot-gauge+").value(), EPSILON);
-        assertEquals("snapshot-gauge2", gauges.get("snapshot-gauge2+").name());
-        assertEquals(null, gauges.get("snapshot-gauge2+").tags());
-        assertEquals(220, gauges.get("snapshot-gauge2+").value(), EPSILON);
-        assertEquals("snapshot-gauge3", gauges.get("snapshot-gauge3+").name());
-        assertEquals(null, gauges.get("snapshot-gauge3+").tags());
-        assertEquals(320, gauges.get("snapshot-gauge3+").value(), EPSILON);
+        GaugeSnapshot gaugeSnapshotActual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge", null));
+        assertEquals("snapshot-gauge", gaugeSnapshotActual.name());
+        assertEquals(null, gaugeSnapshotActual.tags());
+        assertEquals(120, gaugeSnapshotActual.value(), EPSILON);
 
-        Map<String, TimerSnapshot> timers = snapshot.timers();
+        GaugeSnapshot gaugeSnapshot2Actual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge2", null));
+        assertEquals("snapshot-gauge2", gaugeSnapshot2Actual.name());
+        assertEquals(null, gaugeSnapshot2Actual.tags());
+        assertEquals(220, gaugeSnapshot2Actual.value(), EPSILON);
+
+        GaugeSnapshot gaugeSnapshot3Actual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge3", null));
+        assertEquals("snapshot-gauge3", gaugeSnapshot3Actual.name());
+        assertEquals(null, gaugeSnapshot3Actual.tags());
+        assertEquals(320, gaugeSnapshot3Actual.value(), EPSILON);
+
+        Map<ScopeKey, TimerSnapshot> timers = snapshot.timers();
         assertEquals(1, timers.size());
-        assertEquals("snapshot-timer", timers.get("snapshot-timer+").name());
-        assertEquals(null, timers.get("snapshot-timer+").tags());
+        TimerSnapshot timerSnapshotActual = timers.get(ScopeImpl.keyForPrefixedStringMap("snapshot-timer", null));
+        assertEquals("snapshot-timer", timerSnapshotActual.name());
+        assertEquals(null, timerSnapshotActual.tags());
     }
 
     @Test(expected = IllegalArgumentException.class)

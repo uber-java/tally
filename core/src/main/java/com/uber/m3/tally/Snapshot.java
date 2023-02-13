@@ -30,23 +30,23 @@ public interface Snapshot {
      * Returns a {@link CounterSnapshot} of all {@link Counter} summations since last report execution.
      * @return a {@link CounterSnapshot} of all {@link Counter} summations since last report execution
      */
-    Map<String, CounterSnapshot> counters();
+    Map<ScopeKey, CounterSnapshot> counters();
 
     /**
      * Returns a {@link GaugeSnapshot} of {@link Gauge} last values since last report execution.
      * @return a {@link GaugeSnapshot} of {@link Gauge} last values since last report execution
      */
-    Map<String, GaugeSnapshot> gauges();
+    Map<ScopeKey, GaugeSnapshot> gauges();
 
     /**
      * Returns a {@link TimerSnapshot} of {@link Timer} values since last report execution.
      * @return a {@link TimerSnapshot} of {@link Timer} values since last report execution
      */
-    Map<String, TimerSnapshot> timers();
+    Map<ScopeKey, TimerSnapshot> timers();
 
     /**
      * Returns a {@link HistogramSnapshot} of {@link Histogram} samples since last report execution.
      * @return a {@link HistogramSnapshot} of {@link Histogram} samples since last report execution
      */
-    Map<String, HistogramSnapshot> histograms();
+    Map<ScopeKey, HistogramSnapshot> histograms();
 }

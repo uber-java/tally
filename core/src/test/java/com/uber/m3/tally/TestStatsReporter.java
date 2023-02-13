@@ -24,6 +24,7 @@ import com.uber.m3.util.Duration;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -137,9 +138,9 @@ public class TestStatsReporter implements StatsReporter {
     }
 
     static class MetricStruct<T> {
-        private String name;
-        private Map<String, String> tags;
-        private T value;
+        private final String name;
+        private final Map<String, String> tags;
+        private final T value;
 
         MetricStruct(String name, Map<String, String> tags, T value) {
             this.name = name;
@@ -157,6 +158,23 @@ public class TestStatsReporter implements StatsReporter {
 
         T getValue() {
             return value;
+        }
+
+        @Override
+        public boolean equals(Object otherObj) {
+            if (this == otherObj) {
+                return true;
+            }
+            if (otherObj == null || getClass() != otherObj.getClass()) {
+                return false;
+            }
+            MetricStruct<?> other = (MetricStruct<?>) otherObj;
+            return Objects.equals(name, other.name) && Objects.equals(tags, other.tags) && Objects.equals(value, other.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, tags, value);
         }
     }
 }

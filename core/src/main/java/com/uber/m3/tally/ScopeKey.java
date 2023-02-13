@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,35 +20,41 @@
 
 package com.uber.m3.tally;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.uber.m3.util.ImmutableMap;
+
+import java.util.Objects;
 
 /**
- * Default implementation of a {@link Snapshot}.
+ * ScopeKey encapsulates the data to uniquely identify the {@link Scope}.
+ * This object overrides {@link #equals(Object)} and {@link #hashCode()} methods, so it can be used in Hash based {@link java.util.Map} implementations, to retrieve the corresponding {@link Scope}.
  */
-class SnapshotImpl implements Snapshot {
-    Map<ScopeKey, CounterSnapshot> counters = new ConcurrentHashMap<>();
-    Map<ScopeKey, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
-    Map<ScopeKey, TimerSnapshot> timers = new ConcurrentHashMap<>();
-    Map<ScopeKey, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
+public final class ScopeKey {
+    private final String prefix;
+    private final ImmutableMap<String, String> tags;
 
-    @Override
-    public Map<ScopeKey, CounterSnapshot> counters() {
-        return counters;
+    public ScopeKey(String prefix, ImmutableMap<String, String> tags) {
+        this.prefix = prefix;
+        this.tags = tags;
     }
 
     @Override
-    public Map<ScopeKey, GaugeSnapshot> gauges() {
-        return gauges;
+    public int hashCode() {
+        return Objects.hash(prefix, tags);
     }
 
     @Override
-    public Map<ScopeKey, TimerSnapshot> timers() {
-        return timers;
+    public boolean equals(Object otherObj) {
+        if (this == otherObj) {
+            return true;
+        }
+        if (otherObj == null) {
+            return false;
+        }
+        if (getClass() != otherObj.getClass()) {
+            return false;
+        }
+        ScopeKey other = (ScopeKey) otherObj;
+        return Objects.equals(this.prefix, other.prefix) && Objects.equals(this.tags, other.tags);
     }
 
-    @Override
-    public Map<ScopeKey, HistogramSnapshot> histograms() {
-        return histograms;
-    }
 }

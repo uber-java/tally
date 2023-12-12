@@ -320,12 +320,12 @@ public class M3Reporter implements StatsReporter, AutoCloseable {
         return metricTag;
     }
 
-    private String valueBucketString(double bucketBound) {
-        if (bucketBound == Double.MAX_VALUE) {
+    String valueBucketString(double bucketBound) {
+        if (bucketBound == Double.POSITIVE_INFINITY) {
             return "infinity";
         }
 
-        if (bucketBound == -Double.MAX_VALUE) {
+        if (bucketBound == Double.NEGATIVE_INFINITY) {
             return "-infinity";
         }
 

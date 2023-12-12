@@ -35,12 +35,12 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
     @Override
     public double getValueLowerBoundFor(int bucketIndex) {
-        return bucketIndex == 0 ? Double.MIN_VALUE : buckets.get(bucketIndex - 1);
+        return bucketIndex == 0 ? Double.NEGATIVE_INFINITY : buckets.get(bucketIndex - 1);
     }
 
     @Override
     public double getValueUpperBoundFor(int bucketIndex) {
-        return bucketIndex < buckets.size() ? buckets.get(bucketIndex) : Double.MAX_VALUE;
+        return bucketIndex < buckets.size() ? buckets.get(bucketIndex) : Double.POSITIVE_INFINITY;
     }
 
     @Override

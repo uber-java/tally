@@ -38,6 +38,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.hamcrest.CoreMatchers;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -52,9 +53,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 // TODO add tests to validate proper shutdown
@@ -548,5 +551,24 @@ public class M3ReporterTest {
         }
 
         assertEquals(expectedMetricsCount, metrics.size());
+    }
+
+    @Test
+    public void valueBuckets() {
+        M3Reporter reporter = new M3Reporter.Builder(socketAddress)
+                .service("test")
+                .env("test")
+                .build();
+
+        String res = reporter.valueBucketString(0);
+        assertThat("0.000000", is(res));
+        res = reporter.valueBucketString(Double.NEGATIVE_INFINITY);
+        assertThat("-infinity", is(res));
+        res = reporter.valueBucketString(Double.NEGATIVE_INFINITY + 42);
+        assertThat("-infinity", is(res));
+        res = reporter.valueBucketString(Double.POSITIVE_INFINITY);
+        assertThat("infinity", is(res));
+        res = reporter.valueBucketString(Double.POSITIVE_INFINITY + 42);
+        assertThat("infinity", is(res));
     }
 }

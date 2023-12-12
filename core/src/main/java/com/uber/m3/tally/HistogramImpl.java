@@ -130,23 +130,33 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
     }
 
     private Duration getUpperBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex < specification.getDurationUpperBounds().size() ? specification.getDurationUpperBounds().get(bucketIndex) : Duration.MAX_VALUE;
+        return bucketIndex < specification.getDurationUpperBounds().size()
+                ? specification.getDurationUpperBounds().get(bucketIndex)
+                : Duration.MAX_VALUE;
     }
 
     private Duration getLowerBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Duration.MIN_VALUE : specification.getDurationUpperBounds().get(bucketIndex - 1);
+        return bucketIndex == 0
+                ? Duration.MIN_VALUE
+                : specification.getDurationUpperBounds().get(bucketIndex - 1);
     }
 
     private double getUpperBoundValueForBucket(int bucketIndex) {
-        return bucketIndex < specification.getValueUpperBounds().size() ? specification.getValueUpperBounds().get(bucketIndex) : Double.MAX_VALUE;
+        return bucketIndex < specification.getValueUpperBounds().size()
+                ? specification.getValueUpperBounds().get(bucketIndex)
+                : Double.POSITIVE_INFINITY;
     }
 
     private double getLowerBoundValueForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Double.MIN_VALUE : specification.getValueUpperBounds().get(bucketIndex - 1);
+        return bucketIndex == 0
+                ? Double.NEGATIVE_INFINITY
+                : specification.getValueUpperBounds().get(bucketIndex - 1);
     }
 
     private long getCounterValue(int index) {
-        return bucketCounters[index] != null ? bucketCounters[index].value() : 0;
+        return bucketCounters[index] != null
+                ? bucketCounters[index].value()
+                : 0;
     }
 
     // NOTE: Only used in testing
@@ -155,9 +165,10 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return null;
         }
 
-        Map<Double, Long> values = new HashMap<>(bucketCounters.length, 1);
+        int length = bucketCounters.length;
+        Map<Double, Long> values = new HashMap<>(length, 1);
 
-        for (int i = 0; i < bucketCounters.length; ++i) {
+        for (int i = 0; i < length; ++i) {
             values.put(getUpperBoundValueForBucket(i), getCounterValue(i));
         }
 
@@ -169,9 +180,10 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
             return null;
         }
 
-        Map<Duration, Long> durations = new HashMap<>(bucketCounters.length, 1);
+        int length = bucketCounters.length;
+        Map<Duration, Long> durations = new HashMap<>(length, 1);
 
-        for (int i = 0; i < bucketCounters.length; ++i) {
+        for (int i = 0; i < length; ++i) {
             durations.put(getUpperBoundDurationForBucket(i), getCounterValue(i));
         }
 

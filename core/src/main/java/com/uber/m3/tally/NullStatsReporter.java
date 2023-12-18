@@ -20,41 +20,51 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.ImmutableMap;
+import com.uber.m3.util.Duration;
 
-import java.util.Objects;
+import java.util.Map;
 
 /**
- * ScopeKey encapsulates the data to uniquely identify the {@link Scope}.
- * This object overrides {@link #equals(Object)} and {@link #hashCode()} methods, so it can be used in Hash based {@link java.util.Map} implementations, to retrieve the corresponding {@link Scope}.
+ * NullStatsReporter is a noop implementation of StatsReporter.
  */
-public final class ScopeKey {
-    private final String prefix;
-    private final ImmutableMap<String, String> tags;
-
-    public ScopeKey(String prefix, ImmutableMap<String, String> tags) {
-        this.prefix = (prefix == null) ? "" : prefix;
-        this.tags = (tags == null) ? ImmutableMap.EMPTY : tags;
+public class NullStatsReporter implements StatsReporter {
+    @Override
+    public Capabilities capabilities() {
+        return CapableOf.NONE;
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(prefix, tags);
+    public void flush() {
+
     }
 
     @Override
-    public boolean equals(Object otherObj) {
-        if (this == otherObj) {
-            return true;
-        }
-        if (otherObj == null) {
-            return false;
-        }
-        if (getClass() != otherObj.getClass()) {
-            return false;
-        }
-        ScopeKey other = (ScopeKey) otherObj;
-        return Objects.equals(this.prefix, other.prefix) && Objects.equals(this.tags, other.tags);
+    public void close() {
+
     }
 
+    @Override
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+
+    }
+
+    @Override
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+
+    }
+
+    @Override
+    public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+
+    }
+
+    @Override
+    public void reportHistogramValueSamples(String name, Map<String, String> tags, Buckets buckets, double bucketLowerBound, double bucketUpperBound, long samples) {
+
+    }
+
+    @Override
+    public void reportHistogramDurationSamples(String name, Map<String, String> tags, Buckets buckets, Duration bucketLowerBound, Duration bucketUpperBound, long samples) {
+
+    }
 }

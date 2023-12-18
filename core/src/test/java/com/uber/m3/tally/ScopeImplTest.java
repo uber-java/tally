@@ -231,30 +231,30 @@ public class ScopeImplTest {
         assertEquals(1, counters.size());
         CounterSnapshot counterSnapshotActual = counters.get(ScopeImpl.keyForPrefixedStringMap("snapshot-counter", null));
         assertEquals("snapshot-counter", counterSnapshotActual.name());
-        assertEquals(null, counterSnapshotActual.tags());
+        assertEquals(ImmutableMap.EMPTY, counterSnapshotActual.tags());
 
         Map<ScopeKey, GaugeSnapshot> gauges = snapshot.gauges();
         assertEquals(3, gauges.size());
         GaugeSnapshot gaugeSnapshotActual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge", null));
         assertEquals("snapshot-gauge", gaugeSnapshotActual.name());
-        assertEquals(null, gaugeSnapshotActual.tags());
+        assertEquals(ImmutableMap.EMPTY, gaugeSnapshotActual.tags());
         assertEquals(120, gaugeSnapshotActual.value(), EPSILON);
 
         GaugeSnapshot gaugeSnapshot2Actual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge2", null));
         assertEquals("snapshot-gauge2", gaugeSnapshot2Actual.name());
-        assertEquals(null, gaugeSnapshot2Actual.tags());
+        assertEquals(ImmutableMap.EMPTY, gaugeSnapshot2Actual.tags());
         assertEquals(220, gaugeSnapshot2Actual.value(), EPSILON);
 
         GaugeSnapshot gaugeSnapshot3Actual = gauges.get(ScopeImpl.keyForPrefixedStringMap("snapshot-gauge3", null));
         assertEquals("snapshot-gauge3", gaugeSnapshot3Actual.name());
-        assertEquals(null, gaugeSnapshot3Actual.tags());
+        assertEquals(ImmutableMap.EMPTY, gaugeSnapshot3Actual.tags());
         assertEquals(320, gaugeSnapshot3Actual.value(), EPSILON);
 
         Map<ScopeKey, TimerSnapshot> timers = snapshot.timers();
         assertEquals(1, timers.size());
         TimerSnapshot timerSnapshotActual = timers.get(ScopeImpl.keyForPrefixedStringMap("snapshot-timer", null));
         assertEquals("snapshot-timer", timerSnapshotActual.name());
-        assertEquals(null, timerSnapshotActual.tags());
+        assertEquals(ImmutableMap.EMPTY, timerSnapshotActual.tags());
     }
 
     @Test(expected = IllegalArgumentException.class)

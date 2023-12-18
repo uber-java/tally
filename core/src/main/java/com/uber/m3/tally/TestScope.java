@@ -20,41 +20,39 @@
 
 package com.uber.m3.tally;
 
-import com.uber.m3.util.ImmutableMap;
-
-import java.util.Objects;
+import java.util.Map;
 
 /**
- * ScopeKey encapsulates the data to uniquely identify the {@link Scope}.
- * This object overrides {@link #equals(Object)} and {@link #hashCode()} methods, so it can be used in Hash based {@link java.util.Map} implementations, to retrieve the corresponding {@link Scope}.
+ * TestScope is a metrics collector that has no reporting, ensuring that
+ * all emitted values have a given prefix or set of tags.
  */
-public final class ScopeKey {
-    private final String prefix;
-    private final ImmutableMap<String, String> tags;
+public interface TestScope extends Scope {
 
-    public ScopeKey(String prefix, ImmutableMap<String, String> tags) {
-        this.prefix = (prefix == null) ? "" : prefix;
-        this.tags = (tags == null) ? ImmutableMap.EMPTY : tags;
+    /**
+     * Creates a new TestScope that adds the ability to take snapshots of
+     * metrics emitted to it.
+     */
+    static TestScope create() {
+        return new RootScopeBuilder()
+                .reporter(new NullStatsReporter())
+                .build();
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(prefix, tags);
+    /**
+     * Creates a new TestScope with given prefix/tags that adds the ability to
+     * take snapshots of metrics emitted to it.
+     */
+    static TestScope create(String prefix, Map<String, String> tags) {
+        return new RootScopeBuilder()
+                .prefix(prefix)
+                .tags(tags)
+                .reporter(new NullStatsReporter())
+                .build();
     }
 
-    @Override
-    public boolean equals(Object otherObj) {
-        if (this == otherObj) {
-            return true;
-        }
-        if (otherObj == null) {
-            return false;
-        }
-        if (getClass() != otherObj.getClass()) {
-            return false;
-        }
-        ScopeKey other = (ScopeKey) otherObj;
-        return Objects.equals(this.prefix, other.prefix) && Objects.equals(this.tags, other.tags);
-    }
-
+    /**
+     * Snapshot returns a copy of all values since the last report execution
+     * This is an expensive operation and should only be used for testing purposes.
+     */
+    Snapshot snapshot();
 }

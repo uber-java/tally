@@ -33,7 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Default {@link Scope} implementation.
  */
-class ScopeImpl implements Scope {
+class ScopeImpl implements Scope, TestScope {
     private StatsReporter reporter;
     private String prefix;
     private String separator;
@@ -163,13 +163,21 @@ class ScopeImpl implements Scope {
     }
 
     /**
-     * Returns a {@link Snapshot} of this {@link Scope}.
+     * Snapshot returns a copy of all values since the last report execution
+     * This is an expensive operation and should only be used for testing purposes.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
+    @Override
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
         for (ScopeImpl subscope : registry.subscopes.values()) {
+            ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>()
+                    .putAll(this.tags)
+                    .putAll(subscope.tags)
+                    .build();
+
             for (Map.Entry<String, CounterImpl> counter : subscope.counters.entrySet()) {
                 String name = subscope.fullyQualifiedName(counter.getKey());
 

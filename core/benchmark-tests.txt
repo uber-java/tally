@@ -1,9 +1,35 @@
-Benchmark                                                        Mode  Cnt     Score    Error    Units
-ScopeImplBenchmark.scopeReportingBenchmark                      thrpt   10  1385.711 ± 55.291   ops/ms
-ScopeImplBenchmark.scopeReportingBenchmark:·async               thrpt            NaN               ---
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate       thrpt   10    ≈ 10⁻⁴            MB/sec
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm  thrpt   10    ≈ 10⁻⁴              B/op
-ScopeImplBenchmark.scopeReportingBenchmark:·gc.count            thrpt   10       ≈ 0            counts
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive       thrpt   10     5.800 ±  0.637  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon      thrpt   10     4.000 ±  0.001  threads
-ScopeImplBenchmark.scopeReportingBenchmark:·threads.started     thrpt   10    26.000           threads
+Benchmark                                                               Mode  Cnt       Score      Error    Units
+ScopeImplBenchmark.scopeReportingBenchmark                             thrpt   10    1345.606 ±  129.913   ops/ms
+ScopeImplBenchmark.scopeReportingBenchmark:·async                      thrpt              NaN                 ---
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate              thrpt   10      ≈ 10⁻⁴              MB/sec
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.alloc.rate.norm         thrpt   10      ≈ 10⁻⁴                B/op
+ScopeImplBenchmark.scopeReportingBenchmark:·gc.count                   thrpt   10         ≈ 0              counts
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.alive              thrpt   10       5.800 ±    0.637  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.daemon             thrpt   10       4.000 ±    0.001  threads
+ScopeImplBenchmark.scopeReportingBenchmark:·threads.started            thrpt   10      26.000             threads
+ScopeImplBenchmark.scopeTaggedBenchmark                                thrpt   10    2440.881 ±   73.028   ops/ms
+ScopeImplBenchmark.scopeTaggedBenchmark:·async                         thrpt              NaN                 ---
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.alloc.rate                 thrpt   10    1947.506 ±   58.647   MB/sec
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.alloc.rate.norm            thrpt   10     880.000 ±    0.001     B/op
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.churn.G1_Eden_Space        thrpt   10    1940.575 ±   57.874   MB/sec
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.churn.G1_Eden_Space.norm   thrpt   10     876.878 ±    5.246     B/op
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.churn.G1_Old_Gen           thrpt   10       0.168 ±    0.001   MB/sec
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.churn.G1_Old_Gen.norm      thrpt   10       0.076 ±    0.002     B/op
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.count                      thrpt   10    1736.000              counts
+ScopeImplBenchmark.scopeTaggedBenchmark:·gc.time                       thrpt   10    1772.000                  ms
+ScopeImplBenchmark.scopeTaggedBenchmark:·threads.alive                 thrpt   10       5.800 ±    0.637  threads
+ScopeImplBenchmark.scopeTaggedBenchmark:·threads.daemon                thrpt   10       4.000 ±    0.001  threads
+ScopeImplBenchmark.scopeTaggedBenchmark:·threads.started               thrpt   10      26.000             threads
+ScopeImplConcurrent.hotkeyLockContention                               thrpt   10       1.430 ±    0.218   ops/ms
+ScopeImplConcurrent.hotkeyLockContention:·async                        thrpt              NaN                 ---
+ScopeImplConcurrent.hotkeyLockContention:·gc.alloc.rate                thrpt   10    1244.444 ±  187.772   MB/sec
+ScopeImplConcurrent.hotkeyLockContention:·gc.alloc.rate.norm           thrpt   10  960144.037 ±    0.011     B/op
+ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Eden_Space       thrpt   10    1237.763 ±  186.894   MB/sec
+ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Eden_Space.norm  thrpt   10  954972.637 ± 4468.064     B/op
+ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Old_Gen          thrpt   10       0.166 ±    0.001   MB/sec
+ScopeImplConcurrent.hotkeyLockContention:·gc.churn.G1_Old_Gen.norm     thrpt   10     129.528 ±   18.631     B/op
+ScopeImplConcurrent.hotkeyLockContention:·gc.count                     thrpt   10    1564.000              counts
+ScopeImplConcurrent.hotkeyLockContention:·gc.time                      thrpt   10    1336.000                  ms
+ScopeImplConcurrent.hotkeyLockContention:·threads.alive                thrpt   10       5.800 ±    0.637  threads
+ScopeImplConcurrent.hotkeyLockContention:·threads.daemon               thrpt   10       4.000 ±    0.001  threads
+ScopeImplConcurrent.hotkeyLockContention:·threads.started              thrpt   10      26.000             threads

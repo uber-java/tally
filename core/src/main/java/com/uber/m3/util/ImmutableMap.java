@@ -223,6 +223,10 @@ public class ImmutableMap<K, V> implements Map<K, V> {
         }
 
         public Builder<K, V> putAll(Map<K, V> otherMap) {
+            if (otherMap == null) {
+                return this;
+            }
+
             map.putAll(otherMap);
 
             return this;

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,30 +23,36 @@ package com.uber.m3.tally;
 import java.util.Map;
 
 /**
- * A snapshot of values since last report execution.
+ * TestScope is a metrics collector that has no reporting, ensuring that
+ * all emitted values have a given prefix or set of tags.
  */
-public interface Snapshot {
-    /**
-     * Returns a {@link CounterSnapshot} of all {@link Counter} summations since last report execution.
-     * @return a {@link CounterSnapshot} of all {@link Counter} summations since last report execution
-     */
-    Map<ScopeKey, CounterSnapshot> counters();
+public interface TestScope extends Scope {
 
     /**
-     * Returns a {@link GaugeSnapshot} of {@link Gauge} last values since last report execution.
-     * @return a {@link GaugeSnapshot} of {@link Gauge} last values since last report execution
+     * Creates a new TestScope that adds the ability to take snapshots of
+     * metrics emitted to it.
      */
-    Map<ScopeKey, GaugeSnapshot> gauges();
+    static TestScope create() {
+        return new RootScopeBuilder()
+                .reporter(new NullStatsReporter())
+                .build();
+    }
 
     /**
-     * Returns a {@link TimerSnapshot} of {@link Timer} values since last report execution.
-     * @return a {@link TimerSnapshot} of {@link Timer} values since last report execution
+     * Creates a new TestScope with given prefix/tags that adds the ability to
+     * take snapshots of metrics emitted to it.
      */
-    Map<ScopeKey, TimerSnapshot> timers();
+    static TestScope create(String prefix, Map<String, String> tags) {
+        return new RootScopeBuilder()
+                .prefix(prefix)
+                .tags(tags)
+                .reporter(new NullStatsReporter())
+                .build();
+    }
 
     /**
-     * Returns a {@link HistogramSnapshot} of {@link Histogram} samples since last report execution.
-     * @return a {@link HistogramSnapshot} of {@link Histogram} samples since last report execution
+     * Snapshot returns a copy of all values since the last report execution
+     * This is an expensive operation and should only be used for testing purposes.
      */
-    Map<ScopeKey, HistogramSnapshot> histograms();
+    Snapshot snapshot();
 }

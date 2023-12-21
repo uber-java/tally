@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,35 +20,19 @@
 
 package com.uber.m3.tally;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import org.junit.Test;
 
-/**
- * Default implementation of a {@link Snapshot}.
- */
-class SnapshotImpl implements Snapshot {
-    Map<ScopeKey, CounterSnapshot> counters = new ConcurrentHashMap<>();
-    Map<ScopeKey, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
-    Map<ScopeKey, TimerSnapshot> timers = new ConcurrentHashMap<>();
-    Map<ScopeKey, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
-    @Override
-    public Map<ScopeKey, CounterSnapshot> counters() {
-        return counters;
-    }
+public class NullStatsReporterTest {
 
-    @Override
-    public Map<ScopeKey, GaugeSnapshot> gauges() {
-        return gauges;
-    }
-
-    @Override
-    public Map<ScopeKey, TimerSnapshot> timers() {
-        return timers;
-    }
-
-    @Override
-    public Map<ScopeKey, HistogramSnapshot> histograms() {
-        return histograms;
+    @Test
+    public void capabilities() {
+        NullStatsReporter reporter = new NullStatsReporter();
+        assertNotNull(reporter.capabilities());
+        assertFalse(reporter.capabilities().reporting());
+        assertFalse(reporter.capabilities().tagging());
     }
 }
+

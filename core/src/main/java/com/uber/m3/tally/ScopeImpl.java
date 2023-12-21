@@ -23,11 +23,9 @@ package com.uber.m3.tally;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,7 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Default {@link Scope} implementation.
  */
-class ScopeImpl implements Scope {
+class ScopeImpl implements Scope, TestScope {
     private StatsReporter reporter;
     private String prefix;
     private String separator;
@@ -90,7 +88,7 @@ class ScopeImpl implements Scope {
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
         return histograms.computeIfAbsent(name, ignored ->
-                // NOTE: This will called at most once
+                // NOTE: This will be called at most once
                 new HistogramImpl(
                         this,
                         fullyQualifiedName(name),
@@ -152,35 +150,8 @@ class ScopeImpl implements Scope {
 
     // Serializes a map to generate a key for a prefix/map combination
     // Non-generic EMPTY ImmutableMap will never contain any elements
-    @SuppressWarnings("unchecked")
-    static String keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
-        if (prefix == null) {
-            prefix = "";
-        }
-
-        if (stringMap == null) {
-            stringMap = ImmutableMap.EMPTY;
-        }
-
-        Set<String> keySet = stringMap.keySet();
-        String[] sortedKeys = keySet.toArray(new String[keySet.size()]);
-        Arrays.sort(sortedKeys);
-
-        StringBuilder keyBuffer = new StringBuilder(prefix.length() + sortedKeys.length * 20);
-        keyBuffer.append(prefix);
-        keyBuffer.append("+");
-
-        for (int i = 0; i < sortedKeys.length; i++) {
-            keyBuffer.append(sortedKeys[i]);
-            keyBuffer.append("=");
-            keyBuffer.append(stringMap.get(sortedKeys[i]));
-
-            if (i != sortedKeys.length - 1) {
-                keyBuffer.append(",");
-            }
-        }
-
-        return keyBuffer.toString();
+    static ScopeKey keyForPrefixedStringMap(String prefix, ImmutableMap<String, String> stringMap) {
+        return new ScopeKey(prefix, stringMap);
     }
 
     String fullyQualifiedName(String name) {
@@ -192,71 +163,79 @@ class ScopeImpl implements Scope {
     }
 
     /**
-     * Returns a {@link Snapshot} of this {@link Scope}.
+     * Snapshot returns a copy of all values since the last report execution
+     * This is an expensive operation and should only be used for testing purposes.
+     *
      * @return a {@link Snapshot} of this {@link Scope}
      */
+    @Override
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
         for (ScopeImpl subscope : registry.subscopes.values()) {
+            ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>()
+                    .putAll(this.tags)
+                    .putAll(subscope.tags)
+                    .build();
+
             for (Map.Entry<String, CounterImpl> counter : subscope.counters.entrySet()) {
                 String name = subscope.fullyQualifiedName(counter.getKey());
 
-                String id = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.counters().put(
-                    id,
-                    new CounterSnapshotImpl(
-                        name,
-                        tags,
-                        counter.getValue().snapshot()
-                    )
+                        scopeKey,
+                        new CounterSnapshotImpl(
+                                name,
+                                tags,
+                                counter.getValue().snapshot()
+                        )
                 );
             }
 
             for (Map.Entry<String, GaugeImpl> gauge : subscope.gauges.entrySet()) {
                 String name = subscope.fullyQualifiedName(gauge.getKey());
 
-                String id = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.gauges().put(
-                    id,
-                    new GaugeSnapshotImpl(
-                        name,
-                        tags,
-                        gauge.getValue().snapshot()
-                    )
+                        scopeKey,
+                        new GaugeSnapshotImpl(
+                                name,
+                                tags,
+                                gauge.getValue().snapshot()
+                        )
                 );
             }
 
             for (Map.Entry<String, TimerImpl> timer : subscope.timers.entrySet()) {
                 String name = subscope.fullyQualifiedName(timer.getKey());
 
-                String id = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.timers().put(
-                    id,
-                    new TimerSnapshotImpl(
-                        name,
-                        tags,
-                        timer.getValue().snapshot()
-                    )
+                        scopeKey,
+                        new TimerSnapshotImpl(
+                                name,
+                                tags,
+                                timer.getValue().snapshot()
+                        )
                 );
             }
 
             for (Map.Entry<String, HistogramImpl> histogram : subscope.histograms.entrySet()) {
                 String name = subscope.fullyQualifiedName(histogram.getKey());
 
-                String id = keyForPrefixedStringMap(name, tags);
+                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
 
                 snap.histograms().put(
-                    id,
-                    new HistogramSnapshotImpl(
-                        name,
-                        tags,
-                        histogram.getValue().snapshotValues(),
-                        histogram.getValue().snapshotDurations()
-                    )
+                        scopeKey,
+                        new HistogramSnapshotImpl(
+                                name,
+                                tags,
+                                histogram.getValue().snapshotValues(),
+                                histogram.getValue().snapshotDurations()
+                        )
                 );
             }
         }
@@ -278,7 +257,17 @@ class ScopeImpl implements Scope {
 
         ImmutableMap<String, String> mergedTags = mapBuilder.build();
 
-        String key = keyForPrefixedStringMap(prefix, mergedTags);
+        ScopeKey key = keyForPrefixedStringMap(prefix, mergedTags);
+
+        return computeSubscopeIfAbsent(prefix, key, mergedTags);
+    }
+
+    // This method must only be called on unit tests or benchmarks
+    protected Scope computeSubscopeIfAbsent(String prefix, ScopeKey key, ImmutableMap<String, String> mergedTags) {
+        Scope scope = registry.subscopes.get(key);
+        if (scope != null) {
+            return scope;
+        }
 
         return registry.subscopes.computeIfAbsent(
             key,
@@ -332,6 +321,7 @@ class ScopeImpl implements Scope {
     }
 
     static class Registry {
-        Map<String, ScopeImpl> subscopes = new ConcurrentHashMap<>();
+        Map<ScopeKey, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
+
 }

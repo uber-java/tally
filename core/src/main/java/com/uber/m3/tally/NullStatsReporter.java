@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,35 +20,51 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
+
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default implementation of a {@link Snapshot}.
+ * NullStatsReporter is a noop implementation of StatsReporter.
  */
-class SnapshotImpl implements Snapshot {
-    Map<ScopeKey, CounterSnapshot> counters = new ConcurrentHashMap<>();
-    Map<ScopeKey, GaugeSnapshot> gauges = new ConcurrentHashMap<>();
-    Map<ScopeKey, TimerSnapshot> timers = new ConcurrentHashMap<>();
-    Map<ScopeKey, HistogramSnapshot> histograms = new ConcurrentHashMap<>();
-
+public class NullStatsReporter implements StatsReporter {
     @Override
-    public Map<ScopeKey, CounterSnapshot> counters() {
-        return counters;
+    public Capabilities capabilities() {
+        return CapableOf.NONE;
     }
 
     @Override
-    public Map<ScopeKey, GaugeSnapshot> gauges() {
-        return gauges;
+    public void flush() {
+
     }
 
     @Override
-    public Map<ScopeKey, TimerSnapshot> timers() {
-        return timers;
+    public void close() {
+
     }
 
     @Override
-    public Map<ScopeKey, HistogramSnapshot> histograms() {
-        return histograms;
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+
+    }
+
+    @Override
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+
+    }
+
+    @Override
+    public void reportTimer(String name, Map<String, String> tags, Duration interval) {
+
+    }
+
+    @Override
+    public void reportHistogramValueSamples(String name, Map<String, String> tags, Buckets buckets, double bucketLowerBound, double bucketUpperBound, long samples) {
+
+    }
+
+    @Override
+    public void reportHistogramDurationSamples(String name, Map<String, String> tags, Buckets buckets, Duration bucketLowerBound, Duration bucketUpperBound, long samples) {
+
     }
 }

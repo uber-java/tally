@@ -21,6 +21,11 @@
 description = 'Interfaces and utilities to report metrics to M3'
 apply from: 'jmhFixtures.gradle'
 
+dependencies {
+    // https://mvnrepository.com/artifact/nl.jqno.equalsverifier/equalsverifier
+    testImplementation("nl.jqno.equalsverifier:equalsverifier:3.13")
+}
+
 sourceSets {
     jmh {
         java.srcDirs = ['src/jmh/java']
@@ -42,20 +47,26 @@ task runJmhTests(type: JavaExec, dependsOn: jmhClasses) {
     args '-rff', resultFile
 
     // Profile using GC, Threading profilers
-    args '-prof', 'gc'
-    args '-prof', 'hs_thr'
+    if (project.properties.get('busegc', 'true') == 'true') {
+        args '-prof', 'gc'
+        args '-prof', 'hs_thr'
+
+        // Force GC after every iterations, to make sure that one iteration
+        // doesn't affect the other one
+        args '-gc', 'true'
+    }
+
 
     // Profile using async-profiling
     //
     // NOTE: For this to work you need to make sure that async-profiler's library is either
     //          - Available in LD_LIBRARY_PATH (Linux), DYLD_LIBRARY_PATH (Mac)
     //          - Available in '-Djava.library.path'
-    //          - Explicitly specified with 'async:libPath=</path/libasyncProfiler.so>'
-    args '-prof', 'async:event=cpu;direction=forward;output=flamegraph'
-
-    // Force GC after every iterations, to make sure that one iteration
-    // doesn't affect the other one
-    args '-gc', 'true'
+    //          - Explicitly specified in pprof arg, the value 'async:libPath=</path/libasyncProfiler.so>'
+    args '-prof', project.properties.get('bprof', 'async:event=cpu;direction=forward;output=flamegraph')
+    args '-bm', project.properties.get('bm', 'thrpt')
+    args '-t', project.properties.get('bthreads', '1')
+    args 'com.uber.m3.tally.' + project.properties.get('benchclass', '')
 }
 
 classes.finalizedBy(jmhClasses)

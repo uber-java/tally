@@ -47,18 +47,26 @@ public class TestScopeTest {
 
         testScope.tagged(tags).counter("counter").inc(1);
 
+        testScope.counter("untagged_counter").inc(1);
+
         Snapshot snapshot = testScope.snapshot();
         assertNotNull(snapshot);
 
         Map<ScopeKey, CounterSnapshot> counters = snapshot.counters();
         assertNotNull(counters);
-        assertEquals(1, counters.size());
+        assertEquals(2, counters.size());
 
         CounterSnapshot counterSnapshot = counters.get(new ScopeKey("counter", tags));
         assertNotNull(counterSnapshot);
 
         assertEquals("counter", counterSnapshot.name());
         assertEquals(tags, counterSnapshot.tags());
+        assertEquals(1, counterSnapshot.value());
+
+        counterSnapshot = counters.get(new ScopeKey("untagged_counter", ImmutableMap.EMPTY));
+        assertNotNull(counterSnapshot);
+        assertEquals("untagged_counter", counterSnapshot.name());
+        assertEquals(ImmutableMap.EMPTY, counterSnapshot.tags());
         assertEquals(1, counterSnapshot.value());
     }
 

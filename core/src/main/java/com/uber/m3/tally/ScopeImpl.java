@@ -23,6 +23,7 @@ package com.uber.m3.tally;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -172,7 +173,11 @@ class ScopeImpl implements Scope, TestScope {
     public Snapshot snapshot() {
         Snapshot snap = new SnapshotImpl();
 
-        for (ScopeImpl subscope : registry.subscopes.values()) {
+        ArrayList<ScopeImpl> scopes = new ArrayList<>();
+        scopes.add(this);
+        scopes.addAll(registry.subscopes.values());
+
+        for (ScopeImpl subscope : scopes) {
             ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>()
                     .putAll(this.tags)
                     .putAll(subscope.tags)

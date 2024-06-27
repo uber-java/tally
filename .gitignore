@@ -58,6 +58,7 @@ fabric.properties
 .classpath
 .project
 .settings
+.vscode
 
 # *.iml
 # modules.xml

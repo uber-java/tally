@@ -29,14 +29,14 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TestStatsReporter implements StatsReporter {
-    private Queue<MetricStruct<Long>> counters = new ConcurrentLinkedQueue<>();
-    private Queue<MetricStruct<Double>> gauges = new ConcurrentLinkedQueue<>();
-    private Queue<MetricStruct<Duration>> timers = new ConcurrentLinkedQueue<>();
-    private Buckets buckets;
-    private Map<Double, Long> valueSamples = new HashMap<>();
-    private Map<Duration, Long> durationSamples = new HashMap<>();
+    private final Queue<MetricStruct<Long>> counters = new ConcurrentLinkedQueue<>();
+    private final Queue<MetricStruct<Double>> gauges = new ConcurrentLinkedQueue<>();
+    private final Queue<MetricStruct<Duration>> timers = new ConcurrentLinkedQueue<>();
+    private final Map<Double, Long> valueSamples = new HashMap<>();
+    private final Map<Duration, Long> durationSamples = new HashMap<>();
+    private final Map<Double, Long> cumulativeValueSamples = new HashMap<>();
 
-    private Map<Double, Long> cumulativeValueSamples = new HashMap<>();
+    private Buckets buckets;
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {

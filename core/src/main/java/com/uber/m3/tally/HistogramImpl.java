@@ -24,34 +24,31 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Default implementation of a {@link Histogram}.
  */
 class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
+    private final MonotonicClock clock;
+    private final ScopeImpl scope;
     private final Type type;
-
     private final ImmutableMap<String, String> tags;
-
     private final ImmutableBuckets specification;
 
     // NOTE: Bucket counters are lazily initialized. Since ref updates are atomic in JMM,
     // no dedicated synchronization is used on the read path, only on the write path
     private final CounterImpl[] bucketCounters;
 
-    private final ScopeImpl scope;
-
     HistogramImpl(
+        MonotonicClock clock,
         ScopeImpl scope,
         String fqn,
         ImmutableMap<String, String> tags,
         Buckets buckets
     ) {
         super(fqn);
-
+        this.clock = clock;
         this.scope = scope;
         this.type = buckets instanceof DurationBuckets ? Type.DURATION : Type.VALUE;
         this.tags = tags;
@@ -80,9 +77,9 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
         }
 
         List<?> bucketsBounds =
-                this.type == Type.VALUE
-                        ? specification.getValueUpperBounds()
-                        : specification.getDurationUpperBounds();
+            this.type == Type.VALUE
+                ? specification.getValueUpperBounds()
+                : specification.getDurationUpperBounds();
 
         // To maintain lock granularity we synchronize only on a
         // particular bucket leveraging bucket's boundary as a sync target
@@ -122,81 +119,34 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
     @Override
     public Stopwatch start() {
-        return new Stopwatch(System.nanoTime(), this);
-    }
-
-    ImmutableMap<String, String> getTags() {
-        return tags;
-    }
-
-    private Duration getUpperBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex < specification.getDurationUpperBounds().size() ? specification.getDurationUpperBounds().get(bucketIndex) : Duration.MAX_VALUE;
-    }
-
-    private Duration getLowerBoundDurationForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Duration.MIN_VALUE : specification.getDurationUpperBounds().get(bucketIndex - 1);
-    }
-
-    private double getUpperBoundValueForBucket(int bucketIndex) {
-        return bucketIndex < specification.getValueUpperBounds().size() ? specification.getValueUpperBounds().get(bucketIndex) : Double.MAX_VALUE;
-    }
-
-    private double getLowerBoundValueForBucket(int bucketIndex) {
-        return bucketIndex == 0 ? Double.MIN_VALUE : specification.getValueUpperBounds().get(bucketIndex - 1);
-    }
-
-    private long snapshotCounterValue(int index) {
-        return bucketCounters[index] != null ? bucketCounters[index].snapshot() : 0;
-    }
-
-    // NOTE: Only used in testing
-    Map<Double, Long> snapshotValues() {
-        if (type == Type.DURATION) {
-            return null;
-        }
-
-        Map<Double, Long> values = new HashMap<>(bucketCounters.length, 1);
-
-        for (int i = 0; i < bucketCounters.length; ++i) {
-            values.put(getUpperBoundValueForBucket(i), snapshotCounterValue(i));
-        }
-
-        return values;
-    }
-
-    Map<Duration, Long> snapshotDurations() {
-        if (type == Type.VALUE) {
-            return null;
-        }
-
-        Map<Duration, Long> durations = new HashMap<>(bucketCounters.length, 1);
-
-        for (int i = 0; i < bucketCounters.length; ++i) {
-            durations.put(getUpperBoundDurationForBucket(i), snapshotCounterValue(i));
-        }
-
-        return durations;
+        return new Stopwatch(clock.nowNanos(), this);
     }
 
     @Override
     public void recordStopwatch(long stopwatchStart) {
-        recordDuration(Duration.between(stopwatchStart, System.nanoTime()));
+        recordDuration(Duration.between(stopwatchStart, clock.nowNanos()));
     }
 
-    enum Type {
+    /**
+     * Returns the tags associated with this histogram.
+     */
+    ImmutableMap<String, String> getTags() {
+        return tags;
+    }
+
+    private enum Type {
         VALUE,
         DURATION
     }
 
     /**
-     * Extension of the {@link CounterImpl} adjusting it's reporting procedure
-     * to adhere to histogram format
+     * Extension of the {@link CounterImpl} adjusting its reporting procedure to adhere to histogram format.
      */
-    class HistogramBucketCounterImpl extends CounterImpl {
+    private class HistogramBucketCounterImpl extends CounterImpl {
 
         private final int bucketIndex;
 
-        protected HistogramBucketCounterImpl(ScopeImpl scope, String fqn, int bucketIndex) {
+        private HistogramBucketCounterImpl(ScopeImpl scope, String fqn, int bucketIndex) {
             super(scope, fqn);
 
             this.bucketIndex = bucketIndex;
@@ -204,20 +154,26 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
 
         @Override
         public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
-            long inc = value();
-            if (inc == 0) {
-                // Nothing to report
-                return;
+            long inc = snapshot();
+            if (reporter instanceof SnapshotBasedStatsReporter) {
+                // Always report snapshots.
+                reportBucket(tags, reporter, inc);
+            } else if (inc != 0) {
+                // Only report when there is a change in the counter. NOTE: we call value() here to
+                // update the previous value.
+                reportBucket(tags, reporter, value());
             }
+        }
 
+        private void reportBucket(ImmutableMap<String, String> tags, StatsReporter reporter, long inc) {
             switch (type) {
                 case VALUE:
                     reporter.reportHistogramValueSamples(
                         getQualifiedName(),
                         tags,
                         (Buckets) specification,
-                        getLowerBoundValueForBucket(bucketIndex),
-                        getUpperBoundValueForBucket(bucketIndex),
+                        specification.getValueLowerBoundFor(bucketIndex),
+                        specification.getValueUpperBoundFor(bucketIndex),
                         inc
                     );
                     break;
@@ -226,8 +182,8 @@ class HistogramImpl extends MetricBase implements Histogram, StopwatchRecorder {
                         getQualifiedName(),
                         tags,
                         (Buckets) specification,
-                        getLowerBoundDurationForBucket(bucketIndex),
-                        getUpperBoundDurationForBucket(bucketIndex),
+                        specification.getDurationLowerBoundFor(bucketIndex),
+                        specification.getDurationUpperBoundFor(bucketIndex),
                         inc
                     );
                     break;

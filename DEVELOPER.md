@@ -25,14 +25,13 @@ To run the JMH benchmark tests:
 ./gradlew runJmhTests
 ```
 
-By default, the benchmark test results are writen to `benchmark-tests.txt`.
-Use `output` input parameter to configure the output path.
+By default, the benchmark test results are written to `benchmark-tests.txt`.
+Use the `output` input parameter to configure the output path.
 E.g. the following command will run the benchmark tests for `tally-prometheus` sub-project and store 
 the results to `custom/path/result.txt`.  
 ```bash
 ./gradlew :tally-prometheus:runJmhTests -Poutput="custom/path/result.txt"
 ``` 
-
 
 By default, the build does *not* compile Thrift files to generate sources. If you make changes to Thrift files and need
 regenerate sources, make sure you have thrift 0.9.x installed and build with the `genThrift` property set, e.g.
@@ -48,17 +47,16 @@ track [issues](https://help.github.com/articles/about-issues/) and create
 If you have not contributed to the project before, please add your details to the `developers`
 section in the top-level [build file](build.gradle).
 
-### Encypting for Travis
+### Encrypting for Travis
 In order to pass secrets to Travis securely for authentication and signing, we need to encrypt them
 first before checking in. The full documentation [here](https://docs.travis-ci.com/user/encryption-keys/)
 for encrypting keys, and [here](https://docs.travis-ci.com/user/encrypting-files/) for encrypting files.
 
 These are the secrets that need to be passed:
 1. [OSSRH](http://central.sonatype.org/pages/ossrh-guide.html) **username** and **password**. These are
-the credentials used to upload artifacts to the Sonatype Nexus Repository, which is used to sync to
-Maven Central
-1. Signing **key ID**, **password**, and **secret key ring file**. These three are used to sign
-artifacts that get created, which is a requirement in order to upload to Maven Central.
+   the credentials used to upload artifacts to the Sonatype Nexus Repository, which is used to sync to Maven Central.
+2. Signing **key ID**, **password**, and **secret key ring file**. These three are used to sign artifacts that get
+   created, which is a requirement in order to upload to Maven Central.
 
 In order to pass these along, first login to Travis:
 ```bash

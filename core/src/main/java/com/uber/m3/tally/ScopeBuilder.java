@@ -55,6 +55,7 @@ public class ScopeBuilder {
     protected String separator = DEFAULT_SEPARATOR;
     protected ImmutableMap<String, String> tags;
     protected Buckets defaultBuckets = DEFAULT_SCOPE_BUCKETS;
+    protected MonotonicClock clock = MonotonicClock.system();
 
     private ScheduledExecutorService scheduler;
     private ScopeImpl.Registry registry;
@@ -67,7 +68,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the reporter
+     * Updates the reporter.
      * @param reporter value to update to
      * @return Builder with new param updated
      */
@@ -77,7 +78,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the prefix
+     * Updates the prefix.
      * @param prefix value to update to
      * @return Builder with new param updated
      */
@@ -87,7 +88,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the separator
+     * Updates the separator.
      * @param separator value to update to
      * @return Builder with new param updated
      */
@@ -97,7 +98,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the tags, cloning the tags map to an ImmutableMap
+     * Updates the tags, cloning the tags map to an ImmutableMap.
      * @param tags value to update to
      * @return Builder with new param updated
      */
@@ -108,7 +109,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the tags. Since this function takes an ImmutableMap, we don't need to clone it
+     * Updates the tags. Since this function takes an ImmutableMap, we don't need to clone it.
      * @param tags value to update to
      * @return Builder with new param updated
      */
@@ -119,12 +120,22 @@ public class ScopeBuilder {
     }
 
     /**
-     * Update the defaultBuckets
+     * Updates the defaultBuckets.
      * @param defaultBuckets value to update to
      * @return Builder with new param updated
      */
     public ScopeBuilder defaultBuckets(Buckets defaultBuckets) {
         this.defaultBuckets = defaultBuckets;
+        return this;
+    }
+
+    /**
+     * Updates the monotonic clock that should be used when measuring elapsed time.
+     * @param clock value to update to
+     * @return Builder with new param updated
+     */
+    public ScopeBuilder clock(MonotonicClock clock) {
+        this.clock = clock;
         return this;
     }
 
@@ -135,7 +146,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Creates a root scope and starts reporting with the specified interval
+     * Creates a root scope and starts reporting with the specified interval.
      * @param interval duration between each report
      * @return the root scope created
      */
@@ -144,7 +155,7 @@ public class ScopeBuilder {
     }
 
     /**
-     * Creates a root scope and starts reporting with the specified interval
+     * Creates a root scope and starts reporting with the specified interval.
      * @param interval duration between each report
      * @param uncaughtExceptionHandler an  {@link java.lang.Thread.UncaughtExceptionHandler} that's
      *                                 called when there's an uncaught exception in the report loop

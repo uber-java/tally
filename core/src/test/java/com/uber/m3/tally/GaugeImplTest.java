@@ -20,32 +20,21 @@
 
 package com.uber.m3.tally;
 
-import org.junit.Before;
+import com.uber.m3.util.ImmutableMap;
 import org.junit.Test;
 
+import static com.uber.m3.tally.ScopeImpl.keyForPrefixedStringMap;
 import static org.junit.Assert.assertEquals;
 
 public class GaugeImplTest {
-    private final double EPSILON = 1e-10;
-
-    private TestStatsReporter reporter;
-    private GaugeImpl gauge;
-
-    private ScopeImpl scope;
-
-    @Before
-    public void setUp() {
-        reporter = new TestStatsReporter();
-        scope =
-            new ScopeBuilder(null, new ScopeImpl.Registry())
-                .reporter(reporter)
-                .build();
-
-        gauge = new GaugeImpl(scope, "gauge");
-    }
+    private static final double EPSILON = 1e-10;
+    private final TestStatsReporter reporter = new TestStatsReporter();
+    private final ScopeImpl scope = new ScopeBuilder(null, new ScopeImpl.Registry()).reporter(reporter).build();
 
     @Test
     public void update() {
+        GaugeImpl gauge = new GaugeImpl(scope, "gauge");
+
         gauge.update(42);
         gauge.report(null, reporter);
         assertEquals(42, reporter.nextGaugeVal(), EPSILON);
@@ -67,6 +56,8 @@ public class GaugeImplTest {
 
     @Test
     public void value() {
+        GaugeImpl gauge = new GaugeImpl(scope, "gauge");
+
         assertEquals(0, gauge.value(), EPSILON);
 
         gauge.update(55);
@@ -79,11 +70,25 @@ public class GaugeImplTest {
 
     @Test
     public void snapshot() {
+        ScopeImpl scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(new SnapshotBasedStatsReporter())
+                .build();
+        Gauge gauge = new GaugeImpl(scope, "gauge");
+
         gauge.update(70);
-        assertEquals(70, gauge.snapshot(), EPSILON);
+        Snapshot snapshot = scope.snapshot();
+        assertEquals(70, getSnapshot(snapshot, "gauge").value(), EPSILON);
 
         gauge.update(71);
         gauge.update(72);
-        assertEquals(72, gauge.snapshot(), EPSILON);
+        Snapshot snapshot1 = scope.snapshot();
+
+        assertEquals(72, getSnapshot(snapshot1, "gauge").value(), EPSILON);
+    }
+
+    private static GaugeSnapshot getSnapshot(Snapshot snapshot, String name) {
+        ScopeKey key = keyForPrefixedStringMap(name, ImmutableMap.EMPTY);
+        return snapshot.gauges().get(key);
     }
 }

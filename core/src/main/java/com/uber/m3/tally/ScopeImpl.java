@@ -23,7 +23,6 @@ package com.uber.m3.tally;
 import com.uber.m3.util.ImmutableMap;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -35,14 +34,15 @@ import java.util.concurrent.ScheduledExecutorService;
  * Default {@link Scope} implementation.
  */
 class ScopeImpl implements Scope, TestScope {
-    private StatsReporter reporter;
-    private String prefix;
-    private String separator;
-    private ImmutableMap<String, String> tags;
-    private Buckets defaultBuckets;
+    private final StatsReporter reporter;
+    private final String prefix;
+    private final String separator;
+    private final ImmutableMap<String, String> tags;
+    private final Buckets defaultBuckets;
+    private final MonotonicClock clock;
 
-    private ScheduledExecutorService scheduler;
-    private Registry registry;
+    private final ScheduledExecutorService scheduler;
+    private final Registry registry;
 
     private final ConcurrentHashMap<String, CounterImpl> counters = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, GaugeImpl> gauges = new ConcurrentHashMap<>();
@@ -62,41 +62,42 @@ class ScopeImpl implements Scope, TestScope {
         this.separator = builder.separator;
         this.tags = builder.tags;
         this.defaultBuckets = builder.defaultBuckets;
+        this.clock = builder.clock;
     }
 
     @Override
     public Counter counter(String name) {
         return counters.computeIfAbsent(name, ignored ->
-                // NOTE: This will called at most once
-                new CounterImpl(this, fullyQualifiedName(name))
+            // NOTE: This will be called at most once
+            new CounterImpl(this, fullyQualifiedName(name))
         );
     }
 
     @Override
     public Gauge gauge(String name) {
         return gauges.computeIfAbsent(name, ignored ->
-                // NOTE: This will called at most once
-                new GaugeImpl(this, fullyQualifiedName(name)));
+            // NOTE: This will be called at most once
+            new GaugeImpl(this, fullyQualifiedName(name)));
     }
 
     @Override
     public Timer timer(String name) {
         // Timers report directly to the {@code StatsReporter}, and therefore not added to reporting queue
         // i.e. they are not buffered
-        return timers.computeIfAbsent(name, ignored -> new TimerImpl(fullyQualifiedName(name), tags, reporter));
+        return timers.computeIfAbsent(name, ignored -> new TimerImpl(clock, fullyQualifiedName(name), tags, reporter));
     }
 
     @Override
     public Histogram histogram(String name, @Nullable Buckets buckets) {
         return histograms.computeIfAbsent(name, ignored ->
-                // NOTE: This will be called at most once
-                new HistogramImpl(
-                        this,
-                        fullyQualifiedName(name),
-                        tags,
-                        Optional.ofNullable(buckets)
-                                .orElse(defaultBuckets)
-                )
+            // NOTE: This will be called at most once
+            new HistogramImpl(
+                clock,
+                this,
+                fullyQualifiedName(name),
+                tags,
+                buckets != null ? buckets : defaultBuckets
+            )
         );
     }
 
@@ -141,6 +142,7 @@ class ScopeImpl implements Scope, TestScope {
 
     /**
      * Reports using the specified reporter.
+     *
      * @param reporter the reporter to report
      */
     void report(StatsReporter reporter) {
@@ -156,7 +158,7 @@ class ScopeImpl implements Scope, TestScope {
     }
 
     String fullyQualifiedName(String name) {
-        if (prefix == null || prefix.length() == 0) {
+        if (prefix == null || prefix.isEmpty()) {
             return name;
         }
 
@@ -164,88 +166,21 @@ class ScopeImpl implements Scope, TestScope {
     }
 
     /**
-     * Snapshot returns a copy of all values since the last report execution
+     * Snapshot returns a copy of all values since the last report execution.
      * This is an expensive operation and should only be used for testing purposes.
      *
      * @return a {@link Snapshot} of this {@link Scope}
      */
     @Override
     public Snapshot snapshot() {
-        Snapshot snap = new SnapshotImpl();
-
-        ArrayList<ScopeImpl> scopes = new ArrayList<>();
-        scopes.add(this);
-        scopes.addAll(registry.subscopes.values());
-
-        for (ScopeImpl subscope : scopes) {
-            ImmutableMap<String, String> tags = new ImmutableMap.Builder<String, String>()
-                    .putAll(this.tags)
-                    .putAll(subscope.tags)
-                    .build();
-
-            for (Map.Entry<String, CounterImpl> counter : subscope.counters.entrySet()) {
-                String name = subscope.fullyQualifiedName(counter.getKey());
-
-                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
-
-                snap.counters().put(
-                        scopeKey,
-                        new CounterSnapshotImpl(
-                                name,
-                                tags,
-                                counter.getValue().snapshot()
-                        )
-                );
-            }
-
-            for (Map.Entry<String, GaugeImpl> gauge : subscope.gauges.entrySet()) {
-                String name = subscope.fullyQualifiedName(gauge.getKey());
-
-                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
-
-                snap.gauges().put(
-                        scopeKey,
-                        new GaugeSnapshotImpl(
-                                name,
-                                tags,
-                                gauge.getValue().snapshot()
-                        )
-                );
-            }
-
-            for (Map.Entry<String, TimerImpl> timer : subscope.timers.entrySet()) {
-                String name = subscope.fullyQualifiedName(timer.getKey());
-
-                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
-
-                snap.timers().put(
-                        scopeKey,
-                        new TimerSnapshotImpl(
-                                name,
-                                tags,
-                                timer.getValue().snapshot()
-                        )
-                );
-            }
-
-            for (Map.Entry<String, HistogramImpl> histogram : subscope.histograms.entrySet()) {
-                String name = subscope.fullyQualifiedName(histogram.getKey());
-
-                ScopeKey scopeKey = keyForPrefixedStringMap(name, tags);
-
-                snap.histograms().put(
-                        scopeKey,
-                        new HistogramSnapshotImpl(
-                                name,
-                                tags,
-                                histogram.getValue().snapshotValues(),
-                                histogram.getValue().snapshotDurations()
-                        )
-                );
-            }
+        if (!(reporter instanceof SnapshotBasedStatsReporter)) {
+            throw new IllegalStateException("Snapshots can only be computed when using a SnapshotBasedStatsReporter");
         }
-
-        return snap;
+        // We will create snapshots leveraging the reporting mechanism.
+        // NOTE: Timers report directly to the reporter, so they are not handled by the report methods here.
+        report(reporter);
+        reportLoopIteration();
+        return ((SnapshotBasedStatsReporter) reporter).getFlushedSnapshot();
     }
 
     // Helper function used to create subscopes
@@ -277,6 +212,7 @@ class ScopeImpl implements Scope, TestScope {
         return registry.subscopes.computeIfAbsent(
             key,
             (k) -> new ScopeBuilder(scheduler, registry)
+                .clock(clock)
                 .reporter(reporter)
                 .prefix(prefix)
                 .separator(separator)
@@ -326,7 +262,7 @@ class ScopeImpl implements Scope, TestScope {
     }
 
     static class Registry {
-        Map<ScopeKey, ScopeImpl> subscopes = new ConcurrentHashMap<>();
+        final Map<ScopeKey, ScopeImpl> subscopes = new ConcurrentHashMap<>();
     }
 
 }

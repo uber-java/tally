@@ -29,8 +29,8 @@ public class CapableOf implements Capabilities {
     public static final CapableOf REPORTING = new CapableOf(true, false);
     public static final CapableOf REPORTING_TAGGING = new CapableOf(true, true);
 
-    private boolean reporting;
-    private boolean tagging;
+    private final boolean reporting;
+    private final boolean tagging;
 
     public CapableOf(boolean reporting, boolean tagging) {
         this.reporting = reporting;
@@ -69,8 +69,8 @@ public class CapableOf implements Capabilities {
     public int hashCode() {
         int code = 0;
 
-        code = 31 * code + new Boolean(reporting).hashCode();
-        code = 31 * code + new Boolean(tagging).hashCode();
+        code = 31 * code + Boolean.valueOf(reporting).hashCode();
+        code = 31 * code + Boolean.valueOf(tagging).hashCode();
 
         return code;
     }

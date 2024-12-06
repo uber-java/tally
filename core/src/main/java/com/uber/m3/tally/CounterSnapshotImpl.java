@@ -28,9 +28,9 @@ import java.util.Map;
  * Default implementation of a {@link CounterSnapshot}.
  */
 class CounterSnapshotImpl implements CounterSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private long value;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final long value;
 
     CounterSnapshotImpl(String name, ImmutableMap<String, String> tags, long value) {
         this.name = name;

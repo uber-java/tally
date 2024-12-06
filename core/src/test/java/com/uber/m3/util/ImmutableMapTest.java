@@ -25,10 +25,7 @@ import org.junit.Test;
 
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ImmutableMapTest {
     private HashMap<String, String> helperMap;
@@ -73,11 +70,11 @@ public class ImmutableMapTest {
 
     @Test
     public void isEmpty() {
-        assertEquals(false, map.isEmpty());
+        assertFalse(map.isEmpty());
 
         map = new ImmutableMap<>(new HashMap<String, String>(0, 1));
 
-        assertEquals(true, map.isEmpty());
+        assertTrue(map.isEmpty());
     }
 
     @Test
@@ -102,7 +99,7 @@ public class ImmutableMapTest {
     public void get() {
         assertEquals("val1", map.get("key1"));
 
-        assertEquals(null, map.get("key9"));
+        assertNull(map.get("key9"));
     }
 
     @Test(expected = UnsupportedOperationException.class)
@@ -145,27 +142,27 @@ public class ImmutableMapTest {
         ImmutableMap<String, String> sameMap = new ImmutableMap.Builder<String, String>()
             .putAll(helperMap).build();
 
-        assertTrue(map.equals(sameMap));
+        assertEquals(map, sameMap);
     }
 
     @Test
     public void equals() {
-        assertFalse(map.equals(null));
-        assertFalse(map.equals(1));
-        assertTrue(map.equals(map));
+        assertNotEquals(null, map);
+        assertNotEquals(1, map);
+        assertEquals(map, map);
 
         ImmutableMap<String, String> sameMap = new ImmutableMap<>(helperMap);
 
-        assertTrue(map.equals(sameMap));
+        assertEquals(map, sameMap);
         assertEquals(map.hashCode(), sameMap.hashCode());
 
         helperMap.put("key7", "val7");
         ImmutableMap<String, String> differentMap = new ImmutableMap<>(helperMap);
 
-        assertFalse(map.equals(differentMap));
+        assertNotEquals(map, differentMap);
         assertNotEquals(map.hashCode(), differentMap.hashCode());
 
-        assertTrue(ImmutableMap.EMPTY.equals(new ImmutableMap(new HashMap())));
+        assertEquals(ImmutableMap.EMPTY, new ImmutableMap(new HashMap()));
     }
 
     @Test

@@ -22,52 +22,33 @@ package com.uber.m3.tally;
 
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.uber.m3.tally.ScopeImpl.keyForPrefixedStringMap;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class HistogramImplTest {
 
-    private static final double[] BUCKETS = new double[] {
+    private static final double[] BUCKETS = new double[]{
         1.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 125.0, 150.0, 175.0, 200.0,
         225.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0, 850.0, 900.0, 950.0, 1000.0
     };
 
-    private TestStatsReporter reporter;
-    private ScopeImpl scope;
-
-    private HistogramImpl histogram;
-
-    @Before
-    public void setUp() {
-        reporter = new TestStatsReporter();
-        scope =
-            new ScopeBuilder(null, new ScopeImpl.Registry())
-                .reporter(reporter)
-                .build();
-    }
+    private final MonotonicClock.FakeClock clock = MonotonicClock.fake();
+    private final TestStatsReporter reporter = new TestStatsReporter();
+    private final ScopeImpl scope = new ScopeBuilder(null, new ScopeImpl.Registry()).clock(clock).reporter(reporter).build();
 
     @Test
     public void test() {
-        histogram = new HistogramImpl(scope, "histogram", ImmutableMap.EMPTY, ValueBuckets.custom(BUCKETS));
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "histogram", ImmutableMap.EMPTY, ValueBuckets.custom(BUCKETS));
 
         double maxUpperBound = BUCKETS[BUCKETS.length - 1];
 
-        List<Double> values =
-                IntStream.range(0, 10000)
-                    .mapToDouble(ignored -> Math.random() * (maxUpperBound + 1))
-                    .mapToObj(a -> a)
-                    .collect(Collectors.toList());
+        List<Double> values = IntStream.range(0, 10000).mapToDouble(ignored -> Math.random() * (maxUpperBound + 1)).boxed().collect(Collectors.toList());
 
         Map<Double, Long> expected = new HashMap<>();
 
@@ -100,14 +81,7 @@ public class HistogramImplTest {
     @Test
     public void recordValue() {
         Buckets buckets = ValueBuckets.linear(0, 10, 10);
-
-        histogram =
-            new HistogramImpl(
-                scope,
-            "",
-            null,
-            buckets
-            );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "", null, buckets);
 
         List<Double> log = new ArrayList<>();
 
@@ -126,22 +100,15 @@ public class HistogramImplTest {
         // Report will actually be fulfilled through scope
         scope.report(reporter);
 
-        assertEquals(new Long(3L), reporter.getValueSamples().get(10d));
-        assertEquals(new Long(5L), reporter.getValueSamples().get(60d));
+        assertEquals(Long.valueOf(3L), reporter.getValueSamples().get(10d));
+        assertEquals(Long.valueOf(5L), reporter.getValueSamples().get(60d));
         assertEquals(buckets, reporter.getBuckets());
     }
 
     @Test
     public void recordDuration() {
         Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(10), 10);
-
-        histogram =
-            new HistogramImpl(
-                scope,
-            "",
-            null,
-            buckets
-            );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "", null, buckets);
 
         for (int i = 0; i < 3; i++) {
             histogram.recordDuration(Duration.ofMillis(Math.random() * 10));
@@ -154,44 +121,34 @@ public class HistogramImplTest {
         // Report will actually be fulfilled through scope
         scope.report(reporter);
 
-        assertEquals(new Long(3L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
-        assertEquals(new Long(5L), reporter.getDurationSamples().get(Duration.ofMillis(60)));
+        assertEquals(Long.valueOf(3L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
+        assertEquals(Long.valueOf(5L), reporter.getDurationSamples().get(Duration.ofMillis(60)));
         assertEquals(buckets, reporter.getBuckets());
     }
 
     @Test
     public void recordStopwatch() {
         Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(10), 10);
-
-        histogram =
-            new HistogramImpl(
-                scope,
-            "",
-            null,
-            buckets
-            );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "", null, buckets);
 
         Stopwatch stopwatch = histogram.start();
-        assertNotNull(stopwatch);
+        clock.addDuration(Duration.ofMillis(5));
         stopwatch.stop();
 
         // Report will actually be fulfilled through scope
         scope.report(reporter);
 
-        assertEquals(new Long(1L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
+        assertEquals(Long.valueOf(1L), reporter.getDurationSamples().get(Duration.ofMillis(10)));
     }
 
     @Test
     public void snapshotValues() {
+        ScopeImpl scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(new SnapshotBasedStatsReporter())
+                .build();
         Buckets buckets = ValueBuckets.linear(0, 10, 10);
-
-        histogram =
-            new HistogramImpl(
-                scope,
-            "",
-            null,
-            buckets
-            );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "histogram", null, buckets);
 
         for (int i = 0; i < 3; i++) {
             histogram.recordValue(Math.random() * 10);
@@ -214,42 +171,37 @@ public class HistogramImplTest {
         expectedMap.put(90d, 0L);
         expectedMap.put(Double.MAX_VALUE, 0L);
 
-        assertEquals(expectedMap, histogram.snapshotValues());
+        Snapshot snapshot = scope.snapshot();
+        assertEquals(expectedMap, getSnapshot(snapshot, "histogram").values());
     }
 
     @Test
     public void snapshotValuesIsIdempotent() {
+        ScopeImpl scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(new SnapshotBasedStatsReporter())
+                .build();
         ValueBuckets buckets = ValueBuckets.custom(0, 10);
-
-        histogram =
-                new HistogramImpl(
-                        scope,
-                        "",
-                        null,
-                        buckets
-                );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "histogram", null, buckets);
 
         histogram.recordValue(5);
+        Snapshot snapshot1 = scope.snapshot();
 
-        Map<Double, Long> snapshot = histogram.snapshotValues();
-        assertEquals(1, snapshot.get(10D).longValue());
+        assertEquals(1, getSnapshot(snapshot1, "histogram").values().get(10D).longValue());
 
-        // snapshot again to ensure the first snapshot didn't mutate internal state
-        snapshot = histogram.snapshotValues();
-        assertEquals(1, snapshot.get(10D).longValue());
+        // Snapshot again to ensure the first snapshot didn't mutate internal state.
+        Snapshot snapshot2 = scope.snapshot();
+        assertEquals(1, getSnapshot(snapshot2, "histogram").values().get(10D).longValue());
     }
 
     @Test
     public void snapshotDurations() {
+        ScopeImpl scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(new SnapshotBasedStatsReporter())
+                .build();
         Buckets buckets = DurationBuckets.linear(Duration.ZERO, Duration.ofMillis(10), 5);
-
-        histogram =
-            new HistogramImpl(
-                scope,
-            "",
-            null,
-            buckets
-            );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "histogram", null, buckets);
 
         for (int i = 0; i < 3; i++) {
             histogram.recordDuration(Duration.ofMillis(Math.random() * 10));
@@ -267,28 +219,30 @@ public class HistogramImplTest {
         expectedMap.put(Duration.ofMillis(40d), 0L);
         expectedMap.put(Duration.MAX_VALUE, 5L);
 
-        assertEquals(expectedMap, histogram.snapshotDurations());
+        Snapshot snapshot = scope.snapshot();
+        assertEquals(expectedMap, getSnapshot(snapshot, "histogram").durations());
     }
 
     @Test
     public void snapshotDurationsIsIdempotent() {
+        ScopeImpl scope =
+            new ScopeBuilder(null, new ScopeImpl.Registry())
+                .reporter(new SnapshotBasedStatsReporter())
+                .build();
         DurationBuckets buckets = DurationBuckets.custom(Duration.ofMillis(0), Duration.ofMillis(10));
-
-        histogram =
-                new HistogramImpl(
-                        scope,
-                        "",
-                        null,
-                        buckets
-                );
+        HistogramImpl histogram = new HistogramImpl(clock, scope, "histogram", null, buckets);
 
         histogram.recordDuration(Duration.ofMillis(5));
+        Snapshot snapshot1 = scope.snapshot();
+        assertEquals(1, getSnapshot(snapshot1, "histogram").durations().get(Duration.ofMillis(10)).longValue());
 
-        Map<Duration, Long> snapshot = histogram.snapshotDurations();
-        assertEquals(1, snapshot.get(Duration.ofMillis(10)).longValue());
+        // Snapshot again to ensure the first snapshot didn't mutate internal state.
+        Snapshot snapshot2 = scope.snapshot();
+        assertEquals(1, getSnapshot(snapshot2, "histogram").durations().get(Duration.ofMillis(10)).longValue());
+    }
 
-        // snapshot again to ensure the first snapshot didn't mutate internal state
-        snapshot = histogram.snapshotDurations();
-        assertEquals(1, snapshot.get(Duration.ofMillis(10)).longValue());
+    private static HistogramSnapshot getSnapshot(Snapshot snapshot, String name) {
+        ScopeKey key = keyForPrefixedStringMap(name, ImmutableMap.EMPTY);
+        return snapshot.histograms().get(key);
     }
 }

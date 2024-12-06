@@ -24,26 +24,20 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Default implementation of a {@link HistogramSnapshot}.
  */
 class HistogramSnapshotImpl implements HistogramSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private Map<Double, Long> values;
-    private Map<Duration, Long> durations;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final Map<Double, Long> values = new ConcurrentHashMap<>();
+    private final Map<Duration, Long> durations = new ConcurrentHashMap<>();
 
-    HistogramSnapshotImpl(
-        String name,
-        ImmutableMap<String, String> tags,
-        Map<Double, Long> values,
-        Map<Duration, Long> durations
-    ) {
+    HistogramSnapshotImpl(String name, ImmutableMap<String, String> tags) {
         this.name = name;
         this.tags = tags;
-        this.values = values;
-        this.durations = durations;
     }
 
     @Override
@@ -58,11 +52,25 @@ class HistogramSnapshotImpl implements HistogramSnapshot {
 
     @Override
     public Map<Double, Long> values() {
-        return values;
+        return new ImmutableMap<>(values);
     }
 
     @Override
     public Map<Duration, Long> durations() {
-        return durations;
+        return new ImmutableMap<>(durations);
+    }
+
+    /**
+     * Appends a new duration to the current snapshot. We kept the access modifier as default to avoid any external access.
+     */
+    void addDuration(Duration upperBound, long samples) {
+        durations.put(upperBound, samples);
+    }
+
+    /**
+     * Appends a new value to the current snapshot. We kept the access modifier as default to avoid any external access.
+     */
+    void addValue(double upperBound, long samples) {
+        values.put(upperBound, samples);
     }
 }

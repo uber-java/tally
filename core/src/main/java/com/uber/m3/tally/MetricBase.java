@@ -34,5 +34,4 @@ abstract class MetricBase {
     final String getQualifiedName() {
         return fullyQualifiedName;
     }
-
 }

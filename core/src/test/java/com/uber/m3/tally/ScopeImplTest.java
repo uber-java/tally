@@ -26,12 +26,11 @@ import static org.junit.Assert.assertTrue;
 
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+
 import java.lang.Thread.UncaughtExceptionHandler;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.Test;
 
 public class ScopeImplTest {
@@ -77,8 +76,8 @@ public class ScopeImplTest {
         assertNotNull(histogram);
 
         Histogram histogramDefaultBuckets = scope.histogram(
-                "new-histogram-default-buckets",
-                null
+            "new-histogram-default-buckets",
+            null
         );
         assertNotNull(histogramDefaultBuckets);
 
@@ -158,9 +157,9 @@ public class ScopeImplTest {
 
         ImmutableMap<String, String> additionalTags =
             new ImmutableMap.Builder<String, String>(2)
-            .put("new_key", "new_val")
-            .put("baz", "quz")
-            .build();
+                .put("new_key", "new_val")
+                .put("baz", "quz")
+                .build();
         Scope taggedSubscope = rootScope.tagged(additionalTags);
         Timer taggedTimer = taggedSubscope.timer("tagged_timer");
         taggedTimer.record(Duration.ofSeconds(6));
@@ -188,42 +187,33 @@ public class ScopeImplTest {
         assertEquals("tagged_timer", timer.getName());
         ImmutableMap<String, String> expectedTags =
             new ImmutableMap.Builder<String, String>(4)
-            .putAll(tags)
-            .putAll(additionalTags)
-            .build();
+                .putAll(tags)
+                .putAll(additionalTags)
+                .build();
         assertEquals(expectedTags, timer.getTags());
     }
 
     @Test
     public void snapshot() {
-        final double EPSILON = 1e-9;
-        final int REPORT_INTERVAL_MILLIS = 10;
-        final int SLEEP_MILLIS = 20;
-
-        TestStatsReporter reporter = new TestStatsReporter();
-
+        MonotonicClock.FakeClock clock = MonotonicClock.fake();
         Scope rootScope = new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(Duration.ofMillis(REPORT_INTERVAL_MILLIS));
+            .clock(clock)
+            .reporter(new SnapshotBasedStatsReporter())
+            .build();
 
         Counter counter = rootScope.counter("snapshot-counter");
         counter.inc(110);
 
-        Gauge gauge = rootScope.gauge("snapshot-gauge");
-        gauge.update(120);
-        Gauge gauge2 = rootScope.gauge("snapshot-gauge2");
-        gauge2.update(220);
-        Gauge gauge3 = rootScope.gauge("snapshot-gauge3");
-        gauge3.update(320);
+        rootScope.gauge("snapshot-gauge").update(120);
+        rootScope.gauge("snapshot-gauge2").update(220);
+        rootScope.gauge("snapshot-gauge3").update(320);
 
         Timer timer = rootScope.timer("snapshot-timer");
         timer.record(Duration.ofMillis(130));
 
-        try {
-            Thread.sleep(SLEEP_MILLIS);
-        } catch (InterruptedException e) {
-            System.err.println("Interrupted while sleeping! Let's continue anyway...");
-        }
+        Stopwatch stopwatch = timer.start();
+        clock.addNanos(50);
+        stopwatch.stop();
 
         Snapshot snapshot = ((ScopeImpl) rootScope).snapshot();
 
@@ -255,6 +245,7 @@ public class ScopeImplTest {
         TimerSnapshot timerSnapshotActual = timers.get(ScopeImpl.keyForPrefixedStringMap("snapshot-timer", null));
         assertEquals("snapshot-timer", timerSnapshotActual.name());
         assertEquals(ImmutableMap.EMPTY, timerSnapshotActual.tags());
+        assertEquals(Arrays.asList(Duration.ofMillis(130), Duration.ofNanos(50)), Arrays.asList(timerSnapshotActual.values()));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -264,35 +255,26 @@ public class ScopeImplTest {
 
     @Test
     public void exceptionInReportLoop() throws ScopeCloseException, InterruptedException {
-        final AtomicInteger uncaghtExceptionReported = new AtomicInteger();
+        AtomicInteger uncaughtExceptionReported = new AtomicInteger();
         ThrowingStatsReporter reporter = new ThrowingStatsReporter();
-        final UncaughtExceptionHandler uncaughtExceptionHandler = new UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                uncaghtExceptionReported.incrementAndGet();
-            }
-        };
+        UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> uncaughtExceptionReported.incrementAndGet();
 
-        Scope scope = new RootScopeBuilder()
+        try (Scope scope = new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(Duration.ofMillis(REPORT_INTERVAL_MILLIS),
-                uncaughtExceptionHandler);
-
-        try {
+                uncaughtExceptionHandler)) {
             scope.counter("hi").inc(1);
             Thread.sleep(SLEEP_MILLIS);
 
-            assertEquals(1, uncaghtExceptionReported.get());
+            assertEquals(1, uncaughtExceptionReported.get());
             assertEquals(1, reporter.getNumberOfReportedMetrics());
 
             // Run again to verify it reports again.
             scope.counter("hi").inc(1);
             Thread.sleep(SLEEP_MILLIS);
 
-            assertEquals(2, uncaghtExceptionReported.get());
+            assertEquals(2, uncaughtExceptionReported.get());
             assertEquals(2, reporter.getNumberOfReportedMetrics());
-        } finally {
-            scope.close();
         }
     }
 

@@ -25,11 +25,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ImmutableListTest {
     private ArrayList<String> helperList;
@@ -202,13 +198,13 @@ public class ImmutableListTest {
         helperList.add("zz");
         ImmutableList<String> differentList = new ImmutableList<>(helperList);
 
-        assertTrue(list.equals(sameList));
+        assertEquals(list, sameList);
         assertEquals(list.hashCode(), sameList.hashCode());
-        assertFalse(list.equals(differentList));
+        assertNotEquals(list, differentList);
         assertNotEquals(list.hashCode(), differentList.hashCode());
 
-        assertFalse(list.equals(null));
-        assertTrue(list.equals(list));
-        assertFalse(list.equals(1));
+        assertNotEquals(null, list);
+        assertEquals(list, list);
+        assertNotEquals(1, list);
     }
 }

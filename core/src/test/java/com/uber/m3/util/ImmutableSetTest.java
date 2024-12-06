@@ -25,11 +25,7 @@ import org.junit.Test;
 
 import java.util.HashSet;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ImmutableSetTest {
     private HashSet<String> helperSet;
@@ -141,18 +137,18 @@ public class ImmutableSetTest {
     public void equals() {
         ImmutableSet<String> equalSet = new ImmutableSet<>(helperSet);
 
-        assertTrue(set.equals(equalSet));
+        assertEquals(set, equalSet);
         assertEquals(set.hashCode(), equalSet.hashCode());
 
         helperSet.add("zz");
         ImmutableSet<String> differentSet = new ImmutableSet<>(helperSet);
 
-        assertFalse(set.equals(differentSet));
+        assertNotEquals(set, differentSet);
         assertNotEquals(set.hashCode(), differentSet.hashCode());
 
-        assertFalse(set.equals(null));
-        assertTrue(set.equals(set));
-        assertFalse(set.equals(2));
+        assertNotEquals(null, set);
+        assertEquals(set, set);
+        assertNotEquals(2, set);
     }
 
     @Test

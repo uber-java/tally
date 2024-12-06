@@ -124,10 +124,10 @@ public class ValueBuckets extends AbstractBuckets<Double> {
 
     /**
      * Helper function to create {@link ValueBuckets} of exponential spacing.
-     * @param start      the starting bucket's value}
+     * @param start      the starting bucket's value
      * @param factor     the factor between each bucket
      * @param numBuckets the number of buckets to create
-     * @return {@link ValueBuckets} of the specified paramters
+     * @return {@link ValueBuckets} of the specified parameters
      */
     public static ValueBuckets exponential(double start, double factor, int numBuckets) {
         if (numBuckets <= 0) {
@@ -155,7 +155,7 @@ public class ValueBuckets extends AbstractBuckets<Double> {
      * Helper function to create {@link ValueBuckets} with custom buckets.
      *
      * @param sortedBucketUpperValues sorted (ascending order) values of bucket's upper bound
-     * @return {@link ValueBuckets} of the specified paramters
+     * @return {@link ValueBuckets} of the specified parameters
      */
     public static ValueBuckets custom(double... sortedBucketUpperValues) {
         if (sortedBucketUpperValues == null || sortedBucketUpperValues.length == 0) {

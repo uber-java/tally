@@ -34,8 +34,19 @@ public interface TestScope extends Scope {
      */
     static TestScope create() {
         return new RootScopeBuilder()
-                .reporter(new NullStatsReporter())
-                .build();
+            .reporter(new SnapshotBasedStatsReporter())
+            .build();
+    }
+
+    /**
+     * Creates a new TestScope that adds the ability to manipulate time and take snapshots of
+     * metrics emitted to it.
+     */
+    static TestScope create(MonotonicClock clock) {
+        return new RootScopeBuilder()
+            .clock(clock)
+            .reporter(new SnapshotBasedStatsReporter())
+            .build();
     }
 
     /**
@@ -44,14 +55,27 @@ public interface TestScope extends Scope {
      */
     static TestScope create(String prefix, Map<String, String> tags) {
         return new RootScopeBuilder()
-                .prefix(prefix)
-                .tags(tags)
-                .reporter(new NullStatsReporter())
-                .build();
+            .prefix(prefix)
+            .tags(tags)
+            .reporter(new SnapshotBasedStatsReporter())
+            .build();
     }
 
     /**
-     * Snapshot returns a copy of all values since the last report execution
+     * Creates a new TestScope with given prefix/tags that adds the ability to manipulate time and
+     * take snapshots of metrics emitted to it.
+     */
+    static TestScope create(String prefix, Map<String, String> tags, MonotonicClock clock) {
+        return new RootScopeBuilder()
+            .clock(clock)
+            .prefix(prefix)
+            .tags(tags)
+            .reporter(new SnapshotBasedStatsReporter())
+            .build();
+    }
+
+    /**
+     * Snapshot returns a copy of all values since the last report execution.
      * This is an expensive operation and should only be used for testing purposes.
      */
     Snapshot snapshot();

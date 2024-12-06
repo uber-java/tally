@@ -23,20 +23,21 @@ package com.uber.m3.tally;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Default implementation of a {@link TimerSnapshot}.
  */
 class TimerSnapshotImpl implements TimerSnapshot {
-    private String name;
-    private ImmutableMap<String, String> tags;
-    private Duration[] values;
+    private final String name;
+    private final ImmutableMap<String, String> tags;
+    private final List<Duration> values = new CopyOnWriteArrayList<>();
 
-    TimerSnapshotImpl(String name, ImmutableMap<String, String> tags, Duration[] values) {
+    TimerSnapshotImpl(String name, ImmutableMap<String, String> tags) {
         this.name = name;
         this.tags = tags;
-        this.values = values;
     }
 
     @Override
@@ -51,6 +52,13 @@ class TimerSnapshotImpl implements TimerSnapshot {
 
     @Override
     public Duration[] values() {
-        return values;
+        return values.toArray(new Duration[0]);
+    }
+
+    /**
+     * Appends a new duration to the current snapshot. We kept the access modifier as default to avoid any external access.
+     */
+    void addDuration(Duration duration) {
+        values.add(duration);
     }
 }

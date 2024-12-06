@@ -29,10 +29,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of a {@link Gauge}.
  */
 class GaugeImpl extends MetricBase implements Gauge, Reportable {
-    private AtomicBoolean updated = new AtomicBoolean(false);
-    private AtomicLong curr = new AtomicLong(0);
+    private final AtomicBoolean updated = new AtomicBoolean(false);
+    private final AtomicLong curr = new AtomicLong(0);
 
-    protected GaugeImpl(ScopeImpl scope, String fqn) {
+    GaugeImpl(ScopeImpl scope, String fqn) {
         super(fqn);
 
         scope.addToReportingQueue(this);
@@ -44,10 +44,6 @@ class GaugeImpl extends MetricBase implements Gauge, Reportable {
         updated.set(true);
     }
 
-    double value() {
-        return Double.longBitsToDouble(curr.get());
-    }
-
     @Override
     public void report(ImmutableMap<String, String> tags, StatsReporter reporter) {
         if (updated.getAndSet(false)) {
@@ -55,7 +51,7 @@ class GaugeImpl extends MetricBase implements Gauge, Reportable {
         }
     }
 
-    double snapshot() {
-        return value();
+    double value() {
+        return Double.longBitsToDouble(curr.get());
     }
 }

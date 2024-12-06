@@ -20,16 +20,11 @@
 
 package com.uber.m3.tally;
 
+import com.uber.m3.util.Duration;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
-import com.uber.m3.util.Duration;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 public class ValueBucketsTest {
     @Test
@@ -151,10 +146,10 @@ public class ValueBucketsTest {
         ValueBuckets buckets = ValueBuckets.linear(0, 10, 3);
         ValueBuckets sameBuckets = ValueBuckets.linear(0, 10, 3);
 
-        assertTrue(buckets.equals(sameBuckets));
+        assertEquals(buckets, sameBuckets);
         assertEquals(buckets.hashCode(), sameBuckets.hashCode());
 
-        assertFalse(buckets.equals(null));
-        assertFalse(buckets.equals(9));
+        assertNotEquals(null, buckets);
+        assertNotEquals(9, buckets);
     }
 }

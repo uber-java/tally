@@ -20,29 +20,20 @@
 
 package com.uber.m3.tally;
 
-import org.junit.Before;
+import com.uber.m3.util.ImmutableMap;
 import org.junit.Test;
 
+import static com.uber.m3.tally.ScopeImpl.keyForPrefixedStringMap;
 import static org.junit.Assert.assertEquals;
 
 public class CounterImplTest {
-    private TestStatsReporter reporter;
-    private CounterImpl counter;
-    private ScopeImpl scope;
-
-    @Before
-    public void setUp() {
-        reporter = new TestStatsReporter();
-        scope =
-            new ScopeBuilder(null, new ScopeImpl.Registry())
-                .reporter(reporter)
-                .build();
-
-        counter = new CounterImpl(scope, "counter");
-    }
+    private final TestStatsReporter reporter = new TestStatsReporter();
+    private final ScopeImpl scope = new ScopeBuilder(null, new ScopeImpl.Registry()).reporter(reporter).build();
 
     @Test
     public void inc() {
+        CounterImpl counter = new CounterImpl(scope, "counter");
+
         counter.inc(1);
         counter.report(null, reporter);
         assertEquals(1, reporter.nextCounterVal());
@@ -68,6 +59,8 @@ public class CounterImplTest {
 
     @Test
     public void value() {
+        CounterImpl counter = new CounterImpl(scope, "counter");
+
         assertEquals(0, counter.value());
 
         counter.inc(10);
@@ -82,15 +75,24 @@ public class CounterImplTest {
 
     @Test
     public void snapshot() {
-        assertEquals(0, counter.snapshot());
+        ScopeImpl scope = new ScopeBuilder(null, new ScopeImpl.Registry()).reporter(new SnapshotBasedStatsReporter()).build();
+        Counter counter = new CounterImpl(scope, "counter");
+
+        Snapshot snapshot1 = scope.snapshot();
+        assertEquals(0, getSnapshot(snapshot1, "counter").value());
 
         counter.inc(1);
-        assertEquals(1, counter.snapshot());
-        assertEquals(1, counter.snapshot());
+        Snapshot snapshot2 = scope.snapshot();
+        assertEquals(1, getSnapshot(snapshot2, "counter").value());
 
         counter.inc(1);
-        counter.inc(1);
-        assertEquals(3, counter.snapshot());
-        assertEquals(3, counter.snapshot());
+        counter.inc(2);
+        Snapshot snapshot3 = scope.snapshot();
+        assertEquals(4, getSnapshot(snapshot3, "counter").value());
+    }
+
+    private static CounterSnapshot getSnapshot(Snapshot snapshot, String name) {
+        ScopeKey key = keyForPrefixedStringMap(name, ImmutableMap.EMPTY);
+        return snapshot.counters().get(key);
     }
 }

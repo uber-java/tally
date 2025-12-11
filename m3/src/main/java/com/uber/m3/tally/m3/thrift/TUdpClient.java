@@ -70,7 +70,7 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
                     new DatagramPacket(writeBuffer.array(), writeBuffer.position())
                 );
             } catch (PortUnreachableException e) {
-                logger.error("UDP port unreachable during flush");
+                logger.warn("UDP port unreachable during flush");
             } catch (IOException e) {
                 throw new TTransportException(e);
             } finally {

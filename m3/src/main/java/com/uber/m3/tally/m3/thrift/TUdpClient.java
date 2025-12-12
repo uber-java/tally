@@ -25,6 +25,7 @@ import org.apache.thrift.transport.TTransportException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.PortUnreachableException;
 import java.net.SocketAddress;
 import java.net.SocketException;
 
@@ -68,6 +69,8 @@ public class TUdpClient extends TUdpTransport implements AutoCloseable {
                     //       directly
                     new DatagramPacket(writeBuffer.array(), writeBuffer.position())
                 );
+            } catch (PortUnreachableException e) {
+                logger.warn("UDP port unreachable during flush");
             } catch (IOException e) {
                 throw new TTransportException(e);
             } finally {

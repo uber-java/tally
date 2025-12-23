@@ -78,20 +78,18 @@ public class StatsdReporter implements StatsReporter {
 
     @Override
     public void reportCounter(String name, Map<String, String> tags, long value) {
-        // We don't support tags for StatsD
-        statsdClient.count(name, value, sampleRate);
+        statsdClient.count(name, value, sampleRate, adaptTags(tags));
     }
 
     @Override
     public void reportGauge(String name, Map<String, String> tags, double value) {
-        // We don't support tags for StatsD
-        statsdClient.gauge(name, value, sampleRate);
+        statsdClient.gauge(name, value, sampleRate, adaptTags(tags));
     }
 
     @Override
     public void reportTimer(String name, Map<String, String> tags, Duration interval) {
         // We don't support tags for StatsD
-        statsdClient.time(name, interval.toMillis(), sampleRate);
+        statsdClient.time(name, interval.toMillis(), sampleRate, adaptTags(tags));
     }
 
     @Override
@@ -103,7 +101,6 @@ public class StatsdReporter implements StatsReporter {
         double bucketUpperBound,
         long samples
     ) {
-        // We don't support tags for StatsD
         statsdClient.count(
             bucketString(
                 name,
@@ -111,7 +108,8 @@ public class StatsdReporter implements StatsReporter {
                 valueBucketString(bucketUpperBound)
             ),
             samples,
-            sampleRate
+            sampleRate,
+            adaptTags(tags)
         );
     }
 
@@ -132,7 +130,8 @@ public class StatsdReporter implements StatsReporter {
                 durationBucketString(bucketUpperBound)
             ),
             samples,
-            sampleRate
+            sampleRate,
+            adaptTags(tags)
         );
     }
 
@@ -162,5 +161,15 @@ public class StatsdReporter implements StatsReporter {
         }
 
         return bucketBound.toString();
+    }
+
+    private String[] adaptTags(Map<String, String> tags) {
+        if (tags == null) {
+            return null;
+        }
+        return tags.entrySet()
+          .stream()
+          .map(entry -> String.format("%s:%s", entry.getKey(), entry.getValue()))
+          .toArray(String[]::new);
     }
 }

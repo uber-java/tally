@@ -21,17 +21,24 @@
 package com.uber.m3.tally.statsd;
 
 import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClient;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.DurationBuckets;
 import com.uber.m3.tally.ValueBuckets;
+import com.uber.m3.tally.statsd.StatsdAssertingUdpServer.ReportedMetric;
 import com.uber.m3.util.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 
 import java.util.HashSet;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 public class StatsdReporterTest {
     private final int PORT = 4434;
@@ -41,29 +48,44 @@ public class StatsdReporterTest {
 
     @Test
     public void statsdClient() {
-        HashSet<String> expectedStrs = new HashSet<>();
-        expectedStrs.add("statsd-test.statsd-count:4|c");
-        expectedStrs.add("statsd-test.statsd-gauge:1.5|g");
-        expectedStrs.add("statsd-test.statsd-timer:250|ms");
-        expectedStrs.add("statsd-test.statsd-histvalue.2000.000000-3000.000000:510|c");
-        expectedStrs.add("statsd-test.statsd-histduration.19ms-20ms:1250|c");
-        expectedStrs.add("statsd-test.statsd-histvalue-inf.-infinity-infinity:99|c");
-        expectedStrs.add("statsd-test.statsd-histduration-inf.-infinity-infinity:999|c");
+        Set<String> expectedTags = new HashSet<>();
+        expectedTags.add("key1:val1");
+        expectedTags.add("key2:val:with:colons");
 
-        StatsdAssertingUdpServer server = new StatsdAssertingUdpServer("localhost", PORT, expectedStrs);
+        Set<ReportedMetric> expected = new HashSet<>();
+        expected.add(new ReportedMetric("statsd-test.statsd-count", "4", "c", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-count-notags", "4", "c", new HashSet<>()));
+        expected.add(new ReportedMetric("statsd-test.statsd-gauge", "1.5", "g", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-timer", "250", "ms", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-histvalue.2000.000000-3000.000000", "510", "c", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-histduration.19ms-20ms", "1250", "c", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-histvalue-inf.-infinity-infinity", "99", "c", expectedTags));
+        expected.add(new ReportedMetric("statsd-test.statsd-histduration-inf.-infinity-infinity", "999", "c", expectedTags));
+
+        StatsdAssertingUdpServer server = new StatsdAssertingUdpServer("localhost", PORT, expected);
 
         Thread serverThread = new Thread(server);
         serverThread.start();
 
-        statsd = new NonBlockingStatsDClient("statsd-test", "localhost", PORT);
+        statsd = new NonBlockingStatsDClientBuilder()
+            .prefix("statsd-test")
+            .hostname("localhost")
+            .port(PORT)
+            .blocking(true)
+            .build();
         reporter = new StatsdReporter(statsd);
 
-        reporter.reportCounter("statsd-count", null, 4);
-        reporter.reportGauge("statsd-gauge", null, 1.5);
-        reporter.reportTimer("statsd-timer", null, Duration.ofMillis(250));
+        Map<String, String> tags = new HashMap<>();
+        tags.put("key1", "val1");
+        tags.put("key2", "val:with:colons");
+
+        reporter.reportCounter("statsd-count", tags, 4);
+        reporter.reportCounter("statsd-count-notags", null, 4);
+        reporter.reportGauge("statsd-gauge", tags, 1.5);
+        reporter.reportTimer("statsd-timer", tags, Duration.ofMillis(250));
         reporter.reportHistogramValueSamples(
             "statsd-histvalue",
-            null,
+            tags,
             ValueBuckets.linear(0, 1000, 6),
             2000,
             3000,
@@ -71,7 +93,7 @@ public class StatsdReporterTest {
         );
         reporter.reportHistogramDurationSamples(
             "statsd-histduration",
-            null,
+            tags,
             DurationBuckets.linear(Duration.ofSeconds(10), Duration.ofSeconds(1), 11),
             Duration.ofMillis(19),
             Duration.ofMillis(20),
@@ -79,7 +101,7 @@ public class StatsdReporterTest {
         );
         reporter.reportHistogramValueSamples(
             "statsd-histvalue-inf",
-            null,
+            tags,
             new ValueBuckets(new Double[]{-Double.MAX_VALUE, Double.MAX_VALUE}),
             -Double.MAX_VALUE,
             Double.MAX_VALUE,
@@ -87,7 +109,7 @@ public class StatsdReporterTest {
         );
         reporter.reportHistogramDurationSamples(
             "statsd-histduration-inf",
-            null,
+            tags,
             new DurationBuckets(new Duration[]{Duration.MIN_VALUE, Duration.MAX_VALUE}),
             Duration.MIN_VALUE,
             Duration.MAX_VALUE,
@@ -96,6 +118,8 @@ public class StatsdReporterTest {
 
         statsd.stop();
         reporter.close();
+
+        assertThat(server.getErrored(), is(new ArrayList<>()));
     }
 
     @Test

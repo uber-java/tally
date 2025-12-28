@@ -32,5 +32,9 @@ cache:
 before_install:
   - ./ci/before_install.sh
 
+script:
+  # Run with -i so that individual test output gets logged.
+  - ./gradlew -i check
+
 after_success:
   - ./ci/after_success.sh

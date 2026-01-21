@@ -25,8 +25,16 @@ package com.uber.m3.tally;
  * relies on values being recorded as nanosecond-level timestamps. There is no
  * assumption that {@code startNanos} is related to the current time, but successive recordings
  * of the stopwatch are comparable with one another.
+ * <p>
+ * This class implements {@link AutoCloseable}, so it can be used with try-with-resources to
+ * automatically call {@link #stop()} when the try block exits.
+ * <pre>
+ * try (Stopwatch stopwatch = timer.start()) {
+ *     // Do something
+ * } // stopwatch.stop() is automatically called here
+ * </pre>
  */
-public class Stopwatch {
+public class Stopwatch implements AutoCloseable {
     private final long startNanos;
     private final StopwatchRecorder recorder;
 
@@ -54,6 +62,15 @@ public class Stopwatch {
      */
     @Deprecated
     public void Stop() {
+        stop();
+    }
+
+    /**
+     * Closes this stopwatch by calling {@link #stop()}.
+     * This method is automatically called when used in a try-with-resources block.
+     */
+    @Override
+    public void close() {
         stop();
     }
 }

@@ -158,8 +158,8 @@ public class Duration implements Comparable<Duration> {
     }
 
     /**
-     * Returns the number of seconds in this {@link Duration} as a double.
-     * @return the number of seconds in this {@link Duration}
+     * Returns the number of nanoseconds in this {@link Duration} as a long.
+     * @return the number of nanoseconds in this {@link Duration}
      */
     public long getNanos() {
         return nanos;

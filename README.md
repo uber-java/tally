@@ -1,5 +1,7 @@
 # :heavy_check_mark: tally [![Build Status][ci-img]][ci] [![Coverage Status][cov-img]][cov] [![Maven Central][maven-img]][maven]
 
+> **This repository is not actively maintained and external contributions are not accepted.**
+
 Fast, buffered, hierarchical stats collection in Java. [Go here](https://github.com/uber-go/tally) for the Go client.
 
 ## Abstract
